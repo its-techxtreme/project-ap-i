@@ -13,6 +13,7 @@ dist/
 build/
 out/
 .turbo/
+*.tsbuildinfo
 
 # Test output
 coverage/
@@ -22,7 +23,7 @@ test-results/
 
 # Logs
 *.log
-logs/
+/logs/
 npm-debug.log*
 pnpm-debug.log*
 
