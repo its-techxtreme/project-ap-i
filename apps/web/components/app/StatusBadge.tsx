@@ -10,6 +10,18 @@ const statusColors: Record<string, string> = {
   needs_manual_review: 'bg-orange-100 text-orange-700',
   login_required: 'bg-red-100 text-red-700',
   ignored: 'bg-gray-100 text-gray-400',
+  pending: 'bg-gray-100 text-gray-600',
+  uploaded: 'bg-blue-100 text-blue-700',
+  verified: 'bg-green-100 text-green-700',
+  skipped: 'bg-gray-100 text-gray-500',
+  debug: 'bg-gray-100 text-gray-500',
+  info: 'bg-blue-100 text-blue-700',
+  warning: 'bg-amber-100 text-amber-800',
+  error: 'bg-red-100 text-red-700',
+  active: 'bg-green-100 text-green-700',
+  paused: 'bg-gray-100 text-gray-600',
+  failing: 'bg-orange-100 text-orange-700',
+  disabled: 'bg-gray-100 text-gray-400',
 }
 
 export function StatusBadge({ status }: { status: string }) {
