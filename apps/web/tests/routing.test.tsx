@@ -32,7 +32,18 @@ vi.mock('@/lib/supabase/server', () => ({
     auth: {
       getUser: vi.fn().mockResolvedValue({ data: { user: { email: 'admin@example.com' } } }),
     },
+    from: vi.fn().mockReturnValue({
+      select: vi.fn().mockReturnValue({
+        eq: vi.fn().mockReturnValue({
+          order: vi.fn().mockResolvedValue({ data: [], error: null }),
+        }),
+      }),
+    }),
   }),
+}))
+
+vi.mock('@/app/submit/SubmitForm', () => ({
+  SubmitForm: () => <div data-testid="submit-form-stub">SubmitForm</div>,
 }))
 
 describe('/submit page', () => {
