@@ -1,0 +1,19 @@
+{
+  "name": "@project-api/worker",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev":           "echo 'TODO: tsx watch src/index.ts (Phase 6)' && exit 0",
+    "build":         "echo 'TODO: tsc build (Phase 6)' && exit 0",
+    "start":         "echo 'TODO: node dist/index.js (Phase 6)' && exit 0",
+    "lint":          "echo 'TODO: eslint (Phase 6)' && exit 0",
+    "typecheck":     "echo 'TODO: tsc --noEmit (Phase 6)' && exit 0",
+    "test":          "echo 'TODO: vitest (Phase 6)' && exit 0",
+    "test:unit":     "echo 'TODO: vitest unit (Phase 6)' && exit 0",
+    "test:db":       "echo 'TODO: db integration tests (Phase 2)' && exit 0",
+    "test:worker":   "echo 'TODO: worker integration (Phase 6)' && exit 0",
+    "test:security": "echo 'TODO: security tests (Phase 16)' && exit 0"
+  },
+  "dependencies": {},
+  "devDependencies": {}
+}

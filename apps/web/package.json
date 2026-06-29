@@ -1,0 +1,18 @@
+{
+  "name": "@project-api/web",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev":           "next dev",
+    "build":         "echo 'TODO: next build (Phase 3)' && exit 0",
+    "start":         "next start",
+    "lint":          "echo 'TODO: eslint (Phase 3)' && exit 0",
+    "typecheck":     "echo 'TODO: tsc (Phase 3)' && exit 0",
+    "test":          "echo 'TODO: vitest (Phase 3)' && exit 0",
+    "test:unit":     "echo 'TODO: vitest unit (Phase 3)' && exit 0",
+    "test:e2e":      "echo 'TODO: playwright e2e (Phase 14)' && exit 0",
+    "test:security": "echo 'TODO: security tests (Phase 16)' && exit 0"
+  },
+  "dependencies": {},
+  "devDependencies": {}
+}

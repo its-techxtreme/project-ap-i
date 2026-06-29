@@ -1,0 +1,12 @@
+# Project AP-I — Docker Compose
+# Phase 6 (Worker) and Phase 12 (n8n) will populate services.
+# VPS deployment target: /opt/project-ap-i/
+
+version: '3.8'
+
+services:
+  # n8n service — Phase 12
+  # worker service — Phase 6
+
+# Volumes placeholder
+volumes: {}

@@ -1,0 +1,53 @@
+# Environment and secrets
+.env
+.env.*
+!.env.example
+
+# Dependencies
+node_modules/
+.pnpm-store/
+
+# Build output
+.next/
+dist/
+build/
+out/
+.turbo/
+
+# Test output
+coverage/
+playwright-report/
+test-results/
+.nyc_output/
+
+# Logs
+*.log
+logs/
+npm-debug.log*
+pnpm-debug.log*
+
+# Media files — never commit
+*.mp4
+*.mov
+*.mkv
+*.webm
+*.avi
+*.wmv
+*.flv
+
+# Sensitive runtime files — never commit
+playwright-profiles/
+secrets/
+tokens/
+.drive-cache/
+*.sqlite
+*.db
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Editor
+.idea/
+*.swp
+*.swo

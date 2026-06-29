@@ -1,0 +1,678 @@
+---
+subtitle: "Frontend Specification"
+author: "Atharva (Techno)"
+date: "2026-06-29"
+geometry: margin=0.72in
+fontsize: 10pt
+mainfont: DejaVu Sans
+monofont: DejaVu Sans Mono
+colorlinks: true
+linkcolor: blue
+urlcolor: blue
+toc: true
+numbersections: true
+---
+
+# Frontend Specification
+
+## Document control
+
+| Field | Value |
+|---|---|
+| Project name | Project AP-I |
+| Developer | Atharva (Techno) |
+| Document | Frontend Specification |
+| Version | 1.1 |
+| Frontend target | Next.js on Vercel |
+
+## Frontend goals
+
+The frontend must be simple for submitters and powerful for admins. The submitter page should feel like a fast internal tool: paste link, select niche, confirm rights, submit. The admin dashboard should show operational truth: what is queued, what is processing, what succeeded, what failed, and what needs manual action.
+
+## User experience principles
+
+1. Fast submission in under 15 seconds.
+2. No unnecessary fields.
+3. Clear status labels.
+4. Admin can identify problems without reading raw logs.
+5. Destructive actions require confirmation.
+6. Mobile-friendly submitter page.
+7. Desktop-first admin dashboard.
+
+## Application routes
+
+```text
+/
+  Redirect to /submit if logged in, otherwise /login
+
+/login
+  Supabase Auth login
+
+/submit
+  Submitter link submission page
+
+/my-submissions optional
+  Submitter's own recent submissions
+
+/admin
+  Admin overview
+
+/admin/jobs
+  All jobs table
+
+/admin/failed
+  Failed/manual review jobs
+
+/admin/accounts
+  Account health and login status
+
+/admin/niches
+  Niche and account mapping management
+
+/admin/logs
+  Audit and job event logs
+
+/admin/settings
+  System settings
+```
+
+## Layout structure
+
+### Submitter layout
+
+```text
+Header:
+  Project AP-I logo/name
+  User email
+  Logout
+
+Main card:
+  Link input
+  Platform selector
+  Niche dropdown
+  Rights confirmation checkbox
+  Submit button
+
+Result state:
+  Job submitted successfully
+  Job ID short display
+  Status queued
+```
+
+### Admin layout
+
+```text
+Sidebar:
+  Overview
+  Jobs
+  Failed Review
+  Accounts
+  Niches
+  Logs
+  Settings
+
+Topbar:
+  Search
+  Current user
+  Environment badge
+
+Main content:
+  Cards, tables, filters, actions
+```
+
+## Visual design
+
+### Style direction
+
+- Clean SaaS dashboard.
+- White background.
+- Neutral cards.
+- Rounded corners.
+- Subtle borders.
+- Color-coded status badges.
+- No overly flashy gradients.
+
+### Status colors
+
+```text
+queued: gray
+processing: blue
+ready_to_upload: purple
+uploading: indigo
+awaiting_verification: amber
+completed: green
+failed: red
+needs_manual_review: orange
+login_required: red
+```
+
+### Typography
+
+Use system font or Inter.
+
+Recommended:
+
+```text
+Headings: semibold
+Body: regular
+Tables: small but readable
+Badges: medium weight
+```
+
+## Submit page detailed specification
+
+### Fields
+
+#### Link input
+
+Label: `Approved Reel/Short Link`
+
+Placeholder:
+
+```text
+Paste Instagram Reel or YouTube Shorts link
+```
+
+Client-side validation:
+
+- Required.
+- Must parse as URL.
+- Domain must be allowed.
+- Auto-detect platform.
+
+Allowed hostnames:
+
+```text
+instagram.com
+www.instagram.com
+youtube.com
+www.youtube.com
+youtu.be
+m.youtube.com
+```
+
+#### Platform selector
+
+Label: `Platform`
+
+Options:
+
+```text
+YouTube
+Instagram
+```
+
+Behavior:
+
+- Auto-filled after URL paste.
+- User can edit if needed.
+- Only two options.
+
+#### Niche dropdown
+
+Label: `Niche`
+
+Options loaded from active `niches` table.
+
+Each niche row must have:
+
+- `id`
+- `name`
+- active YouTube account mapping
+- active Instagram account mapping
+
+If no valid niche is available, show:
+
+```text
+No active niche is configured. Contact admin.
+```
+
+#### Rights confirmation
+
+Label:
+
+```text
+I confirm this content is client-approved and we have permission to process and publish it.
+```
+
+Required.
+
+This value is stored in the job row.
+
+#### Submit button
+
+States:
+
+```text
+Submit
+Validating...
+Submitting...
+Submitted
+```
+
+### Submit page error messages
+
+```text
+Please paste a valid URL.
+Only YouTube and Instagram links are supported.
+Please select a niche.
+Please confirm rights permission before submitting.
+This niche is not fully configured yet.
+Submission failed. Please try again.
+```
+
+### Success message
+
+```text
+Submitted successfully. This job is now queued for processing.
+```
+
+Optional display:
+
+```text
+Job: AP-I-20260628-0001
+Niche: Memes
+Status: Queued
+```
+
+## Admin overview page
+
+### Cards
+
+```text
+Queued jobs
+Processing now
+Completed today
+Failed today
+Needs manual review
+Login required accounts
+Drive files waiting cleanup
+```
+
+### Recent activity
+
+A compact timeline:
+
+```text
+10:15 - Job created
+10:18 - Download started
+10:20 - Processing completed
+10:24 - YouTube upload succeeded
+10:27 - Instagram upload failed
+```
+
+## Jobs table
+
+Columns:
+
+```text
+Job ID
+Created
+Source Platform
+Niche
+Status
+YouTube Status
+Instagram Status
+Drive File
+Retry Count
+Failure Reason
+Actions
+```
+
+Filters:
+
+```text
+Status
+Niche
+Source platform
+Created date
+Upload platform status
+```
+
+Actions:
+
+```text
+View details
+Retry upload
+Retry full processing
+Open source
+Open Drive file
+Delete Drive file if failed
+Mark ignored
+```
+
+## Job details page/drawer
+
+The job detail view should show:
+
+```text
+Basic info:
+  Job ID
+  Source URL
+  Source platform
+  Niche
+  Created by
+  Rights confirmed
+  Created at
+
+Processing:
+  Download status
+  Processing status
+  Drive file ID/link
+  Temp cleanup status
+
+Metadata:
+  YouTube title
+  YouTube description
+  Instagram caption
+
+Uploads:
+  YouTube account
+  YouTube status
+  YouTube uploaded URL/ID if available
+  Instagram account
+  Instagram status
+  Instagram uploaded URL/ID if available
+
+Failures:
+  Last error code
+  Failure reason
+  Retry count
+
+Timeline:
+  Every major event from job_events/audit_logs
+```
+
+## Failed review page
+
+This is the most important admin page after launch.
+
+Columns:
+
+```text
+Select checkbox
+Job ID
+Niche
+Failed stage
+YouTube status
+Instagram status
+Failure reason
+Drive file
+Retry count
+Actions
+```
+
+Bulk actions:
+
+```text
+Retry selected upload
+Delete selected Drive files
+Mark selected ignored
+```
+
+Deletion confirmation copy:
+
+```text
+This will delete the selected staged video file(s) from Google Drive. The job record and logs will remain in Supabase. Continue?
+```
+
+## Accounts page
+
+Columns:
+
+```text
+Niche
+Platform
+Account label
+Status
+Login required
+Last successful upload
+Failure count
+Browser profile path
+Actions
+```
+
+Actions:
+
+```text
+Mark login recovered
+Pause account
+Resume account
+Test session
+View recent failures
+```
+
+Account statuses:
+
+```text
+active
+paused
+login_required
+failing
+disabled
+```
+
+## Niches page
+
+Fields:
+
+```text
+Niche name
+Slug
+Active true/false
+Mapped YouTube account
+Mapped Instagram account
+```
+
+Rules:
+
+- Submit page only shows active niches.
+- A niche is valid only if it has one active YouTube account and one active Instagram account.
+- Admin should see warnings for incomplete mappings.
+
+## Logs page
+
+Log filters:
+
+```text
+Job ID
+User
+Action
+Stage
+Date
+Severity
+```
+
+Common events:
+
+```text
+job_created
+job_locked
+download_started
+download_completed
+processing_started
+processing_completed
+drive_upload_completed
+youtube_upload_started
+youtube_upload_completed
+instagram_upload_started
+instagram_upload_completed
+verification_started
+verification_completed
+drive_deleted
+manual_retry_requested
+manual_drive_delete_requested
+account_login_required
+```
+
+## Frontend data access model
+
+### Submitter
+
+Submitter should call server action or API route:
+
+```text
+POST /api/jobs
+```
+
+The server action validates auth and input before inserting.
+
+### Admin
+
+Admin pages should use server-side role checks before returning data.
+
+Recommended pattern:
+
+```text
+getCurrentUser()
+getUserRole()
+if role !== admin -> redirect or 403
+fetch admin data
+```
+
+Do not rely only on hiding admin links in the UI.
+
+## Validation schema
+
+Use Zod shared schema.
+
+```ts
+const SubmitJobSchema = z.object({
+  sourceUrl: z.string().url(),
+  sourcePlatform: z.enum(['youtube', 'instagram']),
+  nicheId: z.string().uuid(),
+  rightsConfirmed: z.literal(true),
+})
+```
+
+Server-side validation must re-check domain allowlist.
+
+## URL detection logic
+
+Pseudo-logic:
+
+```ts
+function detectPlatform(url: string): 'youtube' | 'instagram' | null {
+  const host = new URL(url).hostname.replace('www.', '')
+  if (host === 'instagram.com') return 'instagram'
+  if (host === 'youtube.com' || host === 'youtu.be' || host === 'm.youtube.com') return 'youtube'
+  return null
+}
+```
+
+## Loading states
+
+Submission page:
+
+- Show spinner on submit.
+- Disable form during submission.
+- Keep entered URL if error occurs.
+
+Admin pages:
+
+- Use table skeletons.
+- Auto-refresh every 30 to 60 seconds on overview and jobs pages.
+- Do not auto-refresh while a destructive confirmation dialog is open.
+
+## Empty states
+
+```text
+No jobs yet.
+No failed jobs.
+No accounts require login.
+No audit logs found for this filter.
+```
+
+## Accessibility
+
+- All form fields must have labels.
+- Buttons must have visible text.
+- Status badges must not rely only on color.
+- Tables should have headers.
+- Confirmation dialogs should be keyboard accessible.
+
+## Frontend security requirements
+
+- No service role key in browser bundle.
+- No platform credentials in frontend.
+- Admin route checks server-side.
+- API actions validate user session.
+- Destructive actions require admin role.
+- Do not expose raw internal worker URLs to the browser.
+
+## Frontend acceptance checklist
+
+- Submitter can submit valid YouTube link.
+- Submitter can submit valid Instagram link.
+- Invalid domain is rejected.
+- Missing rights checkbox blocks submission.
+- Missing niche blocks submission.
+- Non-admin cannot access `/admin` pages.
+- Admin can see jobs.
+- Admin can retry failed job.
+- Admin can delete selected failed Drive files.
+- Admin can see account login-required status.
+- All key actions write audit logs.
+
+## Finalized submission form fields - Version 1.1
+
+The submitter form must contain exactly these primary fields in MVP:
+
+| Field | Type | Required | Behavior |
+|---|---|---:|---|
+| Reel/Short link | URL input | Yes | Accept only YouTube/Instagram domains after validation. |
+| Platform | Select | Yes | Auto-detect from URL, but allow manual correction between `YouTube` and `Instagram`. |
+| Niche | Select | Yes | Exactly three options: `Memes`, `Anime`, `Sports`. |
+| Rights confirmation | Checkbox | Yes | Must be checked before submission. |
+| Submit | Button | Yes | Disabled until all validations pass. |
+
+Fields intentionally removed from MVP:
+
+```text
+client/source owner
+priority
+notes
+target account group manual selector
+AI niche classification
+file upload
+posting schedule
+```
+
+### Niche dropdown values
+
+```ts
+export const NICHE_OPTIONS = [
+  { slug: 'memes', label: 'Memes' },
+  { slug: 'anime', label: 'Anime' },
+  { slug: 'sports', label: 'Sports' },
+] as const;
+```
+
+### Submission success state
+
+After a successful submission, show:
+
+```text
+Submitted successfully.
+Niche: <selected niche>
+Platform detected: <YouTube/Instagram>
+Status: Queued for processing
+```
+
+Do not expose internal worker paths, account credentials, Drive folder IDs, or service errors to submitters.
+
+# References
+
+- YouTube Data API video resources and upload behavior: <https://developers.google.com/youtube/v3/docs/videos>
+- YouTube Data API upload guide: <https://developers.google.com/youtube/v3/guides/uploading_a_video>
+- Instagram Platform content publishing documentation: <https://developers.facebook.com/docs/instagram-platform/content-publishing/>
+- Supabase Row Level Security documentation: <https://supabase.com/docs/guides/database/postgres/row-level-security>
+- Supabase API keys and service role key guidance: <https://supabase.com/docs/guides/getting-started/api-keys>
+- Supabase secure data guidance: <https://supabase.com/docs/guides/database/secure-data>
+- n8n queue mode documentation: <https://docs.n8n.io/hosting/scaling/queue-mode/>
+- n8n queue mode environment variables: <https://docs.n8n.io/hosting/configuration/environment-variables/queue-mode/>
+- Google Drive API upload documentation: <https://developers.google.com/workspace/drive/api/guides/manage-uploads>
+- yt-dlp project: <https://github.com/yt-dlp/yt-dlp>
+- yt-dlp supported sites notes: <https://github.com/yt-dlp/yt-dlp/blob/master/supportedsites.md>
+- Playwright authentication state documentation: <https://playwright.dev/docs/auth>
+- Vercel sensitive environment variable documentation: <https://vercel.com/docs/environment-variables/sensitive-environment-variables>

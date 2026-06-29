@@ -1,0 +1,26 @@
+{
+  "name": "project-ap-i",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Project AP-I: Short-form content intake, processing, and publishing system",
+  "author": "Atharva (Techno)",
+  "license": "UNLICENSED",
+  "packageManager": "pnpm@9.0.0",
+  "engines": {
+    "node": ">=20.0.0",
+    "pnpm": ">=9.0.0"
+  },
+  "scripts": {
+    "lint":          "pnpm -r lint",
+    "typecheck":     "pnpm -r typecheck",
+    "test":          "pnpm -r test",
+    "test:unit":     "pnpm -r test:unit",
+    "test:db":       "pnpm --filter @project-api/worker test:db",
+    "test:worker":   "pnpm --filter @project-api/worker test",
+    "test:web":      "pnpm --filter @project-api/web test",
+    "test:e2e":      "pnpm --filter @project-api/web test:e2e",
+    "test:security": "pnpm -r test:security",
+    "build":         "pnpm -r build",
+    "check":         "pnpm lint && pnpm typecheck && pnpm test && pnpm build"
+  }
+}
