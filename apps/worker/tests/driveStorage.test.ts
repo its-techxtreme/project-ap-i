@@ -7,6 +7,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { buildDriveFileName } from '../src/storage/driveFileName'
 import { MockDriveStorage } from '../src/storage/MockDriveStorage'
+import { MockMetadataProvider } from '../src/metadata/MockMetadataProvider'
 import { assertLocalFileReadable } from '../src/storage/validateLocalFile'
 
 const updateMock = vi.fn()
@@ -150,6 +151,7 @@ describe('runProcessPipeline with MockDriveStorage', () => {
           }),
         },
         driveStorage,
+        metadataProvider: new MockMetadataProvider(),
         tempFileManager: {
           createJobDir: vi.fn().mockResolvedValue(tempDir),
           cleanupJobDir: cleanupSpy,

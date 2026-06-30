@@ -15,5 +15,6 @@ export const logger = pino({
     '*.accessToken',
     '*.serviceRoleKey',
     '*.SUPABASE_SERVICE_ROLE_KEY',
+    '*.AI_PROVIDER_API_KEY',
   ],
 })

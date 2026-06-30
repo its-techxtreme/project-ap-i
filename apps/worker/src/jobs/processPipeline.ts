@@ -6,9 +6,17 @@ import type { Downloader } from '../downloaders/types'
 import type { DbJobRow } from '../db/jobsRepo'
 import { getNicheSlugById, updateJobStatus, writeJobEvent } from '../db/jobsRepo'
 import type { Processor } from '../processors/types'
+import type { MetadataProvider } from '../metadata/types'
 import type { DriveStorage } from '../storage/types'
 
 import { TempFileManager } from './TempFileManager'
+
+const VALID_NICHE_SLUGS = ['memes', 'anime', 'sports'] as const
+type ValidNicheSlug = (typeof VALID_NICHE_SLUGS)[number]
+
+function isValidNicheSlug(slug: string): slug is ValidNicheSlug {
+  return (VALID_NICHE_SLUGS as readonly string[]).includes(slug)
+}
 
 function stageFailureFields(stage: string | undefined): Record<string, string> {
   switch (stage) {
@@ -50,21 +58,25 @@ export interface ProcessPipelineDeps {
   downloader: Downloader
   processor: Processor
   driveStorage: DriveStorage
+  metadataProvider: MetadataProvider
   tempFileManager: TempFileManager
   getNicheSlug: (nicheId: string) => Promise<string | null>
 }
 
 export async function createDefaultPipelineDeps(): Promise<ProcessPipelineDeps> {
-  const [{ createDownloader }, { FfmpegProcessor }, { createDriveStorage }] = await Promise.all([
-    import('../downloaders'),
-    import('../processors/FfmpegProcessor'),
-    import('../storage'),
-  ])
+  const [{ createDownloader }, { FfmpegProcessor }, { createDriveStorage }, { createMetadataProvider }] =
+    await Promise.all([
+      import('../downloaders'),
+      import('../processors/FfmpegProcessor'),
+      import('../storage'),
+      import('../metadata'),
+    ])
 
   return {
     downloader: createDownloader(),
     processor: new FfmpegProcessor(),
     driveStorage: createDriveStorage(),
+    metadataProvider: createMetadataProvider(),
     tempFileManager: new TempFileManager(),
     getNicheSlug: getNicheSlugById,
   }
@@ -127,7 +139,7 @@ export async function runProcessPipeline(
     await writeJobEvent(jobId, 'staging_to_drive', 'drive_upload_started', 'Starting Drive upload')
 
     const nicheSlug = await resolvedDeps.getNicheSlug(job.niche_id)
-    if (!nicheSlug) {
+    if (!nicheSlug || !isValidNicheSlug(nicheSlug)) {
       throw new ProjectApiError(
         ERROR_CODES.NICHE_ACCOUNT_NOT_FOUND,
         `Niche slug not found for niche_id: ${job.niche_id}`,
@@ -141,14 +153,34 @@ export async function runProcessPipeline(
       localFilePath: processResult.outputPath,
     })
 
+    await writeJobEvent(jobId, 'staging_to_drive', 'drive_upload_completed', 'Drive upload complete', 'info', {
+      driveFileId: driveResult.fileId,
+    })
+
+    await writeJobEvent(jobId, 'metadata', 'metadata_generation_started', 'Starting metadata generation')
+
+    const metadata = await resolvedDeps.metadataProvider.generate({
+      jobId,
+      sourceUrl: job.source_url,
+      sourcePlatform: job.source_platform,
+      nicheSlug,
+    })
+
+    const metadataStatus = metadata.generatedBy === 'ai' ? 'generated' : 'fallback_used'
+
     await updateJobStatus(jobId, 'ready_to_upload', {
       drive_file_id: driveResult.fileId,
       drive_file_name: driveResult.fileName,
       drive_view_url: driveResult.viewUrl ?? null,
       drive_folder_state: driveResult.folderState,
+      youtube_title: metadata.youtubeTitle,
+      youtube_description: metadata.youtubeDescription,
+      instagram_caption: metadata.instagramCaption,
+      metadata_status: metadataStatus,
     })
-    await writeJobEvent(jobId, 'staging_to_drive', 'drive_upload_completed', 'Drive upload complete', 'info', {
-      driveFileId: driveResult.fileId,
+    await writeJobEvent(jobId, 'metadata', 'metadata_generation_completed', 'Metadata generation complete', 'info', {
+      generatedBy: metadata.generatedBy,
+      model: metadata.model,
     })
 
     await resolvedDeps.tempFileManager.cleanupJobDir(jobId)

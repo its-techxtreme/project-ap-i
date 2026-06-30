@@ -6,6 +6,7 @@ import { ERROR_CODES, ProjectApiError } from '@project-api/shared'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { MockDriveStorage } from '../src/storage/MockDriveStorage'
+import { MockMetadataProvider } from '../src/metadata/MockMetadataProvider'
 
 const updateMock = vi.fn()
 const eqMock = vi.fn()
@@ -87,6 +88,7 @@ describe('drive cleanup and delete', () => {
           process: vi.fn().mockResolvedValue({ outputPath, fileSize: 200 }),
         },
         driveStorage: new MockDriveStorage(),
+        metadataProvider: new MockMetadataProvider(),
         tempFileManager: {
           createJobDir: vi.fn().mockResolvedValue(tempDir),
           cleanupJobDir: cleanupSpy,
