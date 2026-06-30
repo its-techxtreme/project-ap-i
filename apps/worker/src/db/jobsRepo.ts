@@ -36,6 +36,11 @@ export interface DbJobRow {
   processed_at?: string | null
   uploaded_at?: string | null
   completed_at?: string | null
+  drive_file_id?: string | null
+  drive_file_name?: string | null
+  drive_view_url?: string | null
+  drive_folder_state?: string | null
+  drive_deleted_at?: string | null
 }
 
 /** Supabase represents SQL NULL composite returns as an object of null fields. */
@@ -105,4 +110,34 @@ export async function getJobById(jobId: string): Promise<DbJobRow | null> {
   const { data, error } = await supabaseAdmin.from('jobs').select('*').eq('id', jobId).single()
   if (error || !data) return null
   return data as DbJobRow
+}
+
+/** Resolves niche slug from niche_id. */
+export async function getNicheSlugById(nicheId: string): Promise<string | null> {
+  const { data, error } = await supabaseAdmin.from('niches').select('slug').eq('id', nicheId).single()
+  if (error || !data) return null
+  return data.slug as string
+}
+
+export interface AuditLogInput {
+  actorType: 'user' | 'admin' | 'worker' | 'system'
+  action: string
+  targetType?: string
+  targetId?: string
+  metadata?: Record<string, unknown>
+}
+
+/** Writes an audit log entry. */
+export async function writeAuditLog(input: AuditLogInput): Promise<void> {
+  const { error } = await supabaseAdmin.from('audit_logs').insert({
+    actor_type: input.actorType,
+    action: input.action,
+    target_type: input.targetType ?? null,
+    target_id: input.targetId ?? null,
+    metadata: input.metadata ?? null,
+  })
+
+  if (error) {
+    logger.error({ msg: 'Failed to write audit log', action: input.action, error: error.message })
+  }
 }

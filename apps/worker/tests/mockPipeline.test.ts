@@ -34,7 +34,7 @@ describe('mock pipeline', () => {
   })
 
   it('mock process transitions through all statuses', async () => {
-    const { runMockProcess } = await import('../src/jobs/processJob')
+    const { runMockProcess } = await import('../src/jobs/mockPipeline')
     const finalStatus = await runMockProcess('job-1')
 
     expect(finalStatus).toBe('processed')
@@ -48,7 +48,7 @@ describe('mock pipeline', () => {
   })
 
   it('mock upload sets platform upload statuses to uploaded', async () => {
-    const { runMockUpload } = await import('../src/jobs/processJob')
+    const { runMockUpload } = await import('../src/jobs/mockPipeline')
     const result = await runMockUpload('job-2')
 
     expect(result).toBe('awaiting_verification')
@@ -70,7 +70,7 @@ describe('mock pipeline', () => {
       },
     }))
 
-    const { runMockUpload } = await import('../src/jobs/processJob')
+    const { runMockUpload } = await import('../src/jobs/mockPipeline')
     const result = await runMockUpload('job-3')
 
     expect(result).toEqual({ blocked: true })
@@ -78,7 +78,7 @@ describe('mock pipeline', () => {
   })
 
   it('mock verify sets completed_at and verified platform statuses', async () => {
-    const { runMockVerify } = await import('../src/jobs/processJob')
+    const { runMockVerify } = await import('../src/jobs/mockPipeline')
     const result = await runMockVerify('job-4')
 
     expect(result).toBe('completed')
@@ -94,7 +94,7 @@ describe('mock pipeline', () => {
   })
 
   it('writes job events for each stage transition', async () => {
-    const { runMockProcess } = await import('../src/jobs/processJob')
+    const { runMockProcess } = await import('../src/jobs/mockPipeline')
     await runMockProcess('job-5')
 
     expect(insertMock).toHaveBeenCalledTimes(4)
@@ -113,7 +113,7 @@ describe('mock pipeline', () => {
       },
     }))
 
-    vi.doMock('../src/jobs/processJob', () => ({
+    vi.doMock('../src/jobs/mockPipeline', () => ({
       runMockProcess: vi.fn(),
       runMockUpload: vi.fn().mockResolvedValue({ blocked: true }),
       runMockVerify: vi.fn(),

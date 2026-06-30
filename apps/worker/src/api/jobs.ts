@@ -1,10 +1,14 @@
 import crypto from 'node:crypto'
 
+import { ProjectApiError } from '@project-api/shared'
 import type { FastifyInstance } from 'fastify'
 
-import { writeJobEvent } from '../db/jobsRepo'
+import { getJobById, writeJobEvent } from '../db/jobsRepo'
 import { claimJob } from '../jobs/claimJob'
-import { runMockProcess, runMockUpload, runMockVerify } from '../jobs/processJob'
+import { createDriveStorage } from '../storage'
+import { deleteJobDriveFile } from '../jobs/driveDelete'
+import { runMockUpload, runMockVerify } from '../jobs/mockPipeline'
+import { runProcessPipeline } from '../jobs/processPipeline'
 import { logger } from '../logging/logger'
 import { workerAuthMiddleware } from '../middleware/workerAuth'
 
@@ -30,10 +34,23 @@ export async function jobRoutes(app: FastifyInstance): Promise<void> {
 
   app.post('/jobs/:id/process', async (request, reply) => {
     const { id } = request.params as { id: string }
-    logger.info({ msg: 'Mock process started', jobId: id })
+    const job = await getJobById(id)
 
-    const finalStatus = await runMockProcess(id)
-    return reply.send({ success: true, jobId: id, finalStatus })
+    if (!job) {
+      return reply.status(404).send({ error: 'Job not found' })
+    }
+
+    logger.info({ msg: 'Process pipeline started', jobId: id })
+
+    try {
+      const finalStatus = await runProcessPipeline(job)
+      return reply.send({ success: true, jobId: id, finalStatus })
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : String(err)
+      const code = err instanceof ProjectApiError ? err.code : 'PROCESS_FAILED'
+      logger.error({ msg: 'Process pipeline failed', jobId: id, code, error: message })
+      return reply.status(500).send({ error: message, code })
+    }
   })
 
   app.post('/jobs/:id/upload', async (request, reply) => {
@@ -59,8 +76,21 @@ export async function jobRoutes(app: FastifyInstance): Promise<void> {
     return reply.status(501).send({ error: 'Not implemented yet. Coming in Phase 11.' })
   })
 
-  app.post('/jobs/:id/delete-drive-file', async (_request, reply) => {
-    return reply.status(501).send({ error: 'Not implemented yet. Coming in Phase 11.' })
+  app.post('/jobs/:id/delete-drive-file', async (request, reply) => {
+    const { id } = request.params as { id: string }
+    const driveStorage = createDriveStorage()
+
+    try {
+      const result = await deleteJobDriveFile(id, driveStorage)
+      return reply.send({ success: true, jobId: id, driveFileId: result.driveFileId })
+    } catch (err: unknown) {
+      if (err instanceof ProjectApiError) {
+        const status = err.code === 'JOB_NOT_FOUND' ? 404 : 400
+        return reply.status(status).send({ error: err.message, code: err.code })
+      }
+      const message = err instanceof Error ? err.message : String(err)
+      return reply.status(500).send({ error: message })
+    }
   })
 }
 

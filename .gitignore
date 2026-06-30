@@ -37,7 +37,9 @@ pnpm-debug.log*
 *.flv
 !apps/worker/tests/fixtures/sample.mp4
 !apps/worker/tests/fixtures/watermark.png
+!apps/worker/assets/watermark.png
 apps/worker/tests/fixtures/_ffmpeg-test/
+apps/worker/tmp/
 
 # Sensitive runtime files — never commit
 playwright-profiles/
