@@ -3,6 +3,15 @@
 
 FROM node:20-slim AS base
 WORKDIR /app
+
+RUN apt-get update && apt-get install -y \
+    ffmpeg \
+    python3 \
+    python3-pip \
+    curl \
+    && pip3 install yt-dlp --break-system-packages \
+    && rm -rf /var/lib/apt/lists/*
+
 RUN corepack enable
 
 FROM base AS builder

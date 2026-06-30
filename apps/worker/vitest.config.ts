@@ -12,6 +12,8 @@ export default defineConfig({
       SUPABASE_SERVICE_ROLE_KEY: 'test-service-role-key-not-a-real-secret',
       WORKER_INTERNAL_TOKEN: 'test-worker-internal-token-min-32-chars',
       REAL_UPLOADS_ENABLED: 'false',
+      INTEGRATION_TESTS_ENABLED: 'false',
+      TMP_DIR: '/tmp/jobs-test',
     },
   },
   resolve: {

@@ -13,6 +13,7 @@
     "test:unit": "vitest run",
     "test:db": "echo 'DB integration tests — requires Supabase' && exit 0",
     "test:worker": "vitest run",
+    "test:ffmpeg-integration": "vitest run tests/mediaPipeline.integration.test.ts tests/probeMedia.test.ts",
     "test:security": "echo 'TODO Phase 16' && exit 0",
     "smoke": "node --env-file=../../.env scripts/smoke-test.mjs",
     "seed:test-job": "node --env-file=../../.env scripts/seed-test-job.mjs"
@@ -22,6 +23,7 @@
     "@fastify/helmet": "^13.0.1",
     "@project-api/shared": "workspace:*",
     "@supabase/supabase-js": "^2.98.0",
+    "execa": "^9.6.1",
     "fastify": "^5.3.3",
     "p-limit": "^6.2.0",
     "pino": "^9.6.0",

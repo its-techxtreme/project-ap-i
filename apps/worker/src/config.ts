@@ -30,6 +30,13 @@ const configSchema = z.object({
   WATERMARK_PATH: z.string().default('/app/assets/watermark.png'),
   TMP_DIR: z.string().default('/app/tmp/jobs'),
 
+  MAX_SOURCE_DURATION_SECONDS: z.string().default('180').transform(Number),
+  MAX_SOURCE_FILE_SIZE_MB: z.string().default('500').transform(Number),
+  INTEGRATION_TESTS_ENABLED: z
+    .string()
+    .default('false')
+    .transform((v) => v === 'true'),
+
   GOOGLE_DRIVE_CLIENT_ID: z.string().optional(),
   GOOGLE_DRIVE_CLIENT_SECRET: z.string().optional(),
   GOOGLE_DRIVE_REFRESH_TOKEN: z.string().optional(),
