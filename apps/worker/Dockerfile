@@ -1,7 +1,24 @@
-# Phase 7 will populate the real Dockerfile.
-# This is a structural placeholder so infra references compile.
-FROM node:20-slim
-WORKDIR /app
+# Build from repository root:
+#   docker build -f apps/worker/Dockerfile -t project-api-worker .
 
-# Placeholder — real image built in Phase 7
-RUN echo "Worker placeholder — Phase 7 will populate this"
+FROM node:20-slim AS base
+WORKDIR /app
+RUN corepack enable
+
+FROM base AS builder
+COPY pnpm-lock.yaml pnpm-workspace.yaml package.json ./
+COPY packages/shared ./packages/shared
+COPY apps/worker ./apps/worker
+RUN pnpm install --frozen-lockfile
+RUN pnpm --filter @project-api/worker build
+RUN pnpm deploy --filter @project-api/worker --prod /out/worker
+
+FROM base AS runner
+ENV NODE_ENV=production
+ENV PORT=3001
+
+WORKDIR /app
+COPY --from=builder /out/worker ./
+
+EXPOSE 3001
+CMD ["node", "dist/index.js"]

@@ -21,6 +21,10 @@
     "test:e2e":      "pnpm --filter @project-api/web test:e2e",
     "test:security": "pnpm -r test:security",
     "build":         "pnpm -r build",
-    "check":         "pnpm lint && pnpm typecheck && pnpm test && pnpm build"
+    "check":         "pnpm lint && pnpm typecheck && pnpm test && pnpm build",
+    "setup:local-env": "node scripts/setup-local-env.mjs",
+    "docker:up":     "docker compose -f infra/docker-compose.yml up -d --build",
+    "docker:down":   "docker compose -f infra/docker-compose.yml down",
+    "docker:logs":   "docker compose -f infra/docker-compose.yml logs -f"
   }
 }

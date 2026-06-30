@@ -1,12 +1,41 @@
-# Project AP-I — Docker Compose
-# Phase 6 (Worker) and Phase 12 (n8n) will populate services.
-# VPS deployment target: /opt/project-ap-i/
+# Project AP-I — local Docker stack (worker + n8n)
+# From repo root:
+#   pnpm docker:up
+#   pnpm docker:logs
 
-version: '3.8'
+name: project-ap-i
 
 services:
-  # n8n service — Phase 12
-  # worker service — Phase 6
+  worker:
+    build:
+      context: ..
+      dockerfile: apps/worker/Dockerfile
+    container_name: project-api-worker
+    env_file:
+      - ../.env
+    environment:
+      NODE_ENV: production
+      PORT: 3001
+    ports:
+      - '3001:3001'
+    restart: unless-stopped
 
-# Volumes placeholder
-volumes: {}
+  n8n:
+    image: docker.n8n.io/n8nio/n8n:1.98.1
+    container_name: project-api-n8n
+    env_file:
+      - ../.env
+    environment:
+      # Overrides for Docker networking (rest comes from ../.env)
+      N8N_PORT: 5678
+      WORKER_BASE_URL: http://worker:3001
+    ports:
+      - '5678:5678'
+    volumes:
+      - n8n_data:/home/node/.n8n
+    depends_on:
+      - worker
+    restart: unless-stopped
+
+volumes:
+  n8n_data:
