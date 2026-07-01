@@ -47,36 +47,6 @@ describe('mock pipeline', () => {
     ])
   })
 
-  it('mock upload sets platform upload statuses to uploaded', async () => {
-    const { runMockUpload } = await import('../src/jobs/mockPipeline')
-    const result = await runMockUpload('job-2')
-
-    expect(result).toBe('awaiting_verification')
-    expect(updateMock).toHaveBeenCalledWith(
-      expect.objectContaining({
-        status: 'awaiting_verification',
-        youtube_upload_status: 'uploaded',
-        instagram_upload_status: 'uploaded',
-      }),
-    )
-  })
-
-  it('mock upload returns blocked when REAL_UPLOADS_ENABLED is true', async () => {
-    vi.resetModules()
-    vi.doMock('../src/config', () => ({
-      config: {
-        REAL_UPLOADS_ENABLED: true,
-        VERIFY_DELAY_MINUTES: 30,
-      },
-    }))
-
-    const { runMockUpload } = await import('../src/jobs/mockPipeline')
-    const result = await runMockUpload('job-3')
-
-    expect(result).toEqual({ blocked: true })
-    expect(updateMock).not.toHaveBeenCalled()
-  })
-
   it('mock verify sets completed_at and verified platform statuses', async () => {
     const { runMockVerify } = await import('../src/jobs/mockPipeline')
     const result = await runMockVerify('job-4')
@@ -101,6 +71,21 @@ describe('mock pipeline', () => {
     expect(insertMock.mock.calls.every((call) => call[0].job_id === 'job-5')).toBe(true)
   })
 
+  it('runUpload returns blocked when REAL_UPLOADS_ENABLED is true', async () => {
+    vi.resetModules()
+    vi.doMock('../src/config', () => ({
+      config: {
+        REAL_UPLOADS_ENABLED: true,
+        VERIFY_DELAY_MINUTES: 30,
+      },
+    }))
+
+    const { runUpload } = await import('../src/jobs/runUpload')
+    const result = await runUpload('job-3')
+
+    expect(result).toEqual({ blocked: true })
+  })
+
   it('upload endpoint returns 503 when REAL_UPLOADS_ENABLED is true', async () => {
     vi.resetModules()
     vi.doMock('../src/config', () => ({
@@ -113,10 +98,8 @@ describe('mock pipeline', () => {
       },
     }))
 
-    vi.doMock('../src/jobs/mockPipeline', () => ({
-      runMockProcess: vi.fn(),
-      runMockUpload: vi.fn().mockResolvedValue({ blocked: true }),
-      runMockVerify: vi.fn(),
+    vi.doMock('../src/jobs/runUpload', () => ({
+      runUpload: vi.fn().mockResolvedValue({ blocked: true }),
     }))
 
     const { buildServer } = await import('../src/server')

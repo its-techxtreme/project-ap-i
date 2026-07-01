@@ -41,6 +41,11 @@ export interface DbJobRow {
   drive_view_url?: string | null
   drive_folder_state?: string | null
   drive_deleted_at?: string | null
+  youtube_title?: string | null
+  youtube_description?: string | null
+  instagram_caption?: string | null
+  failure_code?: string | null
+  failure_reason?: string | null
 }
 
 /** Supabase represents SQL NULL composite returns as an object of null fields. */

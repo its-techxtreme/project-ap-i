@@ -7,7 +7,8 @@ import { getJobById, writeJobEvent } from '../db/jobsRepo'
 import { claimJob } from '../jobs/claimJob'
 import { createDriveStorage } from '../storage'
 import { deleteJobDriveFile } from '../jobs/driveDelete'
-import { runMockUpload, runMockVerify } from '../jobs/mockPipeline'
+import { runMockVerify } from '../jobs/mockPipeline'
+import { runUpload } from '../jobs/runUpload'
 import { runProcessPipeline } from '../jobs/processPipeline'
 import { logger } from '../logging/logger'
 import { workerAuthMiddleware } from '../middleware/workerAuth'
@@ -55,7 +56,7 @@ export async function jobRoutes(app: FastifyInstance): Promise<void> {
 
   app.post('/jobs/:id/upload', async (request, reply) => {
     const { id } = request.params as { id: string }
-    const result = await runMockUpload(id)
+    const result = await runUpload(id)
 
     if (typeof result === 'object' && result.blocked) {
       return reply.status(503).send({
