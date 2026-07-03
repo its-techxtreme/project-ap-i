@@ -10,6 +10,8 @@ import { deleteJobDriveFile } from '../jobs/driveDelete'
 import { runMockVerify } from '../jobs/mockPipeline'
 import { runUpload } from '../jobs/runUpload'
 import { runProcessPipeline } from '../jobs/processPipeline'
+import { retryJob } from '../jobs/retryJob'
+import { cleanupJob } from '../jobs/cleanupJob'
 import { logger } from '../logging/logger'
 import { workerAuthMiddleware } from '../middleware/workerAuth'
 
@@ -73,8 +75,22 @@ export async function jobRoutes(app: FastifyInstance): Promise<void> {
     return reply.send({ success: true, jobId: id, finalStatus })
   })
 
-  app.post('/jobs/:id/retry-upload', async (_request, reply) => {
-    return reply.status(501).send({ error: 'Not implemented yet. Coming in Phase 11.' })
+  app.post('/jobs/:id/retry-upload', async (request, reply) => {
+    const { id } = request.params as { id: string }
+    const { platform } = (request.body as { platform?: 'youtube' | 'instagram' }) ?? 'both'
+
+    try {
+      await retryJob(id, platform)
+      return reply.send({ success: true, jobId: id })
+    } catch (err: unknown) {
+      if (err instanceof ProjectApiError) {
+        const status = err.code === 'JOB_NOT_FOUND' ? 404 : 400
+        return reply.status(status).send({ error: err.message, code: err.code })
+      }
+      const message = err instanceof Error ? err.message : String(err)
+      logger.error({ msg: 'Retry upload failed', jobId: id, error: message })
+      return reply.status(500).send({ error: message })
+    }
   })
 
   app.post('/jobs/:id/delete-drive-file', async (request, reply) => {
@@ -83,6 +99,22 @@ export async function jobRoutes(app: FastifyInstance): Promise<void> {
 
     try {
       const result = await deleteJobDriveFile(id, driveStorage)
+      return reply.send({ success: true, jobId: id, driveFileId: result.driveFileId })
+    } catch (err: unknown) {
+      if (err instanceof ProjectApiError) {
+        const status = err.code === 'JOB_NOT_FOUND' ? 404 : 400
+        return reply.status(status).send({ error: err.message, code: err.code })
+      }
+      const message = err instanceof Error ? err.message : String(err)
+      return reply.status(500).send({ error: message })
+    }
+  })
+
+  app.post('/jobs/:id/cleanup', async (request, reply) => {
+    const { id } = request.params as { id: string }
+
+    try {
+      const result = await cleanupJob(id)
       return reply.send({ success: true, jobId: id, driveFileId: result.driveFileId })
     } catch (err: unknown) {
       if (err instanceof ProjectApiError) {
