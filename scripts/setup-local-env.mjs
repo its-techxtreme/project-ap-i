@@ -55,6 +55,13 @@ if (!/^N8N_ENCRYPTION_KEY=.{32,}/m.test(text) || isMissing(text.match(/^N8N_ENCR
   log.push('N8N_ENCRYPTION_KEY=generated (64-char hex)')
 }
 
+if (isMissing(text.match(/^N8N_WEBHOOK_TOKEN=(.*)$/m)?.[1])) {
+  const token = crypto.randomBytes(32).toString('hex')
+  const r = upsertEnv(text, 'N8N_WEBHOOK_TOKEN', token)
+  text = r.text
+  log.push('N8N_WEBHOOK_TOKEN=generated (64-char hex)')
+}
+
 for (const [key, value] of Object.entries(defaults)) {
   const match = text.match(new RegExp(`^${key}=(.*)$`, 'm'))
   const current = match?.[1] ?? ''

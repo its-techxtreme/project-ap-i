@@ -1,0 +1,121 @@
+{
+  "name": "WF-04 Manual Retry Webhook",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "project-ap-i/manual-retry",
+        "authentication": "headerAuth",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "a4000004-0004-4000-8000-000000000001",
+      "name": "Manual Retry Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [240, 300],
+      "webhookId": "project-ap-i-manual-retry",
+      "credentials": {
+        "httpHeaderAuth": {
+          "name": "WebhookInternalToken"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "=http://worker:3001/jobs/{{ $json.body.jobId }}/retry-upload",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ { platform: $json.body.platform || 'both' } }}",
+        "options": {}
+      },
+      "id": "a4000004-0004-4000-8000-000000000002",
+      "name": "Retry Upload",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [480, 300],
+      "credentials": {
+        "httpHeaderAuth": {
+          "name": "WorkerToken"
+        }
+      },
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ $json }}",
+        "options": {
+          "responseCode": 200
+        }
+      },
+      "id": "a4000004-0004-4000-8000-000000000003",
+      "name": "Respond Success",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [720, 220]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ { success: false, error: $json.error || 'Retry failed' } }}",
+        "options": {
+          "responseCode": 500
+        }
+      },
+      "id": "a4000004-0004-4000-8000-000000000004",
+      "name": "Respond Error",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [720, 420]
+    }
+  ],
+  "connections": {
+    "Manual Retry Webhook": {
+      "main": [
+        [
+          {
+            "node": "Retry Upload",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Retry Upload": {
+      "main": [
+        [
+          {
+            "node": "Respond Success",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "saveManualExecutions": false
+  },
+  "staticData": null,
+  "meta": {
+    "templateCredsSetupCompleted": false
+  },
+  "pinData": {},
+  "tags": [
+    {
+      "name": "project-ap-i"
+    }
+  ]
+}

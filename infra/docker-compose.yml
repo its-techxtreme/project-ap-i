@@ -21,7 +21,7 @@ services:
     restart: unless-stopped
 
   n8n:
-    image: docker.n8n.io/n8nio/n8n:1.98.1
+    image: docker.n8n.io/n8nio/n8n:2.29.7
     container_name: project-api-n8n
     env_file:
       - ../.env
@@ -29,6 +29,17 @@ services:
       # Overrides for Docker networking (rest comes from ../.env)
       N8N_PORT: 5678
       WORKER_BASE_URL: http://worker:3001
+      VERIFY_DELAY_MINUTES: 30
+      EXECUTIONS_DATA_SAVE_ON_ERROR: all
+      EXECUTIONS_DATA_SAVE_ON_SUCCESS: all
+      EXECUTIONS_DATA_PRUNE: 'true'
+      EXECUTIONS_DATA_MAX_AGE: 168
+      # Local dev: compact insights every minute so Overview prod stats update quickly
+      # (default is 60 min; Overview reads insights_by_period, not raw executions list)
+      N8N_INSIGHTS_COMPACTION_INTERVAL_MINUTES: 1
+      N8N_ENFORCE_SETTINGS_FILE_PERMISSIONS: 'true'
+      N8N_BLOCK_ENV_ACCESS_IN_NODE: 'false'
+      N8N_EXPRESSIONS_ALLOWED_ENV_VARS: WORKER_BASE_URL,VERIFY_DELAY_MINUTES,SUPABASE_URL,SUPABASE_SERVICE_ROLE_KEY
     ports:
       - '5678:5678'
     volumes:

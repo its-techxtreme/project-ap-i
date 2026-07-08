@@ -1,0 +1,217 @@
+{
+  "name": "WF-02 Process Job",
+  "nodes": [
+    {
+      "parameters": {
+        "inputSource": "workflowInputs",
+        "workflowInputs": {
+          "values": [
+            {
+              "name": "jobId",
+              "type": "string"
+            }
+          ]
+        }
+      },
+      "id": "a2000002-0002-4000-8000-000000000001",
+      "name": "When Executed by Another Workflow",
+      "type": "n8n-nodes-base.executeWorkflowTrigger",
+      "typeVersion": 1.1,
+      "position": [240, 300]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "=http://worker:3001/jobs/{{ $json.jobId }}/process",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "options": {}
+      },
+      "id": "a2000002-0002-4000-8000-000000000002",
+      "name": "Process Job",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [480, 300],
+      "credentials": {
+        "httpHeaderAuth": {
+          "name": "WorkerToken"
+        }
+      },
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "=http://worker:3001/jobs/{{ $('When Executed by Another Workflow').item.json.jobId }}/upload",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "options": {}
+      },
+      "id": "a2000002-0002-4000-8000-000000000003",
+      "name": "Upload Job",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [720, 220],
+      "credentials": {
+        "httpHeaderAuth": {
+          "name": "WorkerToken"
+        }
+      },
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "a2000002-0002-4000-8000-000000000010",
+              "name": "jobId",
+              "value": "={{ $('When Executed by Another Workflow').item.json.jobId }}",
+              "type": "string"
+            },
+            {
+              "id": "a2000002-0002-4000-8000-000000000011",
+              "name": "verificationDueAt",
+              "value": "={{ $now.plus({ minutes: Number($env.VERIFY_DELAY_MINUTES || 30) }).toISO() }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "a2000002-0002-4000-8000-000000000004",
+      "name": "Set Verification Due",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [960, 220]
+    },
+    {
+      "parameters": {
+        "amount": 30,
+        "unit": "minutes"
+      },
+      "id": "a2000002-0002-4000-8000-000000000005",
+      "name": "Wait For Verification",
+      "type": "n8n-nodes-base.wait",
+      "typeVersion": 1.1,
+      "position": [1200, 220],
+      "webhookId": "wf02-verify-wait"
+    },
+    {
+      "parameters": {
+        "workflowId": {
+          "__rl": true,
+          "mode": "list",
+          "value": "",
+          "cachedResultName": "WF-03 Upload Verification"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "jobId": "={{ $json.jobId }}"
+          }
+        },
+        "options": {}
+      },
+      "id": "a2000002-0002-4000-8000-000000000006",
+      "name": "Run WF-03 Verify",
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.2,
+      "position": [1440, 220]
+    },
+    {
+      "parameters": {},
+      "id": "a2000002-0002-4000-8000-000000000007",
+      "name": "Process or Upload Error",
+      "type": "n8n-nodes-base.noOp",
+      "typeVersion": 1,
+      "position": [720, 460]
+    }
+  ],
+  "connections": {
+    "When Executed by Another Workflow": {
+      "main": [
+        [
+          {
+            "node": "Process Job",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Process Job": {
+      "main": [
+        [
+          {
+            "node": "Upload Job",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Process or Upload Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Upload Job": {
+      "main": [
+        [
+          {
+            "node": "Set Verification Due",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Process or Upload Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Set Verification Due": {
+      "main": [
+        [
+          {
+            "node": "Wait For Verification",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Wait For Verification": {
+      "main": [
+        [
+          {
+            "node": "Run WF-03 Verify",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "saveManualExecutions": false,
+    "callerPolicy": "workflowsFromSameOwner"
+  },
+  "staticData": null,
+  "meta": {
+    "templateCredsSetupCompleted": false
+  },
+  "pinData": {},
+  "tags": [
+    {
+      "name": "project-ap-i"
+    }
+  ]
+}

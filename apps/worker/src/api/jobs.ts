@@ -7,10 +7,10 @@ import { getJobById, writeJobEvent } from '../db/jobsRepo'
 import { claimJob } from '../jobs/claimJob'
 import { createDriveStorage } from '../storage'
 import { deleteJobDriveFile } from '../jobs/driveDelete'
-import { runMockVerify } from '../jobs/mockPipeline'
 import { runUpload } from '../jobs/runUpload'
 import { runProcessPipeline } from '../jobs/processPipeline'
 import { retryJob } from '../jobs/retryJob'
+import { verifyJob } from '../jobs/verifyJob'
 import { cleanupJob } from '../jobs/cleanupJob'
 import { logger } from '../logging/logger'
 import { workerAuthMiddleware } from '../middleware/workerAuth'
@@ -71,8 +71,36 @@ export async function jobRoutes(app: FastifyInstance): Promise<void> {
 
   app.post('/jobs/:id/verify', async (request, reply) => {
     const { id } = request.params as { id: string }
-    const finalStatus = await runMockVerify(id)
-    return reply.send({ success: true, jobId: id, finalStatus })
+
+    try {
+      await verifyJob(id)
+      const job = await getJobById(id)
+      if (!job) {
+        return reply.status(404).send({ error: 'Job not found' })
+      }
+
+      const retryScheduled =
+        job.status === 'ready_to_upload' &&
+        (job.youtube_upload_status === 'retry_scheduled' ||
+          job.instagram_upload_status === 'retry_scheduled')
+
+      return reply.send({
+        success: true,
+        jobId: id,
+        finalStatus: job.status,
+        completed: job.status === 'completed',
+        needsManualReview: job.status === 'needs_manual_review',
+        retryScheduled,
+      })
+    } catch (err: unknown) {
+      if (err instanceof ProjectApiError) {
+        const status = err.code === 'JOB_NOT_FOUND' ? 404 : 400
+        return reply.status(status).send({ error: err.message, code: err.code })
+      }
+      const message = err instanceof Error ? err.message : String(err)
+      logger.error({ msg: 'Verify job failed', jobId: id, error: message })
+      return reply.status(500).send({ error: message })
+    }
   })
 
   app.post('/jobs/:id/retry-upload', async (request, reply) => {
