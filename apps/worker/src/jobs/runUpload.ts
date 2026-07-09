@@ -1,22 +1,11 @@
-import path from 'node:path'
-
 import { ERROR_CODES, ProjectApiError } from '@project-api/shared'
 
-import { config } from '../config'
 import { getJobById, getNicheSlugById, updateJobStatus } from '../db/jobsRepo'
 import { createUploadCoordinator } from '../uploaders'
 import { logger } from '../logging/logger'
-import { createDriveStorage } from '../storage'
 
-import { MOCK_UPLOAD_FINAL_STATUS } from './statusTransitions'
-import { TempFileManager } from './TempFileManager'
-
-function needsLocalUploadFile(): boolean {
-  return (
-    config.REAL_UPLOADS_ENABLED &&
-    (config.YOUTUBE_UPLOADS_ENABLED || config.INSTAGRAM_UPLOADS_ENABLED)
-  )
-}
+import { finalizeUploadStatus } from './uploadFinalize'
+import { prepareLocalUploadFile } from './uploadLocalFile'
 
 /**
  * Runs platform uploads for a job via UploadCoordinator.
@@ -49,14 +38,9 @@ export async function runUpload(jobId: string): Promise<string> {
   })
 
   const coordinator = createUploadCoordinator()
-  const tempManager = new TempFileManager()
-  let localFilePath: string | undefined
+  const { localFilePath, cleanup } = await prepareLocalUploadFile(jobId, job.drive_file_id)
 
-  if (needsLocalUploadFile()) {
-    const jobDir = await tempManager.createJobDir(jobId)
-    localFilePath = path.join(jobDir, 'upload-source.mp4')
-    const driveStorage = createDriveStorage()
-    await driveStorage.downloadToLocal(job.drive_file_id, localFilePath, jobId)
+  if (localFilePath) {
     logger.info({ msg: 'Staged Drive file downloaded for upload', jobId, localFilePath })
   }
 
@@ -73,6 +57,7 @@ export async function runUpload(jobId: string): Promise<string> {
       youtubeRetryCount: job.youtube_retry_count,
       instagramRetryCount: job.instagram_retry_count,
       localFilePath,
+      platformsToUpload: ['youtube', 'instagram'],
     })
   } catch (err) {
     if (err instanceof ProjectApiError && err.code === ERROR_CODES.NICHE_ACCOUNT_MAPPING_INVALID) {
@@ -81,36 +66,15 @@ export async function runUpload(jobId: string): Promise<string> {
     }
     throw err
   } finally {
-    if (localFilePath) {
-      await tempManager.cleanupJobDir(jobId)
-    }
+    await cleanup()
   }
 
   const updatedJob = await getJobById(jobId)
-  const youtubeStatus = updatedJob?.youtube_upload_status
-  const instagramStatus = updatedJob?.instagram_upload_status
-
-  if (youtubeStatus === 'uploaded' && instagramStatus === 'uploaded') {
-    await updateJobStatus(jobId, MOCK_UPLOAD_FINAL_STATUS, {
-      uploaded_at: new Date().toISOString(),
-      verification_due_at: new Date(Date.now() + config.VERIFY_DELAY_MINUTES * 60_000).toISOString(),
-    })
-    return MOCK_UPLOAD_FINAL_STATUS
-  }
-
-  if (youtubeStatus === 'login_required' || instagramStatus === 'login_required') {
-    await updateJobStatus(jobId, 'needs_manual_review', {
-      failure_code: ERROR_CODES.YOUTUBE_LOGIN_REQUIRED,
-      failure_reason: 'Platform session requires login',
-    })
-    return 'needs_manual_review'
-  }
-
-  await updateJobStatus(jobId, 'needs_manual_review', {
-    failure_code: ERROR_CODES.YOUTUBE_UPLOAD_FAILED,
-    failure_reason: 'One or more platform uploads failed',
-  })
-  return 'needs_manual_review'
+  return finalizeUploadStatus(
+    jobId,
+    updatedJob?.youtube_upload_status,
+    updatedJob?.instagram_upload_status,
+  )
 }
 
 /** @deprecated Use runUpload — kept for existing imports during Phase 10 transition */

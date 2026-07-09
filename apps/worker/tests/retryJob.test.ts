@@ -118,7 +118,7 @@ describe('retryJob', () => {
 
     expect(updateMock).toHaveBeenCalledWith(
       'job-test-1',
-      'failed',
+      'uploading',
       expect.objectContaining({
         youtube_retry_count: 1,
         youtube_upload_status: 'retry_scheduled',
@@ -148,7 +148,7 @@ describe('retryJob', () => {
       'job-test-1',
       'retry',
       'retry_upload_started',
-      'Retry upload started for both platform(s)',
+      'Retry upload started for youtube, instagram platform(s)',
     )
   })
 

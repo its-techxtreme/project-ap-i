@@ -55,4 +55,6 @@ export interface UploadJobInput {
   youtubeRetryCount: number
   instagramRetryCount: number
   localFilePath?: string
+  /** When set, only upload these platforms (skips others). Used for targeted retries. */
+  platformsToUpload?: Array<'youtube' | 'instagram'>
 }

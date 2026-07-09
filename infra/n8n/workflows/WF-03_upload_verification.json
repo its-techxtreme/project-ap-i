@@ -187,6 +187,26 @@
       "type": "n8n-nodes-base.noOp",
       "typeVersion": 1,
       "position": [720, 520]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "=http://worker:3001/jobs/{{ $json.jobId }}/retry-upload",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "options": {}
+      },
+      "id": "a3000003-0003-4000-8000-00000000000b",
+      "name": "Retry Upload",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1920, 420],
+      "credentials": {
+        "httpHeaderAuth": {
+          "name": "WorkerToken"
+        }
+      },
+      "onError": "continueErrorOutput"
     }
   ],
   "connections": {
@@ -282,7 +302,25 @@
       "main": [
         [
           {
+            "node": "Retry Upload",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Retry Upload": {
+      "main": [
+        [
+          {
             "node": "Verify Upload",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Verify Error",
             "type": "main",
             "index": 0
           }

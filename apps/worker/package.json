@@ -16,7 +16,7 @@
     "test:ffmpeg-integration": "vitest run tests/mediaPipeline.integration.test.ts tests/probeMedia.test.ts",
     "test:drive-integration": "vitest run --config vitest.drive.config.ts",
     "test:metadata-integration": "vitest run --config vitest.metadata.config.ts",
-    "test:security": "echo 'TODO Phase 16' && exit 0",
+    "test:security": "vitest run tests/security.test.ts",
     "smoke": "node --env-file=../../.env scripts/smoke-test.mjs",
     "smoke:playwright": "tsx --env-file=../../.env scripts/smoke-playwright.ts",
     "seed:test-job": "node --env-file=../../.env scripts/seed-test-job.mjs",

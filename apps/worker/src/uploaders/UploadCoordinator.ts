@@ -33,24 +33,30 @@ export class UploadCoordinator {
       })
       .eq('id', job.id)
 
-    await this.uploadToPlatform({
-      job,
-      platform: 'youtube',
-      account: accounts.youtube,
-      uploader: this.youtubeUploader,
-      metadata: {
-        youtubeTitle: job.youtubeTitle,
-        youtubeDescription: job.youtubeDescription,
-      },
-    })
+    const platforms = job.platformsToUpload ?? (['youtube', 'instagram'] as const)
 
-    await this.uploadToPlatform({
-      job,
-      platform: 'instagram',
-      account: accounts.instagram,
-      uploader: this.instagramUploader,
-      metadata: { instagramCaption: job.instagramCaption },
-    })
+    if (platforms.includes('youtube')) {
+      await this.uploadToPlatform({
+        job,
+        platform: 'youtube',
+        account: accounts.youtube,
+        uploader: this.youtubeUploader,
+        metadata: {
+          youtubeTitle: job.youtubeTitle,
+          youtubeDescription: job.youtubeDescription,
+        },
+      })
+    }
+
+    if (platforms.includes('instagram')) {
+      await this.uploadToPlatform({
+        job,
+        platform: 'instagram',
+        account: accounts.instagram,
+        uploader: this.instagramUploader,
+        metadata: { instagramCaption: job.instagramCaption },
+      })
+    }
   }
 
   private async uploadToPlatform(params: {

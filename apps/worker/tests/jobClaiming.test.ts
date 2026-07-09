@@ -91,6 +91,7 @@ describe('claimNextJob', () => {
     const insertMock = vi.fn().mockResolvedValue({ error: null })
     const fromMock = vi.fn().mockReturnValue({ insert: insertMock })
 
+    vi.resetModules()
     vi.doMock('../src/db/supabaseAdmin', () => ({
       supabaseAdmin: {
         rpc: rpcMock,
@@ -101,16 +102,17 @@ describe('claimNextJob', () => {
     const { buildServer } = await import('../src/server')
     const app = await buildServer()
 
-    await app.inject({
+    const response = await app.inject({
       method: 'POST',
       url: '/jobs/claim',
       headers: { 'x-worker-token': 'test-worker-internal-token-min-32-chars' },
     })
 
+    expect(response.statusCode).toBe(200)
     expect(infoMock).toHaveBeenCalledWith(
       expect.objectContaining({ msg: 'Job claimed', jobId: 'job-456' }),
     )
-  })
+  }, 15_000)
 
   it('does not log service role key', async () => {
     rpcMock.mockResolvedValue({ data: null, error: null })

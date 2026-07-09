@@ -81,6 +81,25 @@ describe('verifyJob', () => {
     singleMock.mockResolvedValue({ data: { id: 'attempt-1' }, error: null })
     driveDeleteMock.mockResolvedValue(undefined)
 
+    fromMock.mockImplementation((table: string) => {
+      if (table === 'upload_attempts') {
+        return {
+          select: vi.fn().mockReturnValue({
+            eq: vi.fn().mockReturnValue({
+              eq: vi.fn().mockResolvedValue({
+                data: [
+                  { id: 'a1', platform: 'youtube', status: 'uploaded', platform_media_id: 'yt-1' },
+                  { id: 'a2', platform: 'instagram', status: 'uploaded', platform_media_id: 'ig-1' },
+                ],
+                error: null,
+              }),
+            }),
+          }),
+        }
+      }
+      return { insert: insertMock }
+    })
+
     vi.mocked(getJobById).mockResolvedValue(mockJob())
   })
 
@@ -93,6 +112,7 @@ describe('verifyJob', () => {
 
     await verifyJob('job-test-1')
 
+    expect(driveDeleteMock).toHaveBeenCalledWith('drive-file-1', 'job-test-1')
     expect(updateMock).toHaveBeenCalledWith(
       'job-test-1',
       'completed',
@@ -185,9 +205,10 @@ describe('verifyJob', () => {
     await verifyJob('job-test-1')
 
     const calls = updateMock.mock.calls
-    const completedCall = calls.find((c) => c[1] === 'completed')
+    const completedCall = calls.find(
+      (c) => c[1] === 'completed' && c[2]?.completed_at,
+    )
     expect(completedCall).toBeDefined()
-    expect(completedCall?.[2]).toHaveProperty('completed_at')
     expect(typeof completedCall?.[2]?.completed_at).toBe('string')
   })
 

@@ -3,13 +3,15 @@ import { getJobById, getNicheSlugById, updateJobStatus, writeJobEvent, writeAudi
 import { createUploadCoordinator } from '../uploaders'
 import { logger } from '../logging/logger'
 
+import { finalizeUploadStatus, platformsNeedingUpload } from './uploadFinalize'
+import { prepareLocalUploadFile } from './uploadLocalFile'
+
 export async function retryJob(jobId: string, platform?: 'youtube' | 'instagram'): Promise<void> {
   const job = await getJobById(jobId)
   if (!job) {
     throw new ProjectApiError(ERROR_CODES.JOB_NOT_FOUND, `Job not found: ${jobId}`)
   }
 
-  // Verify Drive file still exists
   if (!job.drive_file_id || job.drive_deleted_at) {
     await updateJobStatus(job.id, 'needs_manual_review', {
       failure_code: ERROR_CODES.DRIVE_FILE_MISSING,
@@ -27,7 +29,6 @@ export async function retryJob(jobId: string, platform?: 'youtube' | 'instagram'
     throw new ProjectApiError(ERROR_CODES.DRIVE_FILE_MISSING, 'Drive file missing, cannot retry')
   }
 
-  // Check job status is retryable
   const retryableStatuses = ['failed', 'needs_manual_review', 'ready_to_upload', 'awaiting_verification']
   if (!retryableStatuses.includes(job.status)) {
     throw new ProjectApiError(
@@ -36,32 +37,38 @@ export async function retryJob(jobId: string, platform?: 'youtube' | 'instagram'
     )
   }
 
-  logger.info({ msg: 'Starting retry upload', jobId, platform })
+  const targets = platformsNeedingUpload(
+    job.youtube_upload_status,
+    job.instagram_upload_status,
+    platform,
+  )
 
-  // Increment retry count for the specific platform
-  if (platform === 'youtube') {
-    await updateJobStatus(job.id, job.status, {
-      youtube_retry_count: job.youtube_retry_count + 1,
-      youtube_upload_status: 'retry_scheduled',
-    })
-  } else if (platform === 'instagram') {
-    await updateJobStatus(job.id, job.status, {
-      instagram_retry_count: job.instagram_retry_count + 1,
-      instagram_upload_status: 'retry_scheduled',
-    })
-  } else {
-    // Retry both platforms
-    await updateJobStatus(job.id, job.status, {
-      youtube_retry_count: job.youtube_retry_count + 1,
-      instagram_retry_count: job.instagram_retry_count + 1,
-      youtube_upload_status: 'retry_scheduled',
-      instagram_upload_status: 'retry_scheduled',
-    })
+  logger.info({ msg: 'Starting retry upload', jobId, platform, targets })
+
+  const nextYoutubeRetry =
+    targets.includes('youtube') ? job.youtube_retry_count + 1 : job.youtube_retry_count
+  const nextInstagramRetry =
+    targets.includes('instagram') ? job.instagram_retry_count + 1 : job.instagram_retry_count
+
+  const statusUpdates: Record<string, unknown> = {}
+  if (targets.includes('youtube')) {
+    statusUpdates.youtube_retry_count = nextYoutubeRetry
+    statusUpdates.youtube_upload_status = 'retry_scheduled'
+  }
+  if (targets.includes('instagram')) {
+    statusUpdates.instagram_retry_count = nextInstagramRetry
+    statusUpdates.instagram_upload_status = 'retry_scheduled'
   }
 
-  await writeJobEvent(job.id, 'retry', 'retry_upload_started', `Retry upload started for ${platform ?? 'both'} platform(s)`)
+  await updateJobStatus(job.id, 'uploading', statusUpdates)
 
-  // Get niche slug
+  await writeJobEvent(
+    job.id,
+    'retry',
+    'retry_upload_started',
+    `Retry upload started for ${platform ?? targets.join(', ')} platform(s)`,
+  )
+
   const nicheSlug = await getNicheSlugById(job.niche_id)
   if (!nicheSlug) {
     throw new ProjectApiError(
@@ -71,26 +78,43 @@ export async function retryJob(jobId: string, platform?: 'youtube' | 'instagram'
   }
 
   const coordinator = createUploadCoordinator()
+  const { localFilePath, cleanup } = await prepareLocalUploadFile(jobId, job.drive_file_id)
 
-  await coordinator.uploadBothPlatforms({
-    id: job.id,
-    nicheId: job.niche_id,
-    nicheSlug,
-    driveFileId: job.drive_file_id,
-    driveViewUrl: job.drive_view_url ?? undefined,
-    youtubeTitle: job.youtube_title ?? undefined,
-    youtubeDescription: job.youtube_description ?? undefined,
-    instagramCaption: job.instagram_caption ?? undefined,
-    youtubeRetryCount: job.youtube_retry_count,
-    instagramRetryCount: job.instagram_retry_count,
-  })
+  if (localFilePath) {
+    logger.info({ msg: 'Staged Drive file downloaded for retry upload', jobId, localFilePath })
+  }
 
-  // Write audit log for manual retry
+  try {
+    await coordinator.uploadBothPlatforms({
+      id: job.id,
+      nicheId: job.niche_id,
+      nicheSlug,
+      driveFileId: job.drive_file_id,
+      driveViewUrl: job.drive_view_url ?? undefined,
+      youtubeTitle: job.youtube_title ?? undefined,
+      youtubeDescription: job.youtube_description ?? undefined,
+      instagramCaption: job.instagram_caption ?? undefined,
+      youtubeRetryCount: nextYoutubeRetry,
+      instagramRetryCount: nextInstagramRetry,
+      localFilePath,
+      platformsToUpload: targets,
+    })
+  } finally {
+    await cleanup()
+  }
+
+  const updatedJob = await getJobById(jobId)
+  await finalizeUploadStatus(
+    jobId,
+    updatedJob?.youtube_upload_status,
+    updatedJob?.instagram_upload_status,
+  )
+
   await writeAuditLog({
     actorType: 'admin',
     action: 'manual_retry_requested',
     targetType: 'job',
     targetId: jobId,
-    metadata: { platform: platform ?? 'both' },
+    metadata: { platform: platform ?? targets.join(',') },
   })
 }

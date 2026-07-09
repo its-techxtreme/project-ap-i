@@ -1,51 +1,64 @@
 import { ERROR_CODES, ProjectApiError } from '@project-api/shared'
 import type { DbJobRow } from '../db/jobsRepo'
 import { getJobById, updateJobStatus, writeJobEvent, writeAuditLog } from '../db/jobsRepo'
+import { supabaseAdmin } from '../db/supabaseAdmin'
 import { createDriveStorage } from '../storage'
 import { logger } from '../logging/logger'
 
 const MAX_RETRY_COUNT = 2
 
-async function scheduleRetry(
-  job: DbJobRow,
-  platform: 'youtube' | 'instagram',
-  attemptNumber: number,
-): Promise<void> {
-  const retryCountField = platform === 'youtube' ? 'youtube_retry_count' : 'instagram_retry_count'
-  const uploadStatusField = platform === 'youtube' ? 'youtube_upload_status' : 'instagram_upload_status'
+type RetryOutcome = 'ok' | 'retry' | 'manual'
 
-  await updateJobStatus(job.id, 'ready_to_upload', {
-    [retryCountField]: attemptNumber,
-    [uploadStatusField]: 'retry_scheduled',
-  })
-
-  await writeJobEvent(
-    job.id,
-    'verify',
-    `${platform}_retry_scheduled`,
-    `${platform} upload failed, retry scheduled (attempt ${attemptNumber}/${MAX_RETRY_COUNT})`,
-  )
+function platformOutcome(failed: boolean, retryCount: number): RetryOutcome {
+  if (!failed) return 'ok'
+  return retryCount >= MAX_RETRY_COUNT ? 'manual' : 'retry'
 }
 
-async function markNeedsManualReview(
-  job: DbJobRow,
-  platform: 'youtube' | 'instagram',
-  attemptNumber: number,
-): Promise<void> {
-  const failureCode = platform === 'youtube' ? ERROR_CODES.YOUTUBE_UPLOAD_FAILED : ERROR_CODES.INSTAGRAM_UPLOAD_FAILED
+async function hasRecordedUploadAttempts(jobId: string): Promise<boolean> {
+  const { data, error } = await supabaseAdmin
+    .from('upload_attempts')
+    .select('id, platform, status, platform_media_id')
+    .eq('job_id', jobId)
+    .eq('status', 'uploaded')
 
-  await updateJobStatus(job.id, 'needs_manual_review', {
-    failure_code: failureCode,
-    failure_reason: `${platform} upload failed after ${attemptNumber} attempts`,
+  if (error || !data) return false
+
+  const rows = data as Array<{ platform: string; platform_media_id: string | null }>
+  const youtubeOk = rows.some((r) => r.platform === 'youtube' && r.platform_media_id)
+  const instagramOk = rows.some((r) => r.platform === 'instagram' && r.platform_media_id)
+  return youtubeOk && instagramOk
+}
+
+async function cleanupDriveFile(job: DbJobRow): Promise<void> {
+  if (!job.drive_file_id) {
+    logger.warn({ msg: 'No Drive file to cleanup', jobId: job.id })
+    return
+  }
+
+  if (job.drive_folder_state === 'deleted') {
+    logger.info({ msg: 'Drive file already deleted', jobId: job.id })
+    return
+  }
+
+  const driveStorage = createDriveStorage()
+  await driveStorage.delete(job.drive_file_id, job.id)
+
+  await updateJobStatus(job.id, 'completed', {
+    drive_folder_state: 'deleted',
+    drive_deleted_at: new Date().toISOString(),
   })
 
-  await writeJobEvent(
-    job.id,
-    'verify',
-    `${platform}_verification_failed`,
-    `${platform} upload failed ${attemptNumber} times, manual review required`,
-    'warning',
-  )
+  await writeJobEvent(job.id, 'cleanup', 'drive_deleted', 'Drive file deleted after successful verification')
+
+  await writeAuditLog({
+    actorType: 'worker',
+    action: 'drive_deleted',
+    targetType: 'job',
+    targetId: job.id,
+    metadata: { drive_file_id: job.drive_file_id },
+  })
+
+  logger.info({ msg: 'Drive file cleaned up', jobId: job.id, driveFileId: job.drive_file_id })
 }
 
 async function handleUncertainVerification(job: DbJobRow): Promise<void> {
@@ -91,7 +104,21 @@ export async function verifyJob(jobId: string): Promise<void> {
   const anyLoginRequired = youtubeStatus === 'login_required' || instagramStatus === 'login_required'
 
   if (bothUploaded) {
-    // Both platforms uploaded successfully - mark as verified and cleanup
+    const attemptsOk = await hasRecordedUploadAttempts(jobId)
+    if (!attemptsOk) {
+      logger.warn({ msg: 'Upload attempts missing platform confirmation', jobId })
+      await handleUncertainVerification(job)
+      return
+    }
+
+    try {
+      await cleanupDriveFile(job)
+    } catch (err) {
+      const message = err instanceof Error ? err.message : String(err)
+      logger.error({ msg: 'Failed to cleanup Drive file before completion', jobId, error: message })
+      throw err
+    }
+
     await updateJobStatus(jobId, 'completed', {
       youtube_upload_status: 'verified',
       instagram_upload_status: 'verified',
@@ -108,15 +135,15 @@ export async function verifyJob(jobId: string): Promise<void> {
       targetId: jobId,
     })
 
-    // Trigger Drive cleanup
-    await cleanupDriveFile(job)
     return
   }
 
   if (anyLoginRequired) {
-    // Login required - mark as needs_manual_review
     await updateJobStatus(jobId, 'needs_manual_review', {
-      failure_code: youtubeStatus === 'login_required' ? ERROR_CODES.YOUTUBE_LOGIN_REQUIRED : ERROR_CODES.INSTAGRAM_LOGIN_REQUIRED,
+      failure_code:
+        youtubeStatus === 'login_required'
+          ? ERROR_CODES.YOUTUBE_LOGIN_REQUIRED
+          : ERROR_CODES.INSTAGRAM_LOGIN_REQUIRED,
       failure_reason: 'Platform session requires login',
     })
 
@@ -125,74 +152,62 @@ export async function verifyJob(jobId: string): Promise<void> {
   }
 
   if (anyFailed) {
-    // Check retry counts for each failed platform
     const youtubeFailed = youtubeStatus === 'failed'
     const instagramFailed = instagramStatus === 'failed'
+    const youtubeResult = platformOutcome(youtubeFailed, youtubeRetryCount)
+    const instagramResult = platformOutcome(instagramFailed, instagramRetryCount)
 
-    if (youtubeFailed) {
-      // If already at max retries (youtube_retry_count >= MAX_RETRY_COUNT), mark for manual review
-      if (youtubeRetryCount >= MAX_RETRY_COUNT) {
-        await markNeedsManualReview(job, 'youtube', youtubeRetryCount)
-      } else {
-        const nextAttempt = youtubeRetryCount + 1
-        await scheduleRetry(job, 'youtube', nextAttempt)
-      }
+    if (youtubeResult === 'manual' || instagramResult === 'manual') {
+      const manualPlatform = youtubeResult === 'manual' ? 'youtube' : 'instagram'
+      const attemptNumber = manualPlatform === 'youtube' ? youtubeRetryCount : instagramRetryCount
+      const failureCode =
+        manualPlatform === 'youtube' ? ERROR_CODES.YOUTUBE_UPLOAD_FAILED : ERROR_CODES.INSTAGRAM_UPLOAD_FAILED
+
+      await updateJobStatus(job.id, 'needs_manual_review', {
+        failure_code: failureCode,
+        failure_reason: `${manualPlatform} upload failed after ${attemptNumber} attempts`,
+      })
+
+      await writeJobEvent(
+        job.id,
+        'verify',
+        `${manualPlatform}_verification_failed`,
+        `${manualPlatform} upload failed ${attemptNumber} times, manual review required`,
+        'warning',
+      )
+      return
     }
 
-    if (instagramFailed) {
-      // If already at max retries (instagram_retry_count >= MAX_RETRY_COUNT), mark for manual review
-      if (instagramRetryCount >= MAX_RETRY_COUNT) {
-        await markNeedsManualReview(job, 'instagram', instagramRetryCount)
-      } else {
-        const nextAttempt = instagramRetryCount + 1
-        await scheduleRetry(job, 'instagram', nextAttempt)
-      }
+    const updates: Record<string, unknown> = {}
+
+    if (youtubeResult === 'retry') {
+      updates.youtube_retry_count = youtubeRetryCount + 1
+      updates.youtube_upload_status = 'retry_scheduled'
+      await writeJobEvent(
+        job.id,
+        'verify',
+        'youtube_retry_scheduled',
+        `youtube upload failed, retry scheduled (attempt ${youtubeRetryCount + 1}/${MAX_RETRY_COUNT})`,
+      )
     }
 
-    // If either platform still has retries, status will be ready_to_upload
-    // If both exhausted, status will be needs_manual_review
+    if (instagramResult === 'retry') {
+      updates.instagram_retry_count = instagramRetryCount + 1
+      updates.instagram_upload_status = 'retry_scheduled'
+      await writeJobEvent(
+        job.id,
+        'verify',
+        'instagram_retry_scheduled',
+        `instagram upload failed, retry scheduled (attempt ${instagramRetryCount + 1}/${MAX_RETRY_COUNT})`,
+      )
+    }
+
+    if (Object.keys(updates).length > 0) {
+      await updateJobStatus(job.id, 'ready_to_upload', updates)
+    }
+
     return
   }
 
-  // Uncertain state - neither uploaded nor failed nor login_required
   await handleUncertainVerification(job)
-}
-
-async function cleanupDriveFile(job: DbJobRow): Promise<void> {
-  if (!job.drive_file_id) {
-    logger.warn({ msg: 'No Drive file to cleanup', jobId: job.id })
-    return
-  }
-
-  if (job.drive_folder_state === 'deleted') {
-    logger.info({ msg: 'Drive file already deleted', jobId: job.id })
-    return
-  }
-
-  const driveStorage = createDriveStorage()
-
-  try {
-    await driveStorage.delete(job.drive_file_id, job.id)
-
-    await updateJobStatus(job.id, job.status, {
-      drive_folder_state: 'deleted',
-      drive_deleted_at: new Date().toISOString(),
-    })
-
-    await writeJobEvent(job.id, 'cleanup', 'drive_deleted', 'Drive file deleted after successful verification')
-
-    await writeAuditLog({
-      actorType: 'worker',
-      action: 'drive_deleted',
-      targetType: 'job',
-      targetId: job.id,
-      metadata: { drive_file_id: job.drive_file_id },
-    })
-
-    logger.info({ msg: 'Drive file cleaned up', jobId: job.id, driveFileId: job.drive_file_id })
-  } catch (err) {
-    const message = err instanceof Error ? err.message : String(err)
-    logger.error({ msg: 'Failed to cleanup Drive file', jobId: job.id, error: message })
-    throw err
-  }
 }

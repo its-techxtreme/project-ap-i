@@ -10,8 +10,8 @@
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "test:unit": "vitest run",
-    "test:e2e": "echo 'TODO: playwright e2e (Phase 14)' && exit 0",
-    "test:security": "echo 'TODO: security tests (Phase 16)' && exit 0"
+    "test:e2e": "vitest run --config vitest.e2e.config.ts",
+    "test:security": "vitest run tests/securityChecklist.test.ts"
   },
   "dependencies": {
     "@eslint/eslintrc": "^3.3.5",
