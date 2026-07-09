@@ -1,13 +1,16 @@
-import { MockUploader } from './MockUploader'
 import { UploadCoordinator } from './UploadCoordinator'
+import { createInstagramUploader, createYoutubeUploader } from './uploaderFactory'
 
 export function createUploadCoordinator(): UploadCoordinator {
-  const uploader = new MockUploader()
-  return new UploadCoordinator(uploader, uploader)
+  return new UploadCoordinator(createYoutubeUploader(), createInstagramUploader())
 }
 
 export { MockUploader } from './MockUploader'
 export { UploadCoordinator } from './UploadCoordinator'
+export { SessionHealthChecker } from './SessionHealthChecker'
+export { YoutubePlaywrightUploader } from './YoutubePlaywrightUploader'
+export { InstagramPlaywrightUploader } from './InstagramPlaywrightUploader'
+export { createInstagramUploader, createYoutubeUploader } from './uploaderFactory'
 export { resolveNicheAccounts } from './accountResolver'
 export type {
   PlatformUploader,

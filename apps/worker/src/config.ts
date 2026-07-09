@@ -22,6 +22,21 @@ const configSchema = z.object({
     .default('false')
     .transform((v) => v === 'true'),
 
+  PLAYWRIGHT_HEADLESS: z
+    .string()
+    .default('false')
+    .transform((v) => v === 'true'),
+  PLAYWRIGHT_SLOW_MO_MS: z.string().default('200').transform(Number),
+  PLAYWRIGHT_CHANNEL: z.string().optional(),
+  PLAYWRIGHT_CHROME_PATH: z.string().optional(),
+  PLAYWRIGHT_PROFILES_DIR: z.string().optional(),
+  PLAYWRIGHT_TYPING_DELAY_MIN_MS: z.string().default('120').transform(Number),
+  PLAYWRIGHT_TYPING_DELAY_MAX_MS: z.string().default('280').transform(Number),
+  PLAYWRIGHT_ACTION_DELAY_MIN_MS: z.string().default('2500').transform(Number),
+  PLAYWRIGHT_ACTION_DELAY_MAX_MS: z.string().default('6000').transform(Number),
+  PLAYWRIGHT_READING_DELAY_MIN_MS: z.string().default('3500').transform(Number),
+  PLAYWRIGHT_READING_DELAY_MAX_MS: z.string().default('9000').transform(Number),
+
   MAX_FFMPEG_CONCURRENCY: z.string().default('1').transform(Number),
   MAX_DOWNLOAD_CONCURRENCY: z.string().default('2').transform(Number),
   JOB_LOCK_MINUTES: z.string().default('45').transform(Number),

@@ -23,16 +23,16 @@ numbersections: true
 | Developer | Atharva (Techno) |
 | Document | Backend and Worker Specification |
 | Version | 1.1 |
-| Backend target | Docker worker on Hostinger VPS |
+| Backend target | Docker worker on local machine (MVP); optional remote VPS later |
 
 ## Backend responsibility split
 
 Project AP-I has two backend areas:
 
 1. Vercel server routes/server actions for web-facing operations.
-2. VPS worker service for heavy processing and uploads.
+2. Local worker service (Docker or native Node) for heavy processing and uploads.
 
-The Vercel backend should stay lightweight. The VPS worker is responsible for the end-to-end media pipeline.
+The Vercel/local web backend should stay lightweight. The worker is responsible for the end-to-end media pipeline.
 
 ## Vercel backend responsibilities
 

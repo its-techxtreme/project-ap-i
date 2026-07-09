@@ -85,6 +85,16 @@ describe('MockDriveStorage', () => {
     await storage.delete(fileId, 'job-2')
     expect(storage.getStoredFiles().has(fileId)).toBe(false)
   })
+
+  it('downloadToLocal copies fixture mp4 to destination', async () => {
+    const destDir = await fs.mkdtemp(path.join(os.tmpdir(), 'drive-download-'))
+    const destPath = path.join(destDir, 'upload-source.mp4')
+
+    await storage.downloadToLocal('mock-drive-id-job-3', destPath, 'job-3')
+
+    const stat = await fs.stat(destPath)
+    expect(stat.size).toBeGreaterThan(0)
+  })
 })
 
 describe('runProcessPipeline with MockDriveStorage', () => {

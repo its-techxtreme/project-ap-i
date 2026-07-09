@@ -31,7 +31,7 @@ Project AP-I uses a split architecture:
 
 - Vercel hosts the web application.
 - Supabase stores users, jobs, account mappings, statuses, and audit logs.
-- n8n orchestrates workflows on the Hostinger VPS.
+- n8n orchestrates workflows on the **local machine** (Docker, localhost:5678).
 - A Dockerized worker service performs heavy tasks.
 - Google Drive stores temporary edited videos until upload verification.
 - Playwright-based uploaders publish to YouTube and Instagram in the MVP.
@@ -53,8 +53,8 @@ n8n is the coordinator, not the compute engine. The worker is the compute engine
             | creates job                     | status/logs
             v                                 |
 +-------------------------+        +----------+-----------+
-| n8n Orchestrator        | <----> | Worker API on VPS    |
-| Hostinger VPS           |        | Docker/FastAPI/Node  |
+| n8n Orchestrator        | <----> | Worker API (local)   |
+| Local Docker / native   |        | Node.js worker       |
 +-----------+-------------+        +----------+-----------+
             |                                 |
             | workflow calls                  | local temp processing
@@ -124,7 +124,7 @@ InstagramGraphApiUploader
 
 ### 5. Processing is queue-limited
 
-The Hostinger KVM 2 VPS has 2 CPU cores and 8 GB RAM. Video processing must be serialized or nearly serialized to avoid overload.
+The MVP host machine should keep FFmpeg serialized (`MAX_FFMPEG_CONCURRENCY=1`) to avoid CPU/RAM spikes during video processing.
 
 ### 6. Security is layered
 
@@ -199,7 +199,7 @@ Recommended implementation:
 
 - Python FastAPI or Node.js service.
 - Dockerized.
-- Runs on VPS behind internal network or protected endpoint.
+- Runs on localhost (Docker or native Node), reachable by n8n and the web app server actions.
 - Uses service role credentials only on server side.
 
 Responsibilities:
@@ -242,19 +242,15 @@ For MVP, one worker image can contain all modules. But code should still separat
 ## Deployment topology
 
 ```text
-Hostinger VPS
-  /opt/project-api
-    docker-compose.yml
-    .env
-    /worker
-    /n8n
-    /playwright-profiles
-    /assets/watermark.png
-    /tmp/jobs
-    /logs
+<repo-root>/
+  .env
+  infra/docker-compose.yml
+  playwright-profiles/     ← gitignored
+  apps/worker/assets/watermark.png
+  tmp/jobs/
 ```
 
-Services:
+Services (local Docker):
 
 ```text
 n8n
@@ -341,7 +337,7 @@ Lock rules:
 - Worker periodically extends lock for long jobs.
 - If worker crashes, a recovery workflow can release stale locks.
 
-## Queue strategy for current VPS
+## Queue strategy for MVP host
 
 Recommended MVP settings:
 
@@ -527,7 +523,7 @@ Dashboard should summarize:
 ## Production-readiness checklist
 
 - RLS enabled on public tables.
-- Service role key only on VPS/server.
+- Service role key only on worker/server contexts (never in browser bundle).
 - Worker token configured.
 - Docker restart policies configured.
 - Temp cleanup cron configured.

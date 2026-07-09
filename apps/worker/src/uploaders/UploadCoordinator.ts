@@ -102,6 +102,7 @@ export class UploadCoordinator {
       nicheSlug: job.nicheSlug,
       driveFileId: job.driveFileId,
       driveViewUrl: job.driveViewUrl,
+      localFilePath: job.localFilePath,
       platform,
       account,
       metadata,

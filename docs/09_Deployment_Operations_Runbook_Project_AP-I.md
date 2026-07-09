@@ -22,11 +22,17 @@ numbersections: true
 | Project name | Project AP-I |
 | Developer | Atharva (Techno) |
 | Document | Deployment and Operations Runbook |
-| Version | 1.1 |
+| Version | 1.2 |
+
+## Deployment model (v1.2 — local-first MVP)
+
+**MVP runs on the local developer machine.** Worker + n8n use `infra/docker-compose.yml` on localhost. Supabase and Google Drive remain cloud-hosted. Remote VPS deployment is **deferred** — see appendix **Future VPS deployment** at the end of this document.
+
+**Canonical local runbook:** `docs/LOCAL_DEVELOPMENT.md`
 
 ## Deployment goal
 
-Deploy Project AP-I with minimal cost while keeping operations safe on the existing Hostinger KVM 2 VPS. The system must support 4 to 5 videos/day and occasional 8-video days without overloading the VPS.
+Operate Project AP-I safely on the local machine for development, dry runs (Phase 14), and controlled real-upload smoke tests (Phase 15). The system must support 4 to 5 videos/day and occasional 8-video queue days without overloading the host (`MAX_FFMPEG_CONCURRENCY=1`).
 
 ## Environments
 
@@ -38,26 +44,25 @@ preview
 production
 ```
 
-### Local
+### Local (MVP — primary)
 
-- Developer machine.
-- Local `.env.local`.
-- Supabase development project or production with safe test data.
-- No real uploads unless explicitly enabled.
+- Developer machine (Windows).
+- Root `.env` + `apps/web/.env.local`.
+- Supabase cloud project.
+- Docker: worker on `localhost:3001`, n8n on `localhost:5678`.
+- Web: `pnpm --filter @project-api/web dev` → `localhost:3000`.
+- No real uploads unless explicitly enabled in local `.env`.
 
-### Preview
+### Preview (optional)
 
-- Vercel preview deployment.
+- Vercel preview deployment (web only).
 - Test database or protected production tables.
 - Upload disabled by default.
 
-### Production
+### Production (deferred)
 
-- Vercel production app.
-- Supabase production project.
-- VPS worker/n8n.
-- Google Drive production folders.
-- Real Playwright account profiles.
+- Optional future: Vercel web + remote VPS worker/n8n.
+- Not required for Phases 14–16 on local.
 
 ## Initial setup checklist
 
@@ -88,19 +93,26 @@ Test submit form.
 Test admin route protection.
 ```
 
-### VPS
+### Local stack (worker + n8n)
 
 ```text
-Create /opt/project-ap-i.
-Clone repo or upload worker build.
-Create .env with restricted permissions.
-Create Docker Compose file.
-Add watermark image.
-Create temp, logs, and profile folders.
-Start worker.
-Check /health.
-Start n8n.
-Import workflows.
+pnpm install
+cp .env.example .env
+pnpm setup:local-env
+pnpm docker:up
+pnpm n8n:import          # after n8n UI login + API key (optional)
+pnpm --filter @project-api/web dev
+```
+
+See `docs/LOCAL_DEVELOPMENT.md` and `infra/n8n/README.md`.
+
+```text
+Fill Supabase keys in .env and apps/web/.env.local
+Create playwright-profiles/ (gitignored)
+Add watermark asset for worker
+Import n8n workflows
+Check http://localhost:3001/health
+Check http://localhost:5678 (n8n UI)
 ```
 
 ### Google Drive
@@ -110,7 +122,7 @@ Create /ReelBot folder.
 Create /processed_ready folder.
 Create /failed_manual_review folder.
 Configure OAuth credentials.
-Store refresh token in VPS/n8n secret storage.
+Store refresh token in local `.env` / n8n credentials (never commit).
 Test upload.
 Test delete.
 ```
@@ -128,30 +140,27 @@ Save persistent profile.
 Run account session test.
 ```
 
-## Deployment folder layout
+## Local deployment folder layout
 
 ```text
-/opt/project-ap-i
+<repo-root>/
   .env
-  docker-compose.yml
-  /assets
-    watermark.png
-  /tmp
-    /jobs
-  /logs
-  /playwright-profiles
-  /n8n_data
+  apps/web/.env.local
+  infra/docker-compose.yml
+  playwright-profiles/     ← gitignored
+  apps/worker/assets/watermark.png
 ```
+
+Docker volumes (n8n data) are managed by Compose. See `infra/docker-compose.yml`.
 
 ## Recommended Docker commands
 
 ```bash
-cd /opt/project-ap-i
-docker compose pull
-docker compose build
-docker compose up -d
-docker compose ps
-docker compose logs -f worker
+pnpm docker:up
+pnpm docker:logs
+# or from repo root:
+docker compose -f infra/docker-compose.yml ps
+docker compose -f infra/docker-compose.yml logs -f worker
 ```
 
 ## Health checks
@@ -203,7 +212,7 @@ n8n failed executions
 ### Weekly check
 
 ```text
-VPS disk usage
+Host disk usage
 Docker logs size
 n8n execution data size
 Supabase table growth
@@ -213,14 +222,13 @@ Drive failed folder size
 
 ## Resource monitoring
 
-On VPS:
+On local machine:
 
 ```bash
-htop
-df -h
-du -sh /opt/project-ap-i/*
+# Windows: Task Manager / Resource Monitor
+# Docker Desktop → Containers → stats
 docker stats
-docker system df
+du -sh playwright-profiles tmp 2>/dev/null || true
 ```
 
 Alert thresholds:
@@ -237,7 +245,7 @@ CPU > 90 percent for long periods: reduce concurrency
 Worker should delete temp job folders automatically. Add a safety cron:
 
 ```bash
-find /opt/project-ap-i/tmp/jobs -mindepth 1 -maxdepth 1 -type d -mmin +180 -exec rm -rf {} \;
+find ./tmp/jobs -mindepth 1 -maxdepth 1 -type d -mmin +180 -exec rm -rf {} \; 2>/dev/null || true
 ```
 
 Only use this for temp folders, never Drive-mounted permanent data.
@@ -272,17 +280,14 @@ Do not store binary data in n8n.
 
 ## Backup approach
 
-### VPS
-
-Hostinger weekly backup is already enabled. That helps but should not be the only source of recovery.
+### Local backups
 
 Back up manually:
 
 ```text
-.env securely
-n8n workflow exports
-Docker Compose file
-Playwright profiles if needed
+.env securely (offline)
+n8n workflow exports (infra/n8n/workflows/ in git + UI export)
+playwright-profiles/ if needed (sensitive — encrypt)
 watermark asset
 ```
 
@@ -499,6 +504,21 @@ Do not run full automation until one test upload has passed for each niche/accou
 ```
 
 Because there are three niches and two target platforms each, MVP readiness requires six successful upload path tests.
+
+## Future VPS deployment (deferred)
+
+When moving off the local machine to a remote VPS (e.g. Hostinger KVM):
+
+```text
+Clone repo to /opt/project-ap-i
+Copy .env with restricted permissions (chmod 600)
+Use infra/nginx.example.conf for reverse proxy + TLS
+Mount playwright-profiles outside the repo
+Set WORKER_BASE_URL to public or VPN-only URL for n8n
+Keep REAL_UPLOADS_ENABLED=false until Phase 15 smoke test on that host
+```
+
+This is **not required** for Phases 14–16 while running locally. See v1.1 Hostinger notes in git history if needed.
 
 # References
 

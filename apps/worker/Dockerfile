@@ -30,5 +30,8 @@ WORKDIR /app
 COPY --from=builder /out/worker ./
 COPY apps/worker/assets/watermark.png ./assets/watermark.png
 
+RUN npx playwright install-deps chromium
+RUN npx playwright install chromium
+
 EXPOSE 3001
 CMD ["node", "dist/index.js"]

@@ -457,8 +457,8 @@ local temp files: delete immediately after processing or failure
 
 - Export Supabase schema after initial setup.
 - Keep migration files in Git.
-- Enable weekly VPS backup already available.
-- Do not rely on VPS backup for Supabase data.
+- Enable regular local backups of `.env` and n8n exports.
+- Do not rely on local disk as the only Supabase backup (use Supabase backups).
 - Periodically export important Supabase tables if this becomes business-critical.
 
 ## Database acceptance checklist

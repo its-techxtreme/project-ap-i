@@ -1,21 +1,28 @@
+import path from 'node:path'
+
 import { ERROR_CODES, ProjectApiError } from '@project-api/shared'
 
 import { config } from '../config'
 import { getJobById, getNicheSlugById, updateJobStatus } from '../db/jobsRepo'
 import { createUploadCoordinator } from '../uploaders'
 import { logger } from '../logging/logger'
+import { createDriveStorage } from '../storage'
 
 import { MOCK_UPLOAD_FINAL_STATUS } from './statusTransitions'
+import { TempFileManager } from './TempFileManager'
+
+function needsLocalUploadFile(): boolean {
+  return (
+    config.REAL_UPLOADS_ENABLED &&
+    (config.YOUTUBE_UPLOADS_ENABLED || config.INSTAGRAM_UPLOADS_ENABLED)
+  )
+}
 
 /**
- * Runs mock platform uploads for a job via UploadCoordinator.
- * Returns { blocked: true } when REAL_UPLOADS_ENABLED is set (Playwright not implemented yet).
+ * Runs platform uploads for a job via UploadCoordinator.
+ * Uses MockUploader when REAL_UPLOADS_ENABLED is false; Playwright uploaders when enabled.
  */
-export async function runUpload(jobId: string): Promise<string | { blocked: true }> {
-  if (config.REAL_UPLOADS_ENABLED) {
-    return { blocked: true }
-  }
-
+export async function runUpload(jobId: string): Promise<string> {
   const job = await getJobById(jobId)
   if (!job) {
     throw new ProjectApiError(ERROR_CODES.JOB_NOT_FOUND, `Job not found: ${jobId}`, { stage: 'upload' })
@@ -42,6 +49,16 @@ export async function runUpload(jobId: string): Promise<string | { blocked: true
   })
 
   const coordinator = createUploadCoordinator()
+  const tempManager = new TempFileManager()
+  let localFilePath: string | undefined
+
+  if (needsLocalUploadFile()) {
+    const jobDir = await tempManager.createJobDir(jobId)
+    localFilePath = path.join(jobDir, 'upload-source.mp4')
+    const driveStorage = createDriveStorage()
+    await driveStorage.downloadToLocal(job.drive_file_id, localFilePath, jobId)
+    logger.info({ msg: 'Staged Drive file downloaded for upload', jobId, localFilePath })
+  }
 
   try {
     await coordinator.uploadBothPlatforms({
@@ -55,6 +72,7 @@ export async function runUpload(jobId: string): Promise<string | { blocked: true
       instagramCaption: job.instagram_caption ?? undefined,
       youtubeRetryCount: job.youtube_retry_count,
       instagramRetryCount: job.instagram_retry_count,
+      localFilePath,
     })
   } catch (err) {
     if (err instanceof ProjectApiError && err.code === ERROR_CODES.NICHE_ACCOUNT_MAPPING_INVALID) {
@@ -62,6 +80,10 @@ export async function runUpload(jobId: string): Promise<string | { blocked: true
       throw err
     }
     throw err
+  } finally {
+    if (localFilePath) {
+      await tempManager.cleanupJobDir(jobId)
+    }
   }
 
   const updatedJob = await getJobById(jobId)

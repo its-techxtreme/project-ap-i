@@ -18,7 +18,9 @@
     "test:metadata-integration": "vitest run --config vitest.metadata.config.ts",
     "test:security": "echo 'TODO Phase 16' && exit 0",
     "smoke": "node --env-file=../../.env scripts/smoke-test.mjs",
-    "seed:test-job": "node --env-file=../../.env scripts/seed-test-job.mjs"
+    "smoke:playwright": "tsx --env-file=../../.env scripts/smoke-playwright.ts",
+    "seed:test-job": "node --env-file=../../.env scripts/seed-test-job.mjs",
+    "setup:profiles": "node --env-file=../../.env scripts/set-browser-profile-paths.mjs"
   },
   "dependencies": {
     "@fastify/cors": "^11.0.1",
@@ -31,6 +33,7 @@
     "p-limit": "^6.2.0",
     "pino": "^9.6.0",
     "pino-pretty": "^13.0.0",
+    "playwright": "^1.61.1",
     "ws": "^8.21.0",
     "zod": "^3.25.76"
   },

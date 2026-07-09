@@ -58,15 +58,8 @@ export async function jobRoutes(app: FastifyInstance): Promise<void> {
 
   app.post('/jobs/:id/upload', async (request, reply) => {
     const { id } = request.params as { id: string }
-    const result = await runUpload(id)
-
-    if (typeof result === 'object' && result.blocked) {
-      return reply.status(503).send({
-        error: 'Real uploads not implemented yet. Use mock mode.',
-      })
-    }
-
-    return reply.send({ success: true, jobId: id, finalStatus: result })
+    const finalStatus = await runUpload(id)
+    return reply.send({ success: true, jobId: id, finalStatus })
   })
 
   app.post('/jobs/:id/verify', async (request, reply) => {

@@ -95,7 +95,7 @@ MAX_JOBS_PER_POLL=2
 POLL_INTERVAL=2 minutes
 ```
 
-This lets the system feel immediate while protecting the VPS.
+This lets the system feel immediate while protecting the local host machine.
 
 ## WF-02: Process Job
 
@@ -336,7 +336,7 @@ Cron Trigger every 10 minutes
 
 ## n8n data pruning
 
-Because the VPS disk is 100 GB and only around 6 GB is currently used, there is room. But n8n execution history can grow over time.
+Because local disk can fill with temp files and n8n execution history, prune aggressively.
 
 Recommended:
 
@@ -362,7 +362,7 @@ Avoid storing binary data in n8n executions.
 
 The n8n workflow must expect only three active niches: `Memes`, `Anime`, and `Sports`. n8n does not decide the account mapping. It passes the job ID to the worker, and the worker resolves mapping from Supabase.
 
-For VPS safety, n8n must enforce:
+For host safety, n8n must enforce:
 
 ```text
 Maximum claimed processing jobs: 1

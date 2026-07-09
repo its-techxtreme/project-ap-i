@@ -1,3 +1,5 @@
+import path from 'node:path'
+
 import { logger } from '../logging/logger'
 
 import { buildDriveFileName } from './driveFileName'
@@ -26,6 +28,14 @@ export class MockDriveStorage implements DriveStorage {
 
   async moveToFailedFolder(fileId: string): Promise<void> {
     logger.info({ msg: '[MOCK] Drive move to failed folder', fileId })
+  }
+
+  async downloadToLocal(fileId: string, localFilePath: string, jobId: string): Promise<void> {
+    const fs = await import('node:fs/promises')
+    const fixturePath = path.join(__dirname, '../../tests/fixtures/sample.mp4')
+    await fs.mkdir(path.dirname(localFilePath), { recursive: true })
+    await fs.copyFile(fixturePath, localFilePath)
+    logger.info({ msg: '[MOCK] Drive download', fileId, jobId, localFilePath })
   }
 
   getStoredFiles(): Map<string, { fileName: string; jobId: string }> {

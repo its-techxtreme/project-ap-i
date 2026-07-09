@@ -24,25 +24,22 @@ numbersections: true
 | Document | Tech Stack and Infrastructure Specification |
 | Version | 1.1 |
 
-## Current infrastructure constraints
+## Current infrastructure constraints (local MVP)
 
-Based on the provided VPS details:
+MVP runs on the **local developer machine** (Windows). Hostinger VPS deployment is deferred.
+
+Typical local dev constraints:
 
 ```text
-Provider: Hostinger VPS
-Plan: KVM 2
-Location: Germany - Frankfurt
-CPU: 2 cores
-RAM: 8 GB
-Disk: 100 GB
-Bandwidth: 8 TB
-OS: Ubuntu 24.04 with n8n
-Observed RAM usage: around 1.3 to 1.6 GB
-Observed disk usage: around 6.2 GB
-Observed CPU: low baseline with short spikes
+Host: Windows laptop/desktop
+Worker: Docker (infra/docker-compose.yml) or native Node
+n8n: Docker on localhost:5678
+Web: Next.js dev server on localhost:3000
+Supabase: hosted cloud project
+Playwright: real Chrome profiles under playwright-profiles/ (gitignored)
 ```
 
-The VPS is sufficient for the MVP if FFmpeg is limited to one active process at a time and if temporary files are cleaned aggressively.
+The local machine is sufficient for MVP if FFmpeg is limited to one active process at a time and temporary files are cleaned aggressively. See `LOCAL_DEVELOPMENT.md` for setup.
 
 ## Recommended stack overview
 
@@ -215,9 +212,9 @@ apps/worker/src/
     logger.ts
 ```
 
-## VPS Docker Compose design
+## Local Docker Compose design
 
-Recommended services:
+See `infra/docker-compose.yml` in the repo. Recommended services:
 
 ```yaml
 services:
@@ -248,22 +245,18 @@ services:
 
 For plain Docker Compose, `deploy.resources` may not enforce limits unless using swarm. Prefer explicit runtime flags or Compose resource fields supported by your Docker version. At minimum, enforce concurrency in application code.
 
-## VPS folder layout
+## Local folder layout
 
 ```text
-/opt/project-ap-i
-  docker-compose.yml
+<repo-root>/
   .env
-  /n8n_data
-  /tmp/jobs
-  /assets/watermark.png
-  /playwright-profiles
-    /youtube-tech
-    /instagram-tech
-    /youtube-niche2
-    /instagram-niche2
-  /logs
+  infra/docker-compose.yml
+  playwright-profiles/     ← gitignored, outside committed tree
+  apps/worker/assets/watermark.png
+  tmp/jobs/                ← native worker temp (optional)
 ```
+
+When using Docker, mount volumes as defined in `infra/docker-compose.yml`. Paths like `/opt/project-ap-i` in older docs map to `<repo-root>` for local MVP.
 
 ## Environment variables
 
@@ -278,7 +271,7 @@ APP_BASE_URL=
 
 If using Vercel server routes to create jobs, the service role key may be placed in Vercel sensitive environment variables, but it must never be exposed to client bundles. If a browser can read it, the design is broken.
 
-### Worker VPS
+### Worker (local)
 
 ```text
 SUPABASE_URL=
@@ -298,7 +291,7 @@ MAX_DOWNLOAD_CONCURRENCY=2
 VERIFY_DELAY_MINUTES=30
 ```
 
-### n8n VPS
+### n8n (local Docker)
 
 ```text
 N8N_ENCRYPTION_KEY=
@@ -365,7 +358,7 @@ Assumptions:
 
 Expected behavior:
 
-- VPS should handle this under controlled queue limits.
+- Local host should handle this under controlled queue limits.
 - CPU spikes are acceptable if concurrency is one.
 - Disk usage should remain low because local temp files are deleted after Drive upload.
 
@@ -442,7 +435,7 @@ Future uploader: official APIs where practical
 ```text
 Frontend: Next.js + TypeScript + Tailwind + shadcn/ui on Vercel
 Database/Auth: Supabase Postgres + Supabase Auth + RLS
-Automation: n8n self-hosted on Hostinger VPS
+Automation: n8n self-hosted locally (Docker)
 Worker: Node.js TypeScript Docker service
 Video: yt-dlp + FFmpeg
 Storage: Google Drive API with resumable upload

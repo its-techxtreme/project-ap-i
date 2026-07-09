@@ -1,4 +1,6 @@
 import fs from 'node:fs'
+import path from 'node:path'
+import { pipeline } from 'node:stream/promises'
 
 import { ERROR_CODES, ProjectApiError } from '@project-api/shared'
 import { google } from 'googleapis'
@@ -134,6 +136,29 @@ export class GoogleDriveStorage implements DriveStorage {
       })
     } catch (err) {
       logger.warn({ msg: 'Failed to move file to failed folder', fileId, err })
+    }
+  }
+
+  async downloadToLocal(fileId: string, localFilePath: string, jobId: string): Promise<void> {
+    logger.info({ msg: 'Starting Drive download', jobId, fileId, localFilePath })
+
+    try {
+      await fs.promises.mkdir(path.dirname(localFilePath), { recursive: true })
+      const response = await this.getDrive().files.get(
+        { fileId, alt: 'media' },
+        { responseType: 'stream' },
+      )
+      const dest = fs.createWriteStream(localFilePath)
+      await pipeline(response.data as NodeJS.ReadableStream, dest)
+      assertLocalFileReadable(localFilePath)
+      logger.info({ msg: 'Drive download complete', jobId, fileId, localFilePath })
+    } catch (err: unknown) {
+      if (err instanceof ProjectApiError) throw err
+      const msg = err instanceof Error ? err.message : String(err)
+      throw new ProjectApiError(ERROR_CODES.DRIVE_UPLOAD_FAILED, `Drive download failed: ${msg}`, {
+        stage: 'upload',
+        retryable: true,
+      })
     }
   }
 }

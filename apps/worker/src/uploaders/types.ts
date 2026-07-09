@@ -54,4 +54,5 @@ export interface UploadJobInput {
   instagramCaption?: string
   youtubeRetryCount: number
   instagramRetryCount: number
+  localFilePath?: string
 }

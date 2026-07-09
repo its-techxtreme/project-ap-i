@@ -143,13 +143,12 @@ SUPABASE_SERVICE_ROLE_KEY
 WORKER_INTERNAL_TOKEN
 ```
 
-### VPS
+### Local machine
 
-Use `.env` with restricted permissions.
+Use `.env` with restricted permissions. Never commit it.
 
 ```bash
-chmod 600 /opt/project-ap-i/.env
-chown root:root /opt/project-ap-i/.env
+chmod 600 .env   # Git Bash / WSL
 ```
 
 ### n8n
@@ -161,13 +160,13 @@ Use n8n credentials where possible and set a stable `N8N_ENCRYPTION_KEY`.
 Playwright auth state/cookies are sensitive. Store them outside Git and with restricted file permissions.
 
 ```text
-/opt/project-ap-i/playwright-profiles
+<repo-root>/playwright-profiles/    ← gitignored
 ```
 
-Permissions:
+Permissions (when on Linux/WSL):
 
 ```bash
-chmod -R 700 /opt/project-ap-i/playwright-profiles
+chmod -R 700 playwright-profiles
 ```
 
 ## Platform credential strategy
@@ -185,7 +184,7 @@ Preferred MVP approach:
 Fallback credential storage:
 
 - Store credentials only if absolutely required.
-- Prefer n8n encrypted credentials or encrypted VPS secrets.
+- Prefer n8n encrypted credentials or local `.env` (never committed).
 - Do not store raw passwords in Supabase.
 - Do not expose credentials in logs.
 
@@ -383,7 +382,7 @@ Recommended:
 - Keep SSH secured with keys if possible.
 - Disable password SSH login if practical.
 
-## VPS hardening checklist
+## Local host hardening checklist
 
 ```text
 Update packages regularly.

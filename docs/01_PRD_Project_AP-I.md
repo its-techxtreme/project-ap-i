@@ -24,11 +24,11 @@ numbersections: true
 | Document | Product Requirements Document |
 | Version | 1.1 |
 | Status | Build-ready MVP specification |
-| Target deployment | Vercel + Supabase + n8n on Hostinger VPS + Google Drive |
+| Target deployment | Local machine (MVP) + Supabase cloud + Google Drive; optional Vercel/VPS later |
 
 ## Executive summary
 
-Project AP-I is a client-approved short-form content intake, processing, and republishing system. It lets trusted submitters paste approved Instagram Reel or YouTube Shorts links into a secure web page, choose a niche, confirm rights permission, and submit the content into a Supabase-backed job queue. The system then processes each queued job through an n8n-orchestrated worker pipeline running on the existing Hostinger VPS.
+Project AP-I is a client-approved short-form content intake, processing, and republishing system. It lets trusted submitters paste approved Instagram Reel or YouTube Shorts links into a secure web page, choose a niche, confirm rights permission, and submit the content into a Supabase-backed job queue. The system then processes each queued job through an n8n-orchestrated worker pipeline running on the **local developer machine** (Docker: worker + n8n). Remote VPS hosting is deferred for MVP.
 
 The MVP must download or retrieve approved content, apply a standardized republishing preset, upload a staged edited file to Google Drive, generate platform-specific metadata, and publish the content to the niche-mapped YouTube and Instagram accounts. After publishing, a verification workflow checks the result. If both uploads succeed, the staged Google Drive file is deleted. If upload fails twice, the file remains in Google Drive for manual review and cleanup from the admin dashboard.
 
@@ -58,9 +58,9 @@ Project AP-I solves this by turning every submitted link into a tracked job with
 
 ### Engineering goals
 
-1. Keep recurring cost close to zero by using existing Vercel, Supabase, Hostinger VPS, and Google Drive resources.
+1. Keep recurring cost close to zero by using existing Supabase, Google Drive, and local compute resources.
 2. Avoid heavy processing inside n8n. n8n should orchestrate, while a Docker worker performs download, FFmpeg, Drive, and Playwright tasks.
-3. Keep VPS load controlled with concurrency limits.
+3. Keep host machine load controlled with concurrency limits (`MAX_FFMPEG_CONCURRENCY=1`).
 4. Make the upload layer swappable so Playwright can be replaced by official APIs later.
 5. Use Supabase as the source of truth for job state, not Google Drive.
 6. Design database tables for auditability from day one.
@@ -119,7 +119,7 @@ Admin can:
 
 ### Worker service
 
-Backend service running on the VPS. It is not a human user.
+Backend service running on the local machine (Docker worker). It is not a human user.
 
 Worker can:
 
@@ -166,7 +166,7 @@ Worker must authenticate with a server-side secret and must not use browser-expo
 - Supabase database schema.
 - Job queue state machine.
 - n8n orchestration.
-- Worker service on VPS.
+- Worker service (local Docker or native Node).
 - yt-dlp based download layer with failure handling.
 - FFmpeg processing preset.
 - Logo watermark support.
@@ -253,7 +253,7 @@ Every successful submission creates a row in `jobs` with `status = queued`, `rig
 
 ### FR-5: Queue handling
 
-The worker shall process queued jobs in a safe order. The MVP should process one FFmpeg job at a time on the 2-core VPS.
+The worker shall process queued jobs in a safe order. The MVP should process one FFmpeg job at a time on the dev host machine.
 
 Recommended limits:
 
@@ -278,7 +278,7 @@ format: MP4/H.264
 no burned subtitles
 ```
 
-The watermark image shall be stored locally on the VPS or in a controlled asset folder that FFmpeg can access reliably.
+The watermark image shall be stored in a controlled asset folder that FFmpeg can access reliably (local path or Docker volume mount).
 
 ### FR-7: Metadata generation
 
@@ -335,17 +335,17 @@ Admin dashboard shall allow selecting failed jobs and deleting their Drive files
 - Admin routes must enforce admin role server-side.
 - URLs must be allowlisted and normalized.
 - Worker APIs must require a strong internal token.
-- Credentials should live in n8n credentials, local encrypted secrets, or protected VPS environment files.
+- Credentials should live in n8n credentials, local `.env` (never committed), or encrypted secret storage.
 
 ### Performance
 
 - 4 to 5 videos per day must complete without manual intervention under normal conditions.
-- One exceptional day with 8 videos must queue safely without overloading the VPS.
+- One exceptional day with 8 videos must queue safely without overloading the host machine.
 - A single video should not monopolize the worker forever; job timeouts are required.
 
 ### Cost
 
-- MVP should use existing Vercel, Supabase, Hostinger VPS, and Google Drive resources.
+- MVP should use existing Supabase, Google Drive, and local compute resources.
 - No paid storage or paid API dependency is required for MVP.
 
 ### Maintainability
@@ -377,7 +377,7 @@ Admin dashboard shall allow selecting failed jobs and deleting their Drive files
 |---|---:|---|
 | Playwright upload breaks due to UI change | High | Modular uploaders, manual recovery, clear failures |
 | Session expires | High | Persistent profiles, account health dashboard, manual re-login path |
-| VPS overload | Medium | FFmpeg concurrency = 1, Docker resource limits, job timeouts |
+| Host overload | Medium | FFmpeg concurrency = 1, Docker resource limits, job timeouts |
 | Drive files accumulate | Medium | Delete on success, failed cleanup UI |
 | Bad URL submission | Medium | URL allowlist, backend validation, rights checkbox |
 | Supabase key exposure | High | Never expose service role key, strict RLS |

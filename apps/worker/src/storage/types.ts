@@ -16,4 +16,5 @@ export interface DriveStorage {
   upload(input: DriveUploadInput): Promise<DriveUploadOutput>
   delete(fileId: string, jobId: string): Promise<void>
   moveToFailedFolder(fileId: string): Promise<void>
+  downloadToLocal(fileId: string, localFilePath: string, jobId: string): Promise<void>
 }
