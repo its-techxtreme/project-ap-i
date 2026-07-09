@@ -43,19 +43,17 @@ The frontend must be simple for submitters and powerful for admins. The submitte
 
 ```text
 /
-  Redirect to /submit if logged in, otherwise /login
+  Public anonymous submit form (light theme by default + theme toggle)
+  Fields: link, platform, niche, rights confirmation, submit
 
 /login
-  Supabase Auth login
+  Admin-only Supabase Auth login (dark theme by default + theme toggle)
 
 /submit
-  Submitter link submission page
-
-/my-submissions optional
-  Submitter's own recent submissions
+  Redirects to / (legacy path)
 
 /admin
-  Admin overview
+  Admin overview (dark theme by default + theme toggle)
 
 /admin/jobs
   All jobs table
@@ -67,7 +65,7 @@ The frontend must be simple for submitters and powerful for admins. The submitte
   Account health and login status
 
 /admin/niches
-  Niche and account mapping management
+  Niche and account mapping (read-only in MVP)
 
 /admin/logs
   Audit and job event logs
@@ -75,6 +73,10 @@ The frontend must be simple for submitters and powerful for admins. The submitte
 /admin/settings
   System settings
 ```
+
+Auth model note (product decision): the public form does not require signup or submitter login.
+Only `/admin/*` requires an authenticated admin. Abuse controls: IP rate limit, URL allowlist,
+server-side Zod validation, service-role insert (no anon RLS insert on jobs).
 
 ## Layout structure
 

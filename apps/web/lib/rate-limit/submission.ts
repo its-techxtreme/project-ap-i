@@ -1,5 +1,6 @@
 /**
  * In-memory submission rate limiter (MVP).
+ * Keyed by client IP for anonymous public submit.
  * Replace with Redis-backed limiter in Phase 16 for multi-instance deployments.
  */
 const ONE_MINUTE_MS = 60_000
@@ -13,9 +14,9 @@ export type RateLimitResult =
   | { allowed: true }
   | { allowed: false; error: string }
 
-export function checkSubmissionRateLimit(userId: string): RateLimitResult {
+export function checkSubmissionRateLimit(key: string): RateLimitResult {
   const now = Date.now()
-  const timestamps = (submissionTimestamps.get(userId) ?? []).filter(
+  const timestamps = (submissionTimestamps.get(key) ?? []).filter(
     (ts) => now - ts < ONE_DAY_MS,
   )
 
@@ -38,13 +39,13 @@ export function checkSubmissionRateLimit(userId: string): RateLimitResult {
   return { allowed: true }
 }
 
-export function recordSubmission(userId: string): void {
+export function recordSubmission(key: string): void {
   const now = Date.now()
-  const timestamps = (submissionTimestamps.get(userId) ?? []).filter(
+  const timestamps = (submissionTimestamps.get(key) ?? []).filter(
     (ts) => now - ts < ONE_DAY_MS,
   )
   timestamps.push(now)
-  submissionTimestamps.set(userId, timestamps)
+  submissionTimestamps.set(key, timestamps)
 }
 
 /** Reset in-memory state — for tests only. */

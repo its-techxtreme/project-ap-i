@@ -282,6 +282,36 @@ login_recovered_marked
 admin_login
 ```
 
+## Table: admin_commands
+
+Purpose: outbox for hosted-admin actions that must run on the local worker (retry upload, Drive delete).
+
+```sql
+create table public.admin_commands (
+  id uuid primary key default gen_random_uuid(),
+  job_id uuid not null references public.jobs(id) on delete cascade,
+  command text not null check (command in ('retry_upload', 'delete_drive_file')),
+  status text not null default 'pending'
+    check (status in ('pending', 'claimed', 'done', 'failed')),
+  requested_by uuid references public.profiles(id),
+  payload jsonb not null default '{}'::jsonb,
+  error text,
+  claimed_by text,
+  claimed_at timestamptz,
+  lock_expires_at timestamptz,
+  processed_at timestamptz,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+```
+
+Flow:
+
+1. Admin UI (Vercel) validates job state and inserts `status=pending`.
+2. Local n8n WF-07 calls worker `POST /admin-commands/process-next`.
+3. Worker claims via `claim_next_admin_command` (FOR UPDATE SKIP LOCKED) and executes.
+4. Command marked `done` or `failed`; job events + existing worker audit paths apply.
+
 ## Table: system_settings
 
 Purpose: lightweight key-value settings.

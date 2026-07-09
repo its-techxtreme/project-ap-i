@@ -57,3 +57,10 @@ Thumbs.db
 .idea/
 *.swp
 *.swo
+
+.vercel
+apps/web/.vercel
+.env*
+.env.local
+apps/web/.env.local
+

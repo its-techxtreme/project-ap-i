@@ -1,87 +1,110 @@
 'use client'
 
-import { useState } from 'react'
-import { useRouter } from 'next/navigation'
+import { useState, useTransition } from 'react'
+import { useSearchParams } from 'next/navigation'
+import Script from 'next/script'
 
+import { adminLogin } from '@/app/actions/adminLogin'
 import { ErrorAlert } from '@/components/app/ErrorAlert'
+import { ThemeProvider } from '@/components/theme/ThemeProvider'
+import { ThemeToggle } from '@/components/theme/ThemeToggle'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import { createClient } from '@/lib/supabase/client'
+import { themeInitScript } from '@/lib/theme/themeInit'
 
 export function LoginForm() {
-  const router = useRouter()
-  const [email, setEmail] = useState('')
+  const searchParams = useSearchParams()
+  const [username, setUsername] = useState('')
   const [password, setPassword] = useState('')
   const [error, setError] = useState<string | null>(null)
-  const [loading, setLoading] = useState(false)
+  const [pending, startTransition] = useTransition()
 
-  async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
+  function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault()
     setError(null)
-    setLoading(true)
 
-    const supabase = createClient()
-    const { data: authData, error: signInError } = await supabase.auth.signInWithPassword({
-      email,
-      password,
+    const next = searchParams.get('next')
+    startTransition(async () => {
+      try {
+        const result = await adminLogin(username, password, next)
+        if (result && !result.success) {
+          setError(result.error)
+        }
+      } catch (err) {
+        // Next.js redirect() throws; ignore redirect errors.
+        const digest = err && typeof err === 'object' && 'digest' in err ? String(err.digest) : ''
+        if (digest.startsWith('NEXT_REDIRECT')) return
+        setError('Sign in failed.')
+      }
     })
-
-    setLoading(false)
-
-    if (signInError || !authData.user) {
-      setError(signInError?.message ?? 'Sign in failed.')
-      return
-    }
-
-    const { data: profile } = await supabase
-      .from('profiles')
-      .select('role')
-      .eq('id', authData.user.id)
-      .single()
-
-    const destination = profile?.role === 'admin' ? '/admin' : '/submit'
-    router.push(destination)
-    router.refresh()
   }
 
   return (
-    <Card className="w-full max-w-md">
-      <CardHeader>
-        <CardTitle>Sign in</CardTitle>
-        <CardDescription>Log in to submit or manage content for Project AP-I.</CardDescription>
-      </CardHeader>
-      <CardContent>
-        <form onSubmit={handleSubmit} className="space-y-4">
-          {error ? <ErrorAlert message={error} /> : null}
-          <div className="space-y-2">
-            <Label htmlFor="email">Email</Label>
-            <Input
-              id="email"
-              type="email"
-              autoComplete="email"
-              required
-              value={email}
-              onChange={(event) => setEmail(event.target.value)}
-            />
-          </div>
-          <div className="space-y-2">
-            <Label htmlFor="password">Password</Label>
-            <Input
-              id="password"
-              type="password"
-              autoComplete="current-password"
-              required
-              value={password}
-              onChange={(event) => setPassword(event.target.value)}
-            />
-          </div>
-          <Button type="submit" className="w-full" disabled={loading}>
-            {loading ? 'Signing in…' : 'Sign in'}
-          </Button>
-        </form>
-      </CardContent>
-    </Card>
+    <ThemeProvider surface="admin">
+      <Script id="theme-init-login" strategy="beforeInteractive">
+        {themeInitScript('admin')}
+      </Script>
+      <div className="bg-atmosphere relative flex min-h-screen items-center justify-center p-4">
+        <div className="absolute right-4 top-4">
+          <ThemeToggle />
+        </div>
+        <Card className="w-full max-w-md border-border/80 shadow-xl shadow-black/20">
+          <CardHeader className="space-y-2">
+            <p className="font-display text-sm font-medium text-primary">Project AP-I</p>
+            <CardTitle className="font-display text-2xl">Admin sign-in</CardTitle>
+            <CardDescription>
+              Sign in with your admin username and password to manage jobs and reviews.
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <form onSubmit={handleSubmit} className="space-y-4" autoComplete="on">
+              {error ? <ErrorAlert message={error} /> : null}
+              <div className="space-y-2">
+                <Label htmlFor="username">Username</Label>
+                <Input
+                  id="username"
+                  name="username"
+                  type="text"
+                  autoComplete="username"
+                  autoCapitalize="none"
+                  autoCorrect="off"
+                  spellCheck={false}
+                  required
+                  maxLength={64}
+                  value={username}
+                  onChange={(event) => setUsername(event.target.value)}
+                  className="h-11"
+                  disabled={pending}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="password">Password</Label>
+                <Input
+                  id="password"
+                  name="password"
+                  type="password"
+                  autoComplete="current-password"
+                  required
+                  maxLength={256}
+                  value={password}
+                  onChange={(event) => setPassword(event.target.value)}
+                  className="h-11"
+                  disabled={pending}
+                />
+              </div>
+              <Button
+                type="submit"
+                className="h-11 w-full cursor-pointer"
+                disabled={pending}
+              >
+                {pending ? 'Signing in…' : 'Sign in'}
+              </Button>
+            </form>
+          </CardContent>
+        </Card>
+      </div>
+    </ThemeProvider>
   )
 }

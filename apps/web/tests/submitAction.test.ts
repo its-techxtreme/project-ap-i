@@ -2,36 +2,42 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { resetSubmissionRateLimits } from '@/lib/rate-limit/submission'
 
-const redirectMock = vi.fn((url: string) => {
-  throw new Error(`REDIRECT:${url}`)
-})
-
-vi.mock('next/navigation', () => ({
-  redirect: (url: string) => redirectMock(url),
-}))
-
 vi.mock('next/cache', () => ({
   revalidatePath: vi.fn(),
 }))
 
-const USER_ID = 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa'
+vi.mock('next/headers', () => ({
+  headers: vi.fn(async () =>
+    new Headers({
+      'x-forwarded-for': '203.0.113.10',
+    }),
+  ),
+}))
+
 const MEMES_NICHE_ID = '11111111-1111-4111-8111-111111111111'
 const SPORTS_NICHE_ID = '33333333-3333-4333-8333-333333333333'
 const JOB_ID = 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb'
 
-const createClientMock = vi.fn()
 const duplicateMaybeSingleMock = vi.fn()
 const jobInsertMock = vi.fn()
 const jobInsertSingleMock = vi.fn()
 const auditInsertMock = vi.fn()
-
-vi.mock('@/lib/supabase/server', () => ({
-  createClient: () => createClientMock(),
-}))
+const nicheSingleMock = vi.fn()
 
 vi.mock('@/lib/supabase/admin', () => ({
   supabaseAdmin: {
     from: (table: string) => {
+      if (table === 'niches') {
+        return {
+          select: vi.fn().mockReturnValue({
+            eq: vi.fn().mockReturnValue({
+              eq: vi.fn().mockReturnValue({
+                single: nicheSingleMock,
+              }),
+            }),
+          }),
+        }
+      }
       if (table === 'jobs') {
         return {
           select: vi.fn().mockReturnValue({
@@ -56,74 +62,24 @@ vi.mock('@/lib/supabase/admin', () => ({
   },
 }))
 
-function mockAuthenticatedUser() {
-  const nicheSingleMock = vi.fn().mockResolvedValue({
+function mockMemesNiche() {
+  nicheSingleMock.mockResolvedValue({
     data: { id: MEMES_NICHE_ID, name: 'Memes', slug: 'memes' },
     error: null,
-  })
-
-  createClientMock.mockResolvedValue({
-    auth: {
-      getUser: vi.fn().mockResolvedValue({
-        data: { user: { id: USER_ID } },
-        error: null,
-      }),
-    },
-    from: vi.fn().mockReturnValue({
-      select: vi.fn().mockReturnValue({
-        eq: vi.fn().mockReturnValue({
-          eq: vi.fn().mockReturnValue({
-            single: nicheSingleMock,
-          }),
-        }),
-      }),
-    }),
   })
 }
 
 function mockSportsNiche() {
-  createClientMock.mockResolvedValue({
-    auth: {
-      getUser: vi.fn().mockResolvedValue({
-        data: { user: { id: USER_ID } },
-        error: null,
-      }),
-    },
-    from: vi.fn().mockReturnValue({
-      select: vi.fn().mockReturnValue({
-        eq: vi.fn().mockReturnValue({
-          eq: vi.fn().mockReturnValue({
-            single: vi.fn().mockResolvedValue({
-              data: { id: SPORTS_NICHE_ID, name: 'Sports', slug: 'sports' },
-              error: null,
-            }),
-          }),
-        }),
-      }),
-    }),
+  nicheSingleMock.mockResolvedValue({
+    data: { id: SPORTS_NICHE_ID, name: 'Sports', slug: 'sports' },
+    error: null,
   })
 }
 
 function mockInactiveNiche() {
-  createClientMock.mockResolvedValue({
-    auth: {
-      getUser: vi.fn().mockResolvedValue({
-        data: { user: { id: USER_ID } },
-        error: null,
-      }),
-    },
-    from: vi.fn().mockReturnValue({
-      select: vi.fn().mockReturnValue({
-        eq: vi.fn().mockReturnValue({
-          eq: vi.fn().mockReturnValue({
-            single: vi.fn().mockResolvedValue({
-              data: null,
-              error: { message: 'not found' },
-            }),
-          }),
-        }),
-      }),
-    }),
+  nicheSingleMock.mockResolvedValue({
+    data: null,
+    error: { message: 'not found' },
   })
 }
 
@@ -151,10 +107,10 @@ describe('submitJobAction', () => {
     vi.resetModules()
     resetSubmissionRateLimits()
     duplicateMaybeSingleMock.mockResolvedValue({ data: null, error: null })
+    mockMemesNiche()
   })
 
   it('returns success for valid YouTube URL + niche + rightsConfirmed true', async () => {
-    mockAuthenticatedUser()
     const captured: { insert?: Record<string, unknown> } = {}
     mockSuccessfulInsert(captured)
 
@@ -172,10 +128,10 @@ describe('submitJobAction', () => {
       publicJobCode: 'AP-I-TEST-0001',
       nicheLabel: 'Memes',
     })
+    expect(captured.insert?.submitted_by).toBeNull()
   })
 
   it('returns success for valid Instagram URL + niche + rights confirmed', async () => {
-    mockAuthenticatedUser()
     mockSuccessfulInsert({})
 
     const { submitJobAction } = await import('@/app/actions/submitJob')
@@ -208,8 +164,6 @@ describe('submitJobAction', () => {
   })
 
   it('returns validation error when rightsConfirmed is false', async () => {
-    mockAuthenticatedUser()
-
     const { submitJobAction } = await import('@/app/actions/submitJob')
     const result = await submitJobAction({
       sourceUrl: 'https://www.youtube.com/shorts/abc123',
@@ -225,8 +179,6 @@ describe('submitJobAction', () => {
   })
 
   it('returns domain error for unsupported TikTok URL', async () => {
-    mockAuthenticatedUser()
-
     const { submitJobAction } = await import('@/app/actions/submitJob')
     const result = await submitJobAction({
       sourceUrl: 'https://tiktok.com/@user/video/123',
@@ -243,8 +195,6 @@ describe('submitJobAction', () => {
   })
 
   it('returns domain error for localhost URL', async () => {
-    mockAuthenticatedUser()
-
     const { submitJobAction } = await import('@/app/actions/submitJob')
     const result = await submitJobAction({
       sourceUrl: 'https://localhost/shorts/abc',
@@ -260,27 +210,21 @@ describe('submitJobAction', () => {
     }
   })
 
-  it('redirects unauthenticated requests to /login', async () => {
-    createClientMock.mockResolvedValue({
-      auth: {
-        getUser: vi.fn().mockResolvedValue({ data: { user: null }, error: null }),
-      },
-    })
+  it('allows anonymous submissions without login redirect', async () => {
+    mockSuccessfulInsert({})
 
     const { submitJobAction } = await import('@/app/actions/submitJob')
-    await expect(
-      submitJobAction({
-        sourceUrl: 'https://www.youtube.com/shorts/abc123',
-        sourcePlatform: 'youtube',
-        nicheId: MEMES_NICHE_ID,
-        rightsConfirmed: true,
-      }),
-    ).rejects.toThrow('REDIRECT:/login')
+    const result = await submitJobAction({
+      sourceUrl: 'https://www.youtube.com/shorts/abc123',
+      sourcePlatform: 'youtube',
+      nicheId: MEMES_NICHE_ID,
+      rightsConfirmed: true,
+    })
+
+    expect(result.success).toBe(true)
   })
 
   it('returns validation error when nicheId is missing', async () => {
-    mockAuthenticatedUser()
-
     const { submitJobAction } = await import('@/app/actions/submitJob')
     const result = await submitJobAction({
       sourceUrl: 'https://www.youtube.com/shorts/abc123',
@@ -312,7 +256,6 @@ describe('submitJobAction', () => {
   })
 
   it('returns duplicate error for active URL + niche combination', async () => {
-    mockAuthenticatedUser()
     duplicateMaybeSingleMock.mockResolvedValue({
       data: { id: JOB_ID, status: 'queued' },
       error: null,
@@ -333,7 +276,6 @@ describe('submitJobAction', () => {
   })
 
   it('inserts job with status queued', async () => {
-    mockAuthenticatedUser()
     const captured: { insert?: Record<string, unknown> } = {}
     mockSuccessfulInsert(captured)
 
@@ -349,7 +291,6 @@ describe('submitJobAction', () => {
   })
 
   it('inserts job with rights_confirmed true', async () => {
-    mockAuthenticatedUser()
     const captured: { insert?: Record<string, unknown> } = {}
     mockSuccessfulInsert(captured)
 
@@ -365,7 +306,6 @@ describe('submitJobAction', () => {
   })
 
   it('does not set target account IDs on insert', async () => {
-    mockAuthenticatedUser()
     const captured: { insert?: Record<string, unknown> } = {}
     mockSuccessfulInsert(captured)
 
@@ -381,8 +321,7 @@ describe('submitJobAction', () => {
     expect(captured.insert).not.toHaveProperty('target_instagram_account_id')
   })
 
-  it('writes audit log with action job_created', async () => {
-    mockAuthenticatedUser()
+  it('writes audit log with anonymous actor', async () => {
     mockSuccessfulInsert({})
 
     const { submitJobAction } = await import('@/app/actions/submitJob')
@@ -395,8 +334,8 @@ describe('submitJobAction', () => {
 
     expect(auditInsertMock).toHaveBeenCalledWith(
       expect.objectContaining({
-        actor_user_id: USER_ID,
-        actor_type: 'user',
+        actor_user_id: null,
+        actor_type: 'anonymous',
         action: 'job_created',
         target_type: 'job',
         target_id: JOB_ID,
@@ -410,16 +349,17 @@ describe('checkSubmissionRateLimit', () => {
     resetSubmissionRateLimits()
   })
 
-  it('blocks more than 20 submissions per day per user', async () => {
+  it('blocks more than 20 submissions per day per IP key', async () => {
     const { checkSubmissionRateLimit, recordSubmission } = await import(
       '@/lib/rate-limit/submission'
     )
 
+    const key = 'ip:203.0.113.10'
     for (let i = 0; i < 20; i += 1) {
-      recordSubmission(USER_ID)
+      recordSubmission(key)
     }
 
-    expect(checkSubmissionRateLimit(USER_ID)).toEqual({
+    expect(checkSubmissionRateLimit(key)).toEqual({
       allowed: false,
       error: 'Submission limit reached. Please wait before trying again.',
     })

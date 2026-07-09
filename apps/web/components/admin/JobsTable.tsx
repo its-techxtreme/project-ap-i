@@ -116,10 +116,10 @@ export function JobsTable({ jobs }: { jobs: JobListRow[] }) {
                       </a>
                     </Button>
                     <Button variant="outline" size="sm" onClick={() => handleRetry(job.id)}>
-                      Retry (stub)
+                      Retry
                     </Button>
                     <Button variant="outline" size="sm" onClick={() => openDeleteDialog(job.id)}>
-                      Delete Drive File (stub)
+                      Delete Drive File
                     </Button>
                   </div>
                 </td>

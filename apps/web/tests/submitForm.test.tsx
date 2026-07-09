@@ -190,8 +190,12 @@ describe('SubmitForm', () => {
         screen.getByText('Submitted successfully. This job is now queued for processing.'),
       ).toBeInTheDocument()
     })
-    expect(screen.getByText('Niche: Memes')).toBeInTheDocument()
-    expect(screen.getByText('Status: Queued for processing')).toBeInTheDocument()
+    expect(
+      screen.getByText((_, el) => el?.textContent === 'Niche: Memes'),
+    ).toBeInTheDocument()
+    expect(
+      screen.getByText((_, el) => el?.textContent === 'Status: Queued for processing'),
+    ).toBeInTheDocument()
   })
 
   it('shows error message and keeps URL value on failure', async () => {

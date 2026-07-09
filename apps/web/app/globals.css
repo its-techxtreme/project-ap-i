@@ -4,26 +4,56 @@
 
 @layer base {
   :root {
-    --background: 0 0% 100%;
-    --foreground: 222.2 84% 4.9%;
+    /* Light — public default */
+    --background: 210 14% 96%;
+    --foreground: 220 45% 8%;
     --card: 0 0% 100%;
-    --card-foreground: 222.2 84% 4.9%;
+    --card-foreground: 220 45% 8%;
     --popover: 0 0% 100%;
-    --popover-foreground: 222.2 84% 4.9%;
-    --primary: 222.2 47.4% 11.2%;
-    --primary-foreground: 210 40% 98%;
-    --secondary: 210 40% 96.1%;
-    --secondary-foreground: 222.2 47.4% 11.2%;
-    --muted: 210 40% 96.1%;
-    --muted-foreground: 215.4 16.3% 46.9%;
-    --accent: 210 40% 96.1%;
-    --accent-foreground: 222.2 47.4% 11.2%;
-    --destructive: 0 84.2% 60.2%;
-    --destructive-foreground: 210 40% 98%;
-    --border: 214.3 31.8% 91.4%;
-    --input: 214.3 31.8% 91.4%;
-    --ring: 222.2 84% 4.9%;
-    --radius: 0.5rem;
+    --popover-foreground: 220 45% 8%;
+    --primary: 175 78% 26%;
+    --primary-foreground: 0 0% 100%;
+    --secondary: 210 20% 94%;
+    --secondary-foreground: 220 45% 8%;
+    --muted: 210 16% 92%;
+    --muted-foreground: 218 14% 41%;
+    --accent: 166 76% 90%;
+    --accent-foreground: 175 78% 20%;
+    --destructive: 0 72% 51%;
+    --destructive-foreground: 0 0% 100%;
+    --border: 216 20% 88%;
+    --input: 216 20% 88%;
+    --ring: 175 78% 26%;
+    --radius: 0.75rem;
+    --atmosphere-from: 175 40% 94%;
+    --atmosphere-to: 210 20% 96%;
+    --surface-elevated: 0 0% 100%;
+  }
+
+  .dark {
+    /* Dark — admin default */
+    --background: 216 36% 5%;
+    --foreground: 214 40% 94%;
+    --card: 217 32% 10%;
+    --card-foreground: 214 40% 94%;
+    --popover: 217 32% 10%;
+    --popover-foreground: 214 40% 94%;
+    --primary: 172 66% 50%;
+    --primary-foreground: 216 36% 6%;
+    --secondary: 217 28% 14%;
+    --secondary-foreground: 214 40% 94%;
+    --muted: 217 24% 14%;
+    --muted-foreground: 215 14% 61%;
+    --accent: 175 50% 18%;
+    --accent-foreground: 172 66% 70%;
+    --destructive: 0 72% 55%;
+    --destructive-foreground: 0 0% 100%;
+    --border: 216 28% 17%;
+    --input: 216 28% 17%;
+    --ring: 172 66% 50%;
+    --atmosphere-from: 216 40% 7%;
+    --atmosphere-to: 200 30% 8%;
+    --surface-elevated: 217 32% 12%;
   }
 
   * {
@@ -31,6 +61,61 @@
   }
 
   body {
-    @apply bg-background text-foreground;
+    @apply bg-background text-foreground antialiased;
+  }
+
+  :focus-visible {
+    @apply outline-none ring-2 ring-ring ring-offset-2 ring-offset-background;
+  }
+}
+
+@layer utilities {
+  .bg-atmosphere {
+    background-color: hsl(var(--background));
+    background-image:
+      radial-gradient(ellipse 80% 60% at 20% -10%, hsl(var(--atmosphere-from) / 0.9), transparent 55%),
+      radial-gradient(ellipse 70% 50% at 90% 10%, hsl(var(--primary) / 0.08), transparent 50%),
+      linear-gradient(165deg, hsl(var(--atmosphere-from)), hsl(var(--atmosphere-to)));
+  }
+
+  .font-display {
+    font-family: var(--font-display), ui-sans-serif, system-ui, sans-serif;
+  }
+
+  .animate-enter {
+    animation: enter 420ms cubic-bezier(0.22, 1, 0.36, 1) both;
+  }
+
+  .animate-success {
+    animation: success-in 380ms cubic-bezier(0.22, 1, 0.36, 1) both;
+  }
+}
+
+@keyframes enter {
+  from {
+    opacity: 0;
+    transform: translateY(12px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes success-in {
+  from {
+    opacity: 0;
+    transform: scale(0.98);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .animate-enter,
+  .animate-success {
+    animation: none;
   }
 }

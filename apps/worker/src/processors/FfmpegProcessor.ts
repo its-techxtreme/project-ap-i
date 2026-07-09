@@ -2,9 +2,9 @@ import fs from 'node:fs/promises'
 import path from 'node:path'
 
 import { ERROR_CODES, ProjectApiError } from '@project-api/shared'
-import { execa } from 'execa'
 
 import { logger } from '../logging/logger'
+import { runCommand } from '../utils/runCommand'
 
 import { sourceHasAudio } from './probeMedia'
 import { buildFfmpegArgs } from './WatermarkPreset'
@@ -45,7 +45,7 @@ export class FfmpegProcessor implements Processor {
     })
 
     try {
-      await execa('ffmpeg', args, { timeout: 600_000 })
+      await runCommand('ffmpeg', args, { timeout: 600_000 })
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : String(err)
       throw new ProjectApiError(ERROR_CODES.FFMPEG_FAILED, `FFmpeg failed: ${msg}`, {

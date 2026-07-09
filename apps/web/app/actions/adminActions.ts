@@ -1,16 +1,50 @@
 'use server'
 
 import { requireAdmin } from '@/lib/auth/requireAdmin'
+import { getAdminUsername } from '@/lib/auth/getUserRole'
 import { supabaseAdmin } from '@/lib/supabase/admin'
 
-const WORKER_BASE_URL = process.env.WORKER_BASE_URL!
-const WORKER_INTERNAL_TOKEN = process.env.WORKER_INTERNAL_TOKEN!
+type AdminCommandType = 'retry_upload' | 'delete_drive_file'
 
-// Real retry: POST to worker /jobs/:id/retry-upload
+async function enqueueAdminCommand(
+  jobId: string,
+  command: AdminCommandType,
+  payload: Record<string, unknown> = {},
+): Promise<{ success: true; commandId: string } | { success: false; error: string }> {
+  const requestedByUsername = await getAdminUsername()
+
+  const { data, error } = await supabaseAdmin
+    .from('admin_commands')
+    .insert({
+      job_id: jobId,
+      command,
+      status: 'pending',
+      requested_by: null,
+      payload: {
+        ...payload,
+        requested_by_username: requestedByUsername,
+      },
+    })
+    .select('id')
+    .single()
+
+  if (error) {
+    if (error.code === '23505') {
+      return {
+        success: false,
+        error: 'That action is already queued. It will run when the local worker/n8n stack is up.',
+      }
+    }
+    return { success: false, error: error.message }
+  }
+
+  return { success: true, commandId: data.id }
+}
+
+/** Queue upload retry for local worker/n8n (does not call worker from Vercel). */
 export async function retryJobUpload(jobId: string) {
   await requireAdmin()
 
-  // 1. Verify job exists and is in retryable state
   const { data: job, error: jobError } = await supabaseAdmin
     .from('jobs')
     .select('id, status, drive_file_id, drive_deleted_at, youtube_retry_count, instagram_retry_count')
@@ -30,39 +64,39 @@ export async function retryJobUpload(jobId: string) {
     return { success: false, error: 'Drive file missing or deleted, cannot retry upload' }
   }
 
-  // 2. POST to WORKER_BASE_URL/jobs/:id/retry-upload with worker token
-  const response = await fetch(`${WORKER_BASE_URL}/jobs/${jobId}/retry-upload`, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'X-Worker-Token': WORKER_INTERNAL_TOKEN,
-    },
-  })
-
-  const result = await response.json()
-
-  if (!response.ok) {
-    return { success: false, error: result.error ?? 'Retry failed' }
+  const queued = await enqueueAdminCommand(jobId, 'retry_upload', { platform: 'both' })
+  if (!queued.success) {
+    return queued
   }
 
-  // 3. Write audit log: manual_retry_requested
+  const username = await getAdminUsername()
   await supabaseAdmin.from('audit_logs').insert({
     actor_type: 'admin',
     action: 'manual_retry_requested',
     target_type: 'job',
     target_id: jobId,
-    metadata: { status_before: job.status, retry_counts: { youtube: job.youtube_retry_count, instagram: job.instagram_retry_count } },
+    metadata: {
+      commandId: queued.commandId,
+      queued: true,
+      username,
+      status_before: job.status,
+      retry_counts: { youtube: job.youtube_retry_count, instagram: job.instagram_retry_count },
+    },
   })
 
-  // 4. Return result
-  return { success: true, jobId, result }
+  return {
+    success: true,
+    jobId,
+    commandId: queued.commandId,
+    queued: true,
+    message: 'Retry queued. It will run when the local worker/n8n stack is up.',
+  }
 }
 
-// Real delete: POST to worker /jobs/:id/delete-drive-file
+/** Queue Drive delete for local worker/n8n (does not call worker from Vercel). */
 export async function deleteDriveFile(jobId: string) {
   await requireAdmin()
 
-  // 1. Verify job exists and has drive_file_id
   const { data: job, error: jobError } = await supabaseAdmin
     .from('jobs')
     .select('id, status, drive_file_id, drive_deleted_at, drive_folder_state')
@@ -77,45 +111,44 @@ export async function deleteDriveFile(jobId: string) {
     return { success: false, error: 'Job has no Drive file to delete' }
   }
 
-  // Check status allows deletion
   const deletableStatuses = ['failed', 'needs_manual_review', 'completed']
   if (!deletableStatuses.includes(job.status)) {
     return { success: false, error: `Drive delete not allowed for job status: ${job.status}` }
   }
 
-  // 2. POST to WORKER_BASE_URL/jobs/:id/delete-drive-file with worker token
-  const response = await fetch(`${WORKER_BASE_URL}/jobs/${jobId}/delete-drive-file`, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'X-Worker-Token': WORKER_INTERNAL_TOKEN,
-    },
-  })
-
-  const result = await response.json()
-
-  if (!response.ok) {
-    return { success: false, error: result.error ?? 'Drive delete failed' }
+  const queued = await enqueueAdminCommand(jobId, 'delete_drive_file')
+  if (!queued.success) {
+    return queued
   }
 
-  // 3. Write audit log: drive_delete_requested
+  const username = await getAdminUsername()
   await supabaseAdmin.from('audit_logs').insert({
     actor_type: 'admin',
     action: 'drive_delete_requested',
     target_type: 'job',
     target_id: jobId,
-    metadata: { drive_file_id: job.drive_file_id, status: job.status },
+    metadata: {
+      commandId: queued.commandId,
+      queued: true,
+      username,
+      drive_file_id: job.drive_file_id,
+      status: job.status,
+    },
   })
 
-  // 4. Return result
-  return { success: true, jobId, driveFileId: result.driveFileId }
+  return {
+    success: true,
+    jobId,
+    commandId: queued.commandId,
+    queued: true,
+    message: 'Drive delete queued. It will run when the local worker/n8n stack is up.',
+  }
 }
 
-// Mark job ignored
+/** Mark job ignored (DB-only; no worker required). */
 export async function markJobIgnored(jobId: string) {
   await requireAdmin()
 
-  // 1. Update job status to 'ignored'
   const { error: updateError } = await supabaseAdmin
     .from('jobs')
     .update({ status: 'ignored', updated_at: new Date().toISOString() })
@@ -125,13 +158,13 @@ export async function markJobIgnored(jobId: string) {
     return { success: false, error: updateError.message }
   }
 
-  // 2. Write audit log: job_marked_ignored
+  const username = await getAdminUsername()
   await supabaseAdmin.from('audit_logs').insert({
     actor_type: 'admin',
     action: 'job_marked_ignored',
     target_type: 'job',
     target_id: jobId,
-    metadata: {},
+    metadata: { username },
   })
 
   return { success: true, jobId }

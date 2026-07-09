@@ -58,6 +58,7 @@ describe('worker auth middleware', () => {
       { method: 'POST' as const, url: '/jobs/abc/process' },
       { method: 'POST' as const, url: '/jobs/abc/upload' },
       { method: 'POST' as const, url: '/jobs/abc/verify' },
+      { method: 'POST' as const, url: '/admin-commands/process-next' },
     ]
 
     for (const route of routes) {

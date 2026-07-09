@@ -11,24 +11,27 @@
     "pnpm": ">=9.0.0"
   },
   "scripts": {
-    "lint":          "pnpm -r lint",
-    "typecheck":     "pnpm -r typecheck",
-    "test":          "pnpm -r test",
-    "test:unit":     "pnpm -r test:unit",
-    "test:db":       "pnpm --filter @project-api/worker test:db",
-    "test:worker":   "pnpm --filter @project-api/worker test",
-    "test:web":      "pnpm --filter @project-api/web test",
-    "test:e2e":      "pnpm --filter @project-api/web test:e2e",
+    "lint": "pnpm -r lint",
+    "typecheck": "pnpm -r typecheck",
+    "test": "pnpm -r test",
+    "test:unit": "pnpm -r test:unit",
+    "test:db": "pnpm --filter @project-api/worker test:db",
+    "test:worker": "pnpm --filter @project-api/worker test",
+    "test:web": "pnpm --filter @project-api/web test",
+    "test:e2e": "pnpm --filter @project-api/web test:e2e",
     "test:security": "pnpm -r test:security",
-    "build":         "pnpm -r build",
-    "check":         "pnpm lint && pnpm typecheck && pnpm test && pnpm build",
+    "build": "pnpm -r build",
+    "check": "pnpm lint && pnpm typecheck && pnpm test && pnpm build",
     "setup:local-env": "node scripts/setup-local-env.mjs",
-    "docker:up":     "docker compose -f infra/docker-compose.yml up -d --build",
-    "docker:down":   "docker compose -f infra/docker-compose.yml down",
-    "docker:logs":   "docker compose -f infra/docker-compose.yml logs -f",
-    "n8n:import":    "node scripts/import-n8n-workflows.mjs",
-    "n8n:setup":     "node scripts/setup-n8n-workflows.mjs",
-    "n8n:test":      "node scripts/test-n8n-workflows.mjs",
-    "n8n:test:all":  "node scripts/test-all-n8n-workflows.mjs"
+    "docker:up": "docker compose -f infra/docker-compose.yml up -d --build",
+    "docker:down": "docker compose -f infra/docker-compose.yml down",
+    "docker:logs": "docker compose -f infra/docker-compose.yml logs -f",
+    "n8n:import": "node scripts/import-n8n-workflows.mjs",
+    "n8n:setup": "node scripts/setup-n8n-workflows.mjs",
+    "n8n:test": "node scripts/test-n8n-workflows.mjs",
+    "n8n:test:all": "node scripts/test-all-n8n-workflows.mjs"
+  },
+  "devDependencies": {
+    "vercel": "^54.21.1"
   }
 }

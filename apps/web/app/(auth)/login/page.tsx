@@ -1,9 +1,11 @@
+import { Suspense } from 'react'
+
 import { LoginForm } from '@/components/app/LoginForm'
 
 export default function LoginPage() {
   return (
-    <main className="flex min-h-screen items-center justify-center p-4">
+    <Suspense fallback={<main className="bg-atmosphere min-h-screen" />}>
       <LoginForm />
-    </main>
+    </Suspense>
   )
 }

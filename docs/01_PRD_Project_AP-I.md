@@ -68,7 +68,9 @@ Project AP-I solves this by turning every submitted link into a tracked job with
 
 ## Non-goals
 
-1. No public random-user upload portal.
+1. No public random-user upload portal without controls.
+   Product update: anonymous public submit is allowed on `/` with IP rate limiting,
+   URL allowlist validation, and server-side service-role insert. Admin remains fully authenticated.
 2. No support for unsupported domains beyond YouTube and Instagram in MVP.
 3. No automatic AI niche classification in MVP.
 4. No burned-in subtitles or captions.

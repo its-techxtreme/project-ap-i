@@ -37,7 +37,15 @@ export function FailedJobsTable({ jobs }: { jobs: FailedJobRow[] }) {
   async function runStubAction(action: 'retry' | 'ignore', jobId: string) {
     const result =
       action === 'retry' ? await retryJobUpload(jobId) : await markJobIgnored(jobId)
-    setActionMessage(result.error ?? `${action} requested.`)
+    if (!result.success) {
+      setActionMessage(result.error ?? `${action} failed.`)
+      return
+    }
+    if (action === 'retry' && 'message' in result && typeof result.message === 'string') {
+      setActionMessage(result.message)
+      return
+    }
+    setActionMessage(action === 'retry' ? 'Retry queued. Runs when local worker/n8n is up.' : 'Job marked ignored.')
   }
 
   function openDeleteDialog(jobId?: string) {
@@ -53,7 +61,11 @@ export function FailedJobsTable({ jobs }: { jobs: FailedJobRow[] }) {
   async function confirmDelete() {
     if (dialogMode === 'delete' && pendingJobId) {
       const result = await deleteDriveFile(pendingJobId)
-      setActionMessage(result.error ?? 'Delete requested.')
+      setActionMessage(
+        result.success
+          ? (result.message ?? 'Drive delete queued. Runs when local worker/n8n is up.')
+          : (result.error ?? 'Delete failed.'),
+      )
     } else if (dialogMode === 'bulk-delete') {
       setActionMessage('Bulk delete not yet implemented. Coming in Phase 11.')
     }
@@ -158,13 +170,13 @@ export function FailedJobsTable({ jobs }: { jobs: FailedJobRow[] }) {
                 <td className="px-3 py-2">
                   <div className="flex flex-wrap gap-1">
                     <Button variant="outline" size="sm" onClick={() => runStubAction('retry', job.id)}>
-                      Retry Upload (stub)
+                      Retry Upload
                     </Button>
                     <Button variant="outline" size="sm" onClick={() => openDeleteDialog(job.id)}>
-                      Delete Drive File (stub)
+                      Delete Drive File
                     </Button>
                     <Button variant="outline" size="sm" onClick={() => runStubAction('ignore', job.id)}>
-                      Mark Ignored (stub)
+                      Mark Ignored
                     </Button>
                   </div>
                 </td>

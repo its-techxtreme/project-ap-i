@@ -1,4 +1,4 @@
-import { render, screen } from '@testing-library/react'
+﻿import { render, screen } from '@testing-library/react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 const redirectMock = vi.fn((url: string) => {
@@ -11,35 +11,44 @@ vi.mock('next/navigation', () => ({
   useRouter: () => ({ push: vi.fn(), refresh: vi.fn() }),
 }))
 
-const getSessionMock = vi.fn()
 const requireAdminMock = vi.fn()
-const getUserRoleMock = vi.fn()
-
-vi.mock('@/lib/auth/getSession', () => ({
-  getSession: () => getSessionMock(),
-}))
 
 vi.mock('@/lib/auth/requireAdmin', () => ({
   requireAdmin: () => requireAdminMock(),
 }))
 
 vi.mock('@/lib/auth/getUserRole', () => ({
-  getUserRole: () => getUserRoleMock(),
+  getAdminUsername: vi.fn().mockResolvedValue('test-admin'),
+  getUserRole: vi.fn().mockResolvedValue('admin'),
 }))
 
 vi.mock('@/lib/supabase/server', () => ({
   createClient: vi.fn().mockResolvedValue({
     auth: {
-      getUser: vi.fn().mockResolvedValue({ data: { user: { email: 'admin@example.com' } } }),
+      getUser: vi.fn().mockResolvedValue({ data: { user: null } }),
     },
+  }),
+}))
+
+vi.mock('@/lib/supabase/admin', () => ({
+  supabaseAdmin: {
     from: vi.fn().mockReturnValue({
       select: vi.fn().mockReturnValue({
         eq: vi.fn().mockReturnValue({
           order: vi.fn().mockResolvedValue({ data: [], error: null }),
         }),
+        order: vi.fn().mockResolvedValue({ data: [], error: null }),
       }),
     }),
-  }),
+  },
+}))
+
+vi.mock('next/headers', () => ({
+  headers: vi.fn(async () => new Headers()),
+  cookies: vi.fn(async () => ({
+    get: vi.fn(),
+    set: vi.fn(),
+  })),
 }))
 
 vi.mock('@/app/submit/SubmitForm', () => ({
@@ -51,12 +60,29 @@ describe('/submit page', () => {
     vi.clearAllMocks()
   })
 
-  it('calls getSession() and redirects to /login if no session', async () => {
-    getSessionMock.mockResolvedValue(null)
+  it('redirects legacy /submit to public home /', async () => {
     const SubmitPage = (await import('@/app/submit/page')).default
-    await expect(SubmitPage()).rejects.toThrow('REDIRECT:/login')
-    expect(getSessionMock).toHaveBeenCalled()
-    expect(redirectMock).toHaveBeenCalledWith('/login')
+    try {
+      await SubmitPage()
+      expect.unreachable('expected redirect')
+    } catch (err) {
+      expect(String(err)).toContain('REDIRECT:/')
+    }
+    expect(redirectMock).toHaveBeenCalledWith('/')
+  })
+})
+
+describe('/ page (public submit)', () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+  })
+
+  it('renders public submit form without requiring a session', async () => {
+    const HomePage = (await import('@/app/page')).default
+    const ui = await HomePage({ searchParams: Promise.resolve({}) })
+    render(ui)
+    expect(screen.getByTestId('submit-form-stub')).toBeTruthy()
+    expect(screen.getByRole('heading', { name: 'Project AP-I' })).toBeTruthy()
   })
 })
 

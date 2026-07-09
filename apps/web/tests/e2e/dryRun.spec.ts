@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+﻿import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 const redirectMock = vi.fn((url: string) => {
   throw new Error(`REDIRECT:${url}`)
@@ -18,6 +18,14 @@ const supabaseAdminInsertMock = vi.fn()
 const supabaseAdminSelectMock = vi.fn()
 const supabaseAdminEqMock = vi.fn()
 const supabaseAdminSingleMock = vi.fn()
+const adminCommandsInsertMock = vi.fn()
+const adminCommandsSelectMock = vi.fn()
+const adminCommandsSingleMock = vi.fn()
+
+vi.mock('@/lib/auth/getUserRole', () => ({
+  getAdminUsername: vi.fn().mockResolvedValue('test-admin'),
+  getUserRole: vi.fn(),
+}))
 
 vi.mock('@/lib/supabase/admin', () => ({
   supabaseAdmin: {
@@ -37,6 +45,15 @@ vi.mock('@/lib/supabase/admin', () => ({
       if (table === 'audit_logs') {
         return { insert: supabaseAdminInsertMock }
       }
+      if (table === 'admin_commands') {
+        return {
+          insert: adminCommandsInsertMock.mockReturnValue({
+            select: adminCommandsSelectMock.mockReturnValue({
+              single: adminCommandsSingleMock,
+            }),
+          }),
+        }
+      }
       throw new Error(`Unexpected table: ${table}`)
     },
   },
@@ -44,19 +61,12 @@ vi.mock('@/lib/supabase/admin', () => ({
 
 global.fetch = fetchMock
 
-describe('Phase 14 dry run — web/admin scenarios', () => {
+describe('Phase 14 dry run â€” web/admin scenarios', () => {
   beforeEach(() => {
     vi.clearAllMocks()
     vi.resetModules()
 
-    process.env.WORKER_BASE_URL = 'http://localhost:3001'
-    process.env.WORKER_INTERNAL_TOKEN = 'test-worker-internal-token-min-32-chars'
     process.env.REAL_UPLOADS_ENABLED = 'false'
-
-    fetchMock.mockResolvedValue({
-      ok: true,
-      json: vi.fn().mockResolvedValue({ success: true, driveFileId: 'mock-drive-id' }),
-    })
 
     supabaseAdminEqMock.mockReturnValue({ single: supabaseAdminSingleMock })
     supabaseAdminSingleMock.mockResolvedValue({
@@ -71,23 +81,23 @@ describe('Phase 14 dry run — web/admin scenarios', () => {
       },
       error: null,
     })
+    adminCommandsSingleMock.mockResolvedValue({ data: { id: 'cmd-dry-1' }, error: null })
     supabaseAdminInsertMock.mockResolvedValue({ error: null })
   })
 
-  it('Scenario 6: admin delete Drive file writes audit log and calls worker endpoint', async () => {
+  it('Scenario 6: admin delete Drive file writes audit log and enqueues outbox command', async () => {
     requireAdminMock.mockResolvedValue(undefined)
 
     const { deleteDriveFile } = await import('@/app/actions/adminActions')
     const result = await deleteDriveFile('job-manual-review-1')
 
     expect(result.success).toBe(true)
-    expect(fetchMock).toHaveBeenCalledWith(
-      'http://localhost:3001/jobs/job-manual-review-1/delete-drive-file',
+    expect(fetchMock).not.toHaveBeenCalled()
+    expect(adminCommandsInsertMock).toHaveBeenCalledWith(
       expect.objectContaining({
-        method: 'POST',
-        headers: expect.objectContaining({
-          'X-Worker-Token': 'test-worker-internal-token-min-32-chars',
-        }),
+        job_id: 'job-manual-review-1',
+        command: 'delete_drive_file',
+        status: 'pending',
       }),
     )
     expect(supabaseAdminInsertMock).toHaveBeenCalledWith(
@@ -106,6 +116,7 @@ describe('Phase 14 dry run — web/admin scenarios', () => {
     const { deleteDriveFile } = await import('@/app/actions/adminActions')
     await expect(deleteDriveFile('job-manual-review-1')).rejects.toThrow()
     expect(fetchMock).not.toHaveBeenCalled()
+    expect(adminCommandsInsertMock).not.toHaveBeenCalled()
   })
 
   it('Scenario 7: submitter cannot access admin jobs page (server-side redirect)', async () => {

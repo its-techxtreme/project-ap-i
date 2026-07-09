@@ -2,8 +2,9 @@ import fs from 'node:fs/promises'
 import os from 'node:os'
 import path from 'node:path'
 
-import { execa } from 'execa'
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest'
+
+import { runCommand } from '../src/utils/runCommand'
 
 const FIXTURE_DIR = path.join(__dirname, 'fixtures')
 const SAMPLE_MP4 = path.join(FIXTURE_DIR, 'sample.mp4')
@@ -11,7 +12,7 @@ const WATERMARK_PNG = path.join(FIXTURE_DIR, 'watermark.png')
 
 async function ffmpegAvailable(): Promise<boolean> {
   try {
-    await execa('ffmpeg', ['-version'], { timeout: 10_000 })
+    await runCommand('ffmpeg', ['-version'], { timeout: 10_000 })
     return true
   } catch {
     return false
@@ -34,9 +35,15 @@ describe.skipIf(!runIntegration)('media pipeline integration (real ffmpeg)', () 
     try {
       await fs.access(WATERMARK_PNG)
     } catch {
-      await execa('ffmpeg', [
-        '-y', '-f', 'lavfi', '-i', 'color=c=white:s=80x40',
-        '-frames:v', '1', WATERMARK_PNG,
+      await runCommand('ffmpeg', [
+        '-y',
+        '-f',
+        'lavfi',
+        '-i',
+        'color=c=white:s=80x40',
+        '-frames:v',
+        '1',
+        WATERMARK_PNG,
       ])
     }
 
@@ -91,10 +98,13 @@ describe.skipIf(!runIntegration)('media pipeline integration (real ffmpeg)', () 
     expect(processed.outputPath).toBe(tempManager.getOutputPath(jobId))
     expect(processed.fileSize).toBeGreaterThan(1000)
 
-    const probe = await execa('ffprobe', [
-      '-v', 'error',
-      '-show_entries', 'stream=codec_type',
-      '-of', 'json',
+    const probe = await runCommand('ffprobe', [
+      '-v',
+      'error',
+      '-show_entries',
+      'stream=codec_type',
+      '-of',
+      'json',
       processed.outputPath,
     ])
     const info = JSON.parse(probe.stdout) as { streams: { codec_type: string }[] }
@@ -108,12 +118,23 @@ describe.skipIf(!runIntegration)('media pipeline integration (real ffmpeg)', () 
     const { FfmpegProcessor } = await import('../src/processors/FfmpegProcessor')
 
     const audioSource = path.join(baseDir, 'source-with-audio.mp4')
-    await execa('ffmpeg', [
+    await runCommand('ffmpeg', [
       '-y',
-      '-f', 'lavfi', '-i', 'color=c=blue:s=320x568:d=2',
-      '-f', 'lavfi', '-i', 'sine=f=440:d=2',
-      '-c:v', 'libx264', '-pix_fmt', 'yuv420p',
-      '-c:a', 'aac', '-shortest',
+      '-f',
+      'lavfi',
+      '-i',
+      'color=c=blue:s=320x568:d=2',
+      '-f',
+      'lavfi',
+      '-i',
+      'sine=f=440:d=2',
+      '-c:v',
+      'libx264',
+      '-pix_fmt',
+      'yuv420p',
+      '-c:a',
+      'aac',
+      '-shortest',
       audioSource,
     ])
 
@@ -129,11 +150,15 @@ describe.skipIf(!runIntegration)('media pipeline integration (real ffmpeg)', () 
       watermarkPath: WATERMARK_PNG,
     })
 
-    const probe = await execa('ffprobe', [
-      '-v', 'error',
-      '-select_streams', 'a',
-      '-show_entries', 'stream=codec_type',
-      '-of', 'csv=p=0',
+    const probe = await runCommand('ffprobe', [
+      '-v',
+      'error',
+      '-select_streams',
+      'a',
+      '-show_entries',
+      'stream=codec_type',
+      '-of',
+      'csv=p=0',
       processed.outputPath,
     ])
     expect(probe.stdout.trim()).toBe('audio')

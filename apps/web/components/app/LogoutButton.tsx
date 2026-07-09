@@ -1,23 +1,22 @@
 'use client'
 
-import { useRouter } from 'next/navigation'
+import { useTransition } from 'react'
 
+import { adminLogout } from '@/app/actions/adminLogin'
 import { Button } from '@/components/ui/button'
-import { createClient } from '@/lib/supabase/client'
 
 export function LogoutButton() {
-  const router = useRouter()
+  const [pending, startTransition] = useTransition()
 
-  async function handleLogout() {
-    const supabase = createClient()
-    await supabase.auth.signOut()
-    router.push('/login')
-    router.refresh()
+  function handleLogout() {
+    startTransition(async () => {
+      await adminLogout()
+    })
   }
 
   return (
-    <Button variant="outline" size="sm" onClick={handleLogout}>
-      Log out
+    <Button variant="outline" size="sm" onClick={handleLogout} disabled={pending}>
+      {pending ? 'Logging out…' : 'Log out'}
     </Button>
   )
 }

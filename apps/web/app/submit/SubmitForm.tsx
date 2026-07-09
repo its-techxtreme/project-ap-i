@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useTransition } from 'react'
-import { Loader2 } from 'lucide-react'
+import { CheckCircle2, Loader2 } from 'lucide-react'
 import { detectPlatform, validateSourceUrl } from '@project-api/shared'
 
 import { submitJobAction } from '@/app/actions/submitJob'
@@ -20,7 +20,7 @@ type NicheOption = {
 }
 
 const selectClassName = cn(
-  'flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50',
+  'flex h-11 w-full cursor-pointer rounded-lg border border-input bg-card px-3 py-2 text-sm text-foreground ring-offset-background transition-colors duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 dark:[color-scheme:dark]',
 )
 
 const PLATFORM_LABELS: Record<'youtube' | 'instagram', string> = {
@@ -117,31 +117,48 @@ export function SubmitForm({ niches }: { niches: NicheOption[] }) {
 
   if (success) {
     return (
-      <Card>
-        <CardHeader>
-          <CardTitle>Submitted</CardTitle>
+      <Card className="animate-success border-primary/20 shadow-lg shadow-primary/5">
+        <CardHeader className="space-y-3">
+          <div className="flex h-10 w-10 items-center justify-center rounded-full bg-accent text-accent-foreground">
+            <CheckCircle2 className="h-5 w-5" aria-hidden="true" />
+          </div>
+          <CardTitle className="font-display text-2xl">Submitted</CardTitle>
           <CardDescription>
             Submitted successfully. This job is now queued for processing.
           </CardDescription>
         </CardHeader>
-        <CardContent className="space-y-2 text-sm">
-          {success.publicJobCode ? <p>Job: {success.publicJobCode}</p> : null}
-          <p>Niche: {success.nicheLabel}</p>
-          <p>Platform detected: {success.platformLabel}</p>
-          <p>Status: Queued for processing</p>
+        <CardContent className="space-y-2 text-sm text-muted-foreground">
+          {success.publicJobCode ? (
+            <p>
+              Job:{' '}
+              <span className="font-medium text-foreground">{success.publicJobCode}</span>
+            </p>
+          ) : null}
+          <p>
+            Niche: <span className="font-medium text-foreground">{success.nicheLabel}</span>
+          </p>
+          <p>
+            Platform:{' '}
+            <span className="font-medium text-foreground">{success.platformLabel}</span>
+          </p>
+          <p>
+            Status: <span className="font-medium text-primary">Queued for processing</span>
+          </p>
         </CardContent>
       </Card>
     )
   }
 
   return (
-    <Card>
+    <Card className="border-border/80 shadow-xl shadow-foreground/5">
       <CardHeader>
-        <CardTitle>Submit Content</CardTitle>
-        <CardDescription>Paste a client-approved reel or short link to queue processing.</CardDescription>
+        <CardTitle className="font-display text-2xl">Submit content</CardTitle>
+        <CardDescription>
+          Paste a client-approved reel or short link to queue processing.
+        </CardDescription>
       </CardHeader>
       <CardContent>
-        <form onSubmit={handleSubmit} className="space-y-4" noValidate>
+        <form onSubmit={handleSubmit} className="space-y-5" noValidate>
           {formError ? <ErrorAlert message={formError} /> : null}
 
           <div className="space-y-2">
@@ -157,6 +174,7 @@ export function SubmitForm({ niches }: { niches: NicheOption[] }) {
               onChange={(event) => handleUrlChange(event.target.value)}
               aria-invalid={urlError ? true : undefined}
               aria-describedby={urlError ? 'sourceUrl-error' : undefined}
+              className="h-11"
             />
             {urlError ? (
               <p id="sourceUrl-error" className="text-sm text-destructive" role="alert">
@@ -203,12 +221,13 @@ export function SubmitForm({ niches }: { niches: NicheOption[] }) {
             ) : null}
           </div>
 
-          <div className="flex items-start gap-3">
+          <div className="flex items-start gap-3 rounded-lg border border-border/70 bg-muted/40 p-3">
             <Checkbox
               id="rightsConfirmed"
               checked={rightsConfirmed}
               onCheckedChange={(checked) => setRightsConfirmed(checked === true)}
               aria-describedby="rightsConfirmed-label"
+              className="mt-0.5"
             />
             <Label
               id="rightsConfirmed-label"
@@ -225,7 +244,11 @@ export function SubmitForm({ niches }: { niches: NicheOption[] }) {
             </p>
           ) : null}
 
-          <Button type="submit" className="w-full" disabled={!canSubmit}>
+          <Button
+            type="submit"
+            className="h-11 w-full cursor-pointer text-base font-medium transition-colors duration-200"
+            disabled={!canSubmit}
+          >
             {isPending ? (
               <>
                 <Loader2 className="animate-spin" aria-hidden="true" />

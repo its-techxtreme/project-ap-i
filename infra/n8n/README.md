@@ -71,6 +71,7 @@ pnpm docker:down
    - `WF-04_manual_retry_webhook.json`
    - `WF-05_drive_cleanup_webhook.json`
    - `WF-06_account_health_check.json` (optional)
+   - `WF-07_admin_command_poller.json` (hosted admin retry/delete outbox)
 3. Link credentials on each HTTP node (`WorkerToken`, `WebhookInternalToken`)
 4. In WF-01 → **Run WF-02 Process Job** node → select workflow `WF-02 Process Job`
 5. In WF-02 → **Run WF-03 Verify** node → select workflow `WF-03 Upload Verification`
@@ -90,11 +91,24 @@ pnpm n8n:test:all
 | WF-01 | Every 2 min | Claim one queued job → run WF-02 |
 | WF-02 | Called by WF-01 | Process → upload → wait ~30 min → run WF-03 |
 | WF-03 | Called by WF-02 | Verify upload; retry or flag manual review |
-| WF-04 | Webhook | Admin manual retry (`/project-ap-i/manual-retry`) |
-| WF-05 | Webhook | Admin Drive cleanup (`/project-ap-i/drive-cleanup`) |
+| WF-04 | Webhook | Optional local manual retry (`/project-ap-i/manual-retry`) |
+| WF-05 | Webhook | Optional local Drive cleanup (`/project-ap-i/drive-cleanup`) |
 | WF-06 | Every 6 h | Alert on `login_required` or stale uploads (optional) |
+| WF-07 | Every 1 min | Drain `admin_commands` outbox → `POST /admin-commands/process-next` |
 
 Worker calls use `{{ $env.WORKER_BASE_URL }}` (Docker default: `http://worker:3001`).
+
+### Hosted admin → local worker (outbox)
+
+Vercel cannot reach a private worker. Admin Retry / Delete on the hosted dashboard:
+
+1. Inserts a pending row into Supabase `admin_commands`
+2. Writes an audit log
+3. Returns “queued” to the UI
+
+While Docker is up, **WF-07** claims and executes those commands locally. Ignore remains a direct DB update (no worker).
+
+Import `WF-07_admin_command_poller.json` and attach `WorkerToken`.
 
 ## Manual verification
 

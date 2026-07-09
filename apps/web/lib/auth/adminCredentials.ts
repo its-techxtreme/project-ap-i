@@ -1,0 +1,95 @@
+import { createHash } from 'node:crypto'
+
+import { supabaseAdmin } from '@/lib/supabase/admin'
+
+import { safeEqualString, verifyPassword } from './password'
+
+export const LOGIN_WINDOW_MS = 15 * 60 * 1000
+export const MAX_FAILURES_PER_IP = 5
+export const MAX_FAILURES_PER_USERNAME = 10
+
+export function normalizeUsername(username: string): string {
+  return username.trim().toLowerCase()
+}
+
+export function hashIp(ip: string): string {
+  return createHash('sha256').update(`admin-login-ip:${ip}`).digest('hex')
+}
+
+export function getAdminCredentials(): { username: string; passwordHash: string } | null {
+  const username = process.env.ADMIN_USERNAME?.trim()
+  const passwordHash = process.env.ADMIN_PASSWORD_HASH?.trim()
+  if (!username || !passwordHash) return null
+  return { username, passwordHash }
+}
+
+export async function countRecentFailures(opts: {
+  ipHash: string
+  usernameNorm?: string
+}): Promise<{ ipFailures: number; userFailures: number }> {
+  const since = new Date(Date.now() - LOGIN_WINDOW_MS).toISOString()
+
+  const ipQuery = supabaseAdmin
+    .from('admin_login_attempts')
+    .select('id', { count: 'exact', head: true })
+    .eq('ip_hash', opts.ipHash)
+    .eq('success', false)
+    .gte('created_at', since)
+
+  const { count: ipCount } = await ipQuery
+
+  let userCount = 0
+  if (opts.usernameNorm) {
+    const { count } = await supabaseAdmin
+      .from('admin_login_attempts')
+      .select('id', { count: 'exact', head: true })
+      .eq('username_norm', opts.usernameNorm)
+      .eq('success', false)
+      .gte('created_at', since)
+    userCount = count ?? 0
+  }
+
+  return { ipFailures: ipCount ?? 0, userFailures: userCount }
+}
+
+export async function isLoginLocked(opts: {
+  ipHash: string
+  usernameNorm?: string
+}): Promise<{ locked: boolean; reason?: 'ip' | 'username' }> {
+  const { ipFailures, userFailures } = await countRecentFailures(opts)
+  if (ipFailures >= MAX_FAILURES_PER_IP) return { locked: true, reason: 'ip' }
+  if (opts.usernameNorm && userFailures >= MAX_FAILURES_PER_USERNAME) {
+    return { locked: true, reason: 'username' }
+  }
+  return { locked: false }
+}
+
+export async function recordLoginAttempt(opts: {
+  ipHash: string
+  usernameNorm: string | null
+  success: boolean
+}): Promise<void> {
+  await supabaseAdmin.from('admin_login_attempts').insert({
+    ip_hash: opts.ipHash,
+    username_norm: opts.usernameNorm,
+    success: opts.success,
+  })
+}
+
+/**
+ * Verifies username/password against env credentials.
+ * Always runs password verification work when a hash is configured (timing hardening).
+ */
+export function verifyAdminCredentials(
+  username: string,
+  password: string,
+): { ok: true; username: string } | { ok: false } {
+  const creds = getAdminCredentials()
+  if (!creds) return { ok: false }
+
+  const usernameOk = safeEqualString(normalizeUsername(username), normalizeUsername(creds.username))
+  const passwordOk = verifyPassword(password, creds.passwordHash)
+
+  if (!usernameOk || !passwordOk) return { ok: false }
+  return { ok: true, username: creds.username }
+}

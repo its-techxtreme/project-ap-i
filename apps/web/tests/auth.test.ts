@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+﻿import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 const redirectMock = vi.fn((url: string) => {
   throw new Error(`REDIRECT:${url}`)
@@ -8,37 +8,15 @@ vi.mock('next/navigation', () => ({
   redirect: (url: string) => redirectMock(url),
 }))
 
-const createClientMock = vi.fn()
+const getAdminSessionMock = vi.fn()
+vi.mock('@/lib/auth/getAdminSession', () => ({
+  getAdminSession: () => getAdminSessionMock(),
+}))
 
+const createClientMock = vi.fn()
 vi.mock('@/lib/supabase/server', () => ({
   createClient: () => createClientMock(),
 }))
-
-function mockProfileRole(role: 'submitter' | 'admin' | null) {
-  const single = vi.fn().mockResolvedValue(
-    role
-      ? { data: { role }, error: null }
-      : { data: null, error: { message: 'not found' } },
-  )
-
-  createClientMock.mockResolvedValue({
-    auth: {
-      getSession: vi.fn().mockResolvedValue({
-        data: { session: role ? { user: { id: 'user-1' } } : null },
-        error: null,
-      }),
-      getUser: vi.fn().mockResolvedValue({
-        data: { user: role ? { id: 'user-1' } : null },
-        error: null,
-      }),
-    },
-    from: vi.fn().mockReturnValue({
-      select: vi.fn().mockReturnValue({
-        eq: vi.fn().mockReturnValue({ single }),
-      }),
-    }),
-  })
-}
 
 describe('getSession', () => {
   beforeEach(() => {
@@ -83,7 +61,14 @@ describe('getUserRole', () => {
     vi.resetModules()
   })
 
-  it('returns null when user not authenticated', async () => {
+  it('returns admin when admin session cookie is valid', async () => {
+    getAdminSessionMock.mockResolvedValue({ username: 'test-admin' })
+    const { getUserRole } = await import('@/lib/auth/getUserRole')
+    await expect(getUserRole()).resolves.toBe('admin')
+  })
+
+  it('returns null when no admin session and no supabase user', async () => {
+    getAdminSessionMock.mockResolvedValue(null)
     createClientMock.mockResolvedValue({
       auth: {
         getUser: vi.fn().mockResolvedValue({ data: { user: null }, error: null }),
@@ -95,16 +80,40 @@ describe('getUserRole', () => {
     await expect(getUserRole()).resolves.toBeNull()
   })
 
-  it("returns 'submitter' for submitter profile", async () => {
-    mockProfileRole('submitter')
+  it("returns 'submitter' for submitter profile without admin session", async () => {
+    getAdminSessionMock.mockResolvedValue(null)
+    const single = vi.fn().mockResolvedValue({ data: { role: 'submitter' }, error: null })
+    createClientMock.mockResolvedValue({
+      auth: {
+        getUser: vi.fn().mockResolvedValue({ data: { user: { id: 'user-1' } }, error: null }),
+      },
+      from: vi.fn().mockReturnValue({
+        select: vi.fn().mockReturnValue({
+          eq: vi.fn().mockReturnValue({ single }),
+        }),
+      }),
+    })
+
     const { getUserRole } = await import('@/lib/auth/getUserRole')
     await expect(getUserRole()).resolves.toBe('submitter')
   })
 
-  it("returns 'admin' for admin profile", async () => {
-    mockProfileRole('admin')
+  it('does not treat Supabase Auth admin profile as admin', async () => {
+    getAdminSessionMock.mockResolvedValue(null)
+    const single = vi.fn().mockResolvedValue({ data: { role: 'admin' }, error: null })
+    createClientMock.mockResolvedValue({
+      auth: {
+        getUser: vi.fn().mockResolvedValue({ data: { user: { id: 'user-1' } }, error: null }),
+      },
+      from: vi.fn().mockReturnValue({
+        select: vi.fn().mockReturnValue({
+          eq: vi.fn().mockReturnValue({ single }),
+        }),
+      }),
+    })
+
     const { getUserRole } = await import('@/lib/auth/getUserRole')
-    await expect(getUserRole()).resolves.toBe('admin')
+    await expect(getUserRole()).resolves.toBeNull()
   })
 })
 
@@ -114,7 +123,8 @@ describe('requireAdmin', () => {
     vi.resetModules()
   })
 
-  it('redirects to /login when user is null', async () => {
+  it('redirects to /login when no admin session', async () => {
+    getAdminSessionMock.mockResolvedValue(null)
     createClientMock.mockResolvedValue({
       auth: {
         getUser: vi.fn().mockResolvedValue({ data: { user: null }, error: null }),
@@ -128,14 +138,25 @@ describe('requireAdmin', () => {
   })
 
   it('redirects to /?error=forbidden when role is submitter', async () => {
-    mockProfileRole('submitter')
+    getAdminSessionMock.mockResolvedValue(null)
+    const single = vi.fn().mockResolvedValue({ data: { role: 'submitter' }, error: null })
+    createClientMock.mockResolvedValue({
+      auth: {
+        getUser: vi.fn().mockResolvedValue({ data: { user: { id: 'user-1' } }, error: null }),
+      },
+      from: vi.fn().mockReturnValue({
+        select: vi.fn().mockReturnValue({
+          eq: vi.fn().mockReturnValue({ single }),
+        }),
+      }),
+    })
+
     const { requireAdmin } = await import('@/lib/auth/requireAdmin')
     await expect(requireAdmin()).rejects.toThrow('REDIRECT:/?error=forbidden')
-    expect(redirectMock).toHaveBeenCalledWith('/?error=forbidden')
   })
 
-  it('does not redirect when role is admin', async () => {
-    mockProfileRole('admin')
+  it('does not redirect when admin session exists', async () => {
+    getAdminSessionMock.mockResolvedValue({ username: 'test-admin' })
     const { requireAdmin } = await import('@/lib/auth/requireAdmin')
     await expect(requireAdmin()).resolves.toBeUndefined()
     expect(redirectMock).not.toHaveBeenCalled()

@@ -1,9 +1,23 @@
+import fs from 'node:fs/promises'
+import path from 'node:path'
+
 import { config } from '../config'
 import { logger } from '../logging/logger'
 
 import { detectLoginOrChallenge } from './loginChallengeDetection'
 import { launchAuthenticatedContext } from './playwrightContext'
-import { humanClick, humanIdleMotion, humanPause, humanReadingPause, humanScroll, humanSetFiles, humanType } from './playwrightHumanBehavior'
+import {
+  clickFirstVisible,
+  firstAttached,
+  humanClick,
+  humanIdleMotion,
+  humanPause,
+  humanReadingPause,
+  humanScroll,
+  humanSetFiles,
+  humanType,
+  randomInt,
+} from './playwrightHumanBehavior'
 import { SessionHealthChecker } from './SessionHealthChecker'
 import type { PlatformUploader, SessionHealth, UploadInput, UploadResult } from './types'
 
@@ -24,6 +38,18 @@ function loginRequiredResult(errorCode: string, errorMessage: string): UploadRes
     errorCode,
     loginRequired: true,
     errorMessage,
+  }
+}
+
+async function saveDebugScreenshot(page: import('playwright').Page, jobId: string, label: string): Promise<void> {
+  try {
+    const dir = path.join(config.TMP_DIR, 'playwright-smoke')
+    await fs.mkdir(dir, { recursive: true })
+    const file = path.join(dir, `ig-${jobId.slice(0, 8)}-${label}-${Date.now()}.png`)
+    await page.screenshot({ path: file, fullPage: true })
+    logger.warn({ msg: 'Instagram upload debug screenshot saved', jobId, file })
+  } catch {
+    // best-effort
   }
 }
 
@@ -68,9 +94,7 @@ export class InstagramPlaywrightUploader implements PlatformUploader {
       await page.goto('https://www.instagram.com/', { waitUntil: 'domcontentloaded', timeout: 60_000 })
       await humanReadingPause()
       await humanScroll(page)
-      if (Math.random() > 0.4) {
-        await humanIdleMotion(page)
-      }
+      if (Math.random() > 0.5) await humanIdleMotion(page)
 
       const challenge = await detectLoginOrChallenge(page)
       if (challenge.loginRequired) {
@@ -86,40 +110,209 @@ export class InstagramPlaywrightUploader implements PlatformUploader {
         )
       }
 
-      await page.goto('https://www.instagram.com/create/style/', {
-        waitUntil: 'domcontentloaded',
-        timeout: 60_000,
-      })
-      await humanReadingPause()
+      // Open create flow. IG web often needs a hard click on the New post SVG / parent,
+      // then Post/Reel from the popover, then Select from computer.
+      let fileInputReady = false
+
+      async function clickCreateEntry(): Promise<boolean> {
+        const candidates = [
+          page.locator('svg[aria-label="New post"]').first(),
+          page.locator('[aria-label="New post"]').first(),
+          page.getByRole('link', { name: /^Create$/i }).first(),
+          page.getByRole('button', { name: /^Create$/i }).first(),
+          page.locator('a').filter({ hasText: /^Create$/ }).first(),
+          page.locator('div[role="link"]').filter({ hasText: /^Create$/ }).first(),
+        ]
+
+        for (const loc of candidates) {
+          if (!(await loc.isVisible().catch(() => false))) continue
+
+          // Prefer clicking the interactive ancestor of the SVG icon.
+          const clickTarget = loc.locator(
+            'xpath=ancestor-or-self::a[1] | ancestor-or-self::*[@role="link" or @role="button"][1]',
+          ).first()
+          const target = (await clickTarget.count().catch(() => 0)) > 0 ? clickTarget : loc
+
+          await target.scrollIntoViewIfNeeded().catch(() => undefined)
+          await humanPause(500, 1200)
+          // Native Playwright click is more reliable than synthetic mouse for React nav.
+          await target.click({ delay: randomInt(80, 180), force: true }).catch(async () => {
+            await humanClick(page, target)
+          })
+          await humanPause(800, 1600)
+          return true
+        }
+        return false
+      }
+
+      async function waitForCreateDialog(timeoutMs: number): Promise<boolean> {
+        const dialog = page.locator('div[role="dialog"]').first()
+        return dialog
+          .waitFor({ state: 'visible', timeout: timeoutMs })
+          .then(() => true)
+          .catch(() => false)
+      }
+
+      for (let attempt = 0; attempt < 5 && !fileInputReady; attempt++) {
+        await page.keyboard.press('Escape').catch(() => undefined)
+        await humanPause(300, 600)
+
+        const clicked = await clickCreateEntry()
+        if (!clicked && attempt === 0) {
+          await page.goto('https://www.instagram.com/', {
+            waitUntil: 'domcontentloaded',
+            timeout: 60_000,
+          })
+          await humanReadingPause()
+          await clickCreateEntry()
+        }
+
+        // Popover: Post / Reel / Story — click Post first (works for video too).
+        const menuClicked = await clickFirstVisible(
+          page,
+          [
+            'div[role="dialog"] div[role="menuitem"]:has-text("Post")',
+            'div[role="dialog"] div[role="menuitem"]:has-text("Reel")',
+            '[role="menu"] [role="menuitem"]:has-text("Post")',
+            '[role="menu"] [role="menuitem"]:has-text("Reel")',
+            'div[role="menuitem"]:has-text("Post")',
+            'div[role="menuitem"]:has-text("Reel")',
+            'button:has-text("Post")',
+            'button:has-text("Reel")',
+          ],
+          8_000,
+        ).catch(() => false)
+
+        if (!menuClicked) {
+          // Some builds open the create dialog directly without a menu.
+          await waitForCreateDialog(5_000)
+        } else {
+          await waitForCreateDialog(10_000)
+        }
+
+        await clickFirstVisible(
+          page,
+          [
+            'div[role="dialog"] button:has-text("Select from computer")',
+            'div[role="dialog"] button:has-text("Select from Computer")',
+            'button:has-text("Select from computer")',
+            'button:has-text("Select from Computer")',
+            'div[role="button"]:has-text("Select from computer")',
+            'text=Select from computer',
+          ],
+          8_000,
+        ).catch(() => false)
+
+        // File inputs may be hidden; attached is enough for setInputFiles.
+        const fileInput = page.locator('input[type="file"]').first()
+        fileInputReady = await fileInput
+          .waitFor({ state: 'attached', timeout: 12_000 })
+          .then(() => true)
+          .catch(() => false)
+
+        if (!fileInputReady) {
+          // Last-resort: any file input already in DOM (IG sometimes pre-mounts it).
+          const count = await page.locator('input[type="file"]').count().catch(() => 0)
+          if (count > 0) {
+            fileInputReady = true
+          }
+        }
+
+        if (!fileInputReady) {
+          await saveDebugScreenshot(page, input.jobId, `create-attempt-${attempt}`)
+          logger.warn({
+            msg: 'Instagram create attempt failed to expose file input',
+            jobId: input.jobId,
+            attempt,
+            url: page.url(),
+          })
+          await page.goto('https://www.instagram.com/', {
+            waitUntil: 'domcontentloaded',
+            timeout: 60_000,
+          })
+          await humanReadingPause()
+        }
+      }
+
+      if (!fileInputReady) {
+        await saveDebugScreenshot(page, input.jobId, 'no-file-input')
+        throw new Error('Instagram create dialog did not expose a file input')
+      }
 
       const fileInput = page.locator('input[type="file"]').first()
       await humanSetFiles(fileInput)
       await fileInput.setInputFiles(input.localFilePath)
       await humanReadingPause()
 
-      const nextBtn = page
-        .locator('button:has-text("Next"), div[role="button"]:has-text("Next")')
-        .first()
-      if (await nextBtn.isVisible({ timeout: 25_000 }).catch(() => false)) {
-        await humanClick(page, nextBtn)
-        await humanPause()
+      // Crop → Filters → caption: click Next up to 3 times when present.
+      for (let i = 0; i < 3; i++) {
+        const next = page
+          .locator(
+            'div[role="button"]:has-text("Next"), button:has-text("Next"), [role="button"]:has-text("Next")',
+          )
+          .first()
+        if (await next.isVisible({ timeout: 10_000 }).catch(() => false)) {
+          await humanClick(page, next)
+          await humanPause()
+        } else {
+          break
+        }
       }
 
-      if (input.metadata.instagramCaption) {
-        const captionField = page
-          .locator('textarea[aria-label*="caption"], textarea[placeholder*="Write a caption"]')
-          .first()
-        if (await captionField.isVisible({ timeout: 12_000 }).catch(() => false)) {
-          await humanType(captionField, input.metadata.instagramCaption, { clearFirst: true })
-        }
+      const caption =
+        input.metadata.instagramCaption?.trim() ||
+        'New short update. #reels'
+
+      const captionField = await firstAttached(
+        page,
+        [
+          'div[aria-label="Write a caption..."]',
+          'div[aria-label*="Write a caption"]',
+          'div[role="dialog"] div[aria-label*="Write a caption"]',
+          'div[role="dialog"] [contenteditable="true"][aria-label*="caption" i]',
+          'div[role="dialog"] div[role="textbox"]',
+          'textarea[aria-label*="caption" i]',
+          'textarea[placeholder*="Write a caption"]',
+          'div[contenteditable="true"][aria-label*="caption" i]',
+          'div[role="textbox"][aria-label*="caption" i]',
+          'div[role="dialog"] [contenteditable="true"]',
+        ],
+        60_000,
+      ).catch(() => null)
+
+      if (captionField) {
+        await humanType(captionField, caption.substring(0, 2200), { clearFirst: true })
+      } else {
+        logger.warn({
+          msg: 'Instagram caption field not found — continuing to Share',
+          jobId: input.jobId,
+        })
+        await saveDebugScreenshot(page, input.jobId, 'caption-missing')
       }
 
       await humanPause()
 
-      const shareBtn = page
-        .locator('button:has-text("Share"), div[role="button"]:has-text("Share")')
+      const shared = await clickFirstVisible(
+        page,
+        [
+          'div[role="button"]:has-text("Share")',
+          'button:has-text("Share")',
+          '[role="button"]:has-text("Share")',
+        ],
+        30_000,
+      )
+
+      if (!shared) {
+        await saveDebugScreenshot(page, input.jobId, 'share-missing')
+        throw new Error('Instagram Share button not found')
+      }
+
+      // Wait for share completion toast / dialog close.
+      await page
+        .locator('text=Your reel has been shared., text=Reel shared, text=Post shared, text=Shared')
         .first()
-      await humanClick(page, shareBtn)
+        .waitFor({ timeout: 120_000 })
+        .catch(() => undefined)
 
       await humanReadingPause()
 
@@ -143,6 +336,14 @@ export class InstagramPlaywrightUploader implements PlatformUploader {
       }
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : String(err)
+
+      try {
+        const pages = context?.pages() ?? []
+        const page = pages[pages.length - 1]
+        if (page) await saveDebugScreenshot(page, input.jobId, 'failed')
+      } catch {
+        // best-effort
+      }
 
       if (isLoginRelatedError(msg)) {
         return loginRequiredResult('INSTAGRAM_LOGIN_REQUIRED', msg)

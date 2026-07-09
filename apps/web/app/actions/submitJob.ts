@@ -1,7 +1,7 @@
 'use server'
 
+import { headers } from 'next/headers'
 import { revalidatePath } from 'next/cache'
-import { redirect } from 'next/navigation'
 import { SubmitJobSchema, validateSourceUrl } from '@project-api/shared'
 
 import {
@@ -9,20 +9,27 @@ import {
   recordSubmission,
 } from '@/lib/rate-limit/submission'
 import { supabaseAdmin } from '@/lib/supabase/admin'
-import { createClient } from '@/lib/supabase/server'
 
 export type SubmitJobResult =
   | { success: true; jobId: string; publicJobCode: string | null; nicheLabel: string }
   | { success: false; error: string; fieldErrors?: Record<string, string[]> }
 
-export async function submitJobAction(formData: unknown): Promise<SubmitJobResult> {
-  const supabase = await createClient()
-  const {
-    data: { user },
-  } = await supabase.auth.getUser()
-  if (!user) redirect('/login')
+function clientIpFromHeaders(h: Headers): string {
+  const forwarded = h.get('x-forwarded-for')
+  if (forwarded) {
+    const first = forwarded.split(',')[0]?.trim()
+    if (first) return first
+  }
+  const realIp = h.get('x-real-ip')?.trim()
+  if (realIp) return realIp
+  return 'unknown'
+}
 
-  const rateLimit = checkSubmissionRateLimit(user.id)
+export async function submitJobAction(formData: unknown): Promise<SubmitJobResult> {
+  const h = await headers()
+  const rateKey = `ip:${clientIpFromHeaders(h)}`
+
+  const rateLimit = checkSubmissionRateLimit(rateKey)
   if (!rateLimit.allowed) {
     return { success: false, error: rateLimit.error }
   }
@@ -43,7 +50,7 @@ export async function submitJobAction(formData: unknown): Promise<SubmitJobResul
     return { success: false, error: urlCheck.error }
   }
 
-  const { data: niche } = await supabase
+  const { data: niche } = await supabaseAdmin
     .from('niches')
     .select('id, name, slug')
     .eq('id', nicheId)
@@ -73,7 +80,7 @@ export async function submitJobAction(formData: unknown): Promise<SubmitJobResul
   const { data: job, error: insertError } = await supabaseAdmin
     .from('jobs')
     .insert({
-      submitted_by: user.id,
+      submitted_by: null,
       source_url: urlCheck.normalizedUrl,
       normalized_source_url: urlCheck.normalizedUrl,
       source_platform: sourcePlatform,
@@ -90,16 +97,16 @@ export async function submitJobAction(formData: unknown): Promise<SubmitJobResul
   }
 
   await supabaseAdmin.from('audit_logs').insert({
-    actor_user_id: user.id,
-    actor_type: 'user',
+    actor_user_id: null,
+    actor_type: 'anonymous',
     action: 'job_created',
     target_type: 'job',
     target_id: job.id,
-    metadata: { niche: niche.slug, platform: sourcePlatform },
+    metadata: { niche: niche.slug, platform: sourcePlatform, rate_key: rateKey },
   })
 
-  recordSubmission(user.id)
-  revalidatePath('/submit')
+  recordSubmission(rateKey)
+  revalidatePath('/')
 
   return {
     success: true,

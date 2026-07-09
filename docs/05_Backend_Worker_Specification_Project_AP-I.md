@@ -130,6 +130,14 @@ POST /jobs/:id/delete-drive-file
 
 Admin action routed through backend/worker. Requires job to be failed/manual review or completed cleanup state.
 
+### Process next admin command (outbox)
+
+```text
+POST /admin-commands/process-next
+```
+
+Used by local n8n (WF-07) while the hosted admin UI cannot reach the private worker. Claims one pending `admin_commands` row and runs retry-upload or delete-drive-file locally.
+
 ## Job processing sequence
 
 ```text

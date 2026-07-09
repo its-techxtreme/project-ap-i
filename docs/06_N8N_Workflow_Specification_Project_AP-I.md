@@ -217,6 +217,22 @@ Admin UI
 
 n8n can be skipped here.
 
+## Hosted admin outbox (recommended for Vercel)
+
+When the admin dashboard is on Vercel and the worker stays private:
+
+```text
+Admin UI (Vercel)
+  -> server action verifies admin + job guards
+  -> insert admin_commands (pending)
+  -> audit_logs
+Local n8n schedule (every 1 min)
+  -> POST {{WORKER_BASE_URL}}/admin-commands/process-next
+  -> worker claims + executes retry/delete
+```
+
+Infra workflow file: `WF-07_admin_command_poller.json`.
+
 ## WF-07: Account Health Check
 
 ### Trigger

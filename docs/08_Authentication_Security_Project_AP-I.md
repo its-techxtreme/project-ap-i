@@ -71,18 +71,40 @@ admin
 
 Role lives in `profiles.role` and is checked server-side.
 
-### Submitter authentication
+### Public submission (anonymous)
 
-Submitter must be logged in before submitting links.
+Product decision: the main submit page is public. No submitter account or signup is required.
 
 Allowed actions:
 
-- Submit jobs.
-- Optionally view own submissions.
+- Submit jobs via server action (service role insert, `submitted_by` null).
+- Rate limited by client IP (MVP in-memory; Redis later).
+
+Not allowed:
+
+- Accessing `/admin/*`
+- Choosing target platform accounts
+- Reading other jobs or account credentials
 
 ### Admin authentication
 
-Admin must be logged in and have role `admin`.
+Admin signs in with a **username + password** configured via server env (not Supabase Auth email).
+
+```text
+ADMIN_USERNAME
+ADMIN_PASSWORD_HASH   # scrypt hash from scripts/hash-admin-password.mjs
+ADMIN_SESSION_SECRET  # >= 32 chars; signs httpOnly session cookie
+```
+
+Security controls:
+
+```text
+Password verified with scrypt (never store plaintext on Vercel)
+Signed httpOnly session cookie (12h TTL)
+Login attempt lockout: 5 failures / IP / 15 min; 10 / username / 15 min
+Generic error messages (no user enumeration)
+Audit logs for admin_login and admin_login_failed
+```
 
 Allowed actions:
 
@@ -292,6 +314,7 @@ Recommended MVP limits:
 ```text
 Submitter submissions: 20/day/user
 Submission burst: 5/minute/user
+Admin login: 5 failures/IP/15min and 10 failures/username/15min then lockout
 Admin destructive actions: 20/hour/admin
 Worker process-next endpoint: internal only
 ```

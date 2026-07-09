@@ -10,6 +10,7 @@ const navItems = [
   { href: '/admin/jobs', label: 'Jobs' },
   { href: '/admin/failed', label: 'Failed Review' },
   { href: '/admin/accounts', label: 'Accounts' },
+  { href: '/admin/niches', label: 'Niches' },
   { href: '/admin/logs', label: 'Logs' },
   { href: '/admin/settings', label: 'Settings' },
 ]
@@ -18,7 +19,7 @@ export function Sidebar() {
   const pathname = usePathname()
 
   return (
-    <aside className="hidden w-56 shrink-0 border-r bg-muted/30 md:block">
+    <aside className="hidden w-56 shrink-0 border-r border-border bg-card/40 md:block">
       <nav className="flex flex-col gap-1 p-4" aria-label="Admin navigation">
         {navItems.map((item) => {
           const isActive =
@@ -30,10 +31,10 @@ export function Sidebar() {
               key={item.href}
               href={item.href}
               className={cn(
-                'rounded-md px-3 py-2 text-sm font-medium transition-colors',
+                'cursor-pointer rounded-md px-3 py-2 text-sm font-medium transition-colors duration-200',
                 isActive
-                  ? 'bg-background text-foreground shadow-sm'
-                  : 'text-muted-foreground hover:bg-background hover:text-foreground',
+                  ? 'bg-primary/15 text-primary'
+                  : 'text-muted-foreground hover:bg-muted hover:text-foreground',
               )}
             >
               {item.label}

@@ -7,6 +7,7 @@ import { getJobById, writeJobEvent } from '../db/jobsRepo'
 import { claimJob } from '../jobs/claimJob'
 import { createDriveStorage } from '../storage'
 import { deleteJobDriveFile } from '../jobs/driveDelete'
+import { processNextAdminCommand } from '../jobs/processAdminCommand'
 import { runUpload } from '../jobs/runUpload'
 import { runProcessPipeline } from '../jobs/processPipeline'
 import { retryJob } from '../jobs/retryJob'
@@ -19,6 +20,12 @@ const WORKER_ID = `worker-${crypto.randomBytes(4).toString('hex')}`
 
 export async function jobRoutes(app: FastifyInstance): Promise<void> {
   app.addHook('onRequest', workerAuthMiddleware)
+
+  /** Drain one admin outbox command (retry/delete) enqueued by the hosted admin UI. */
+  app.post('/admin-commands/process-next', async (_request, reply) => {
+    const result = await processNextAdminCommand(WORKER_ID)
+    return reply.send(result)
+  })
 
   app.post('/jobs/claim', async (_request, reply) => {
     const job = await claimJob(WORKER_ID)

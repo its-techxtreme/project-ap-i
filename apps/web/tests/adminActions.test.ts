@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+﻿import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 const redirectMock = vi.fn((url: string) => {
   throw new Error(`REDIRECT:${url}`)
@@ -9,16 +9,24 @@ vi.mock('next/navigation', () => ({
 }))
 
 const fetchMock = vi.fn()
-const supabaseAdminFromMock = vi.fn()
 const supabaseAdminInsertMock = vi.fn()
 const supabaseAdminSelectMock = vi.fn()
 const supabaseAdminEqMock = vi.fn()
 const supabaseAdminSingleMock = vi.fn()
+const adminCommandsInsertMock = vi.fn()
+const adminCommandsSelectMock = vi.fn()
+const adminCommandsSingleMock = vi.fn()
 
 const requireAdminMock = vi.fn<() => Promise<void>>()
+const getAdminUsernameMock = vi.fn<() => Promise<string | null>>()
 
 vi.mock('@/lib/auth/requireAdmin', () => ({
   requireAdmin: requireAdminMock,
+}))
+
+vi.mock('@/lib/auth/getUserRole', () => ({
+  getAdminUsername: () => getAdminUsernameMock(),
+  getUserRole: vi.fn(),
 }))
 
 vi.mock('@/lib/supabase/admin', () => ({
@@ -41,6 +49,15 @@ vi.mock('@/lib/supabase/admin', () => ({
           insert: supabaseAdminInsertMock,
         }
       }
+      if (table === 'admin_commands') {
+        return {
+          insert: adminCommandsInsertMock.mockReturnValue({
+            select: adminCommandsSelectMock.mockReturnValue({
+              single: adminCommandsSingleMock,
+            }),
+          }),
+        }
+      }
       throw new Error(`Unexpected table: ${table}`)
     },
   },
@@ -52,20 +69,15 @@ beforeEach(() => {
   vi.clearAllMocks()
   vi.resetModules()
 
-  // Mock environment variables
-  process.env.WORKER_BASE_URL = 'http://localhost:3001'
-  process.env.WORKER_INTERNAL_TOKEN = 'test-worker-internal-token-min-32-chars'
-
-  fetchMock.mockResolvedValue({
-    ok: true,
-    json: vi.fn().mockResolvedValue({ success: true }),
-  })
+  getAdminUsernameMock.mockResolvedValue('test-admin')
 
   supabaseAdminSelectMock.mockReset()
   supabaseAdminEqMock.mockReset()
   supabaseAdminSingleMock.mockReset()
   supabaseAdminInsertMock.mockReset()
-  supabaseAdminFromMock.mockReset()
+  adminCommandsInsertMock.mockReset()
+  adminCommandsSelectMock.mockReset()
+  adminCommandsSingleMock.mockReset()
 
   supabaseAdminEqMock.mockReturnValue({
     single: supabaseAdminSingleMock,
@@ -81,6 +93,11 @@ beforeEach(() => {
       youtube_retry_count: 1,
       instagram_retry_count: 1,
     },
+    error: null,
+  })
+
+  adminCommandsSingleMock.mockResolvedValue({
+    data: { id: 'cmd-1' },
     error: null,
   })
 
@@ -102,30 +119,47 @@ describe('adminActions', () => {
     await expect(deleteDriveFile('job-test-1')).rejects.toThrow()
   })
 
-  it('retryJobUpload() calls worker endpoint with correct token header', async () => {
+  it('retryJobUpload() enqueues admin_commands and does not call worker HTTP', async () => {
     requireAdminMock.mockResolvedValueOnce(undefined)
 
     const { retryJobUpload } = await import('@/app/actions/adminActions')
-    await retryJobUpload('job-test-1')
+    const result = await retryJobUpload('job-test-1')
 
-    expect(fetchMock).toHaveBeenCalledWith(
-      expect.stringContaining('/jobs/job-test-1/retry-upload'),
+    expect(fetchMock).not.toHaveBeenCalled()
+    expect(adminCommandsInsertMock).toHaveBeenCalledWith(
       expect.objectContaining({
-        method: 'POST',
-        headers: expect.objectContaining({
-          'Content-Type': 'application/json',
-          'X-Worker-Token': expect.any(String),
+        job_id: 'job-test-1',
+        command: 'retry_upload',
+        status: 'pending',
+        requested_by: null,
+        payload: expect.objectContaining({
+          requested_by_username: 'test-admin',
         }),
+      }),
+    )
+    expect(result).toEqual(
+      expect.objectContaining({
+        success: true,
+        queued: true,
+        commandId: 'cmd-1',
       }),
     )
   })
 
-  it('deleteDriveFile() writes audit log', async () => {
+  it('deleteDriveFile() writes audit log and enqueues command', async () => {
     requireAdminMock.mockResolvedValueOnce(undefined)
 
     const { deleteDriveFile } = await import('@/app/actions/adminActions')
     await deleteDriveFile('job-test-1')
 
+    expect(fetchMock).not.toHaveBeenCalled()
+    expect(adminCommandsInsertMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        job_id: 'job-test-1',
+        command: 'delete_drive_file',
+        status: 'pending',
+      }),
+    )
     expect(supabaseAdminInsertMock).toHaveBeenCalledWith(
       expect.objectContaining({
         actor_type: 'admin',
@@ -253,5 +287,19 @@ describe('adminActions', () => {
 
     expect(result.success).toBe(false)
     expect(result.error).toContain('not allowed')
+  })
+
+  it('retryJobUpload() returns friendly error when command already pending', async () => {
+    requireAdminMock.mockResolvedValueOnce(undefined)
+    adminCommandsSingleMock.mockResolvedValueOnce({
+      data: null,
+      error: { code: '23505', message: 'duplicate key' },
+    })
+
+    const { retryJobUpload } = await import('@/app/actions/adminActions')
+    const result = await retryJobUpload('job-test-1')
+
+    expect(result.success).toBe(false)
+    expect(result.error).toContain('already queued')
   })
 })

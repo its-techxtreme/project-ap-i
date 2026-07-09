@@ -66,7 +66,21 @@ describe('web security checklist', () => {
     for (const key of Object.keys(process.env)) {
       if (key.startsWith('NEXT_PUBLIC_')) {
         expect(key).not.toMatch(/SERVICE_ROLE/)
+        expect(key).not.toMatch(/ADMIN_PASSWORD/)
+        expect(key).not.toMatch(/SESSION_SECRET/)
       }
     }
+  })
+
+  it('admin password helpers never expose plaintext env on client modules', async () => {
+    const fs = await import('node:fs')
+    const path = await import('node:path')
+    const loginForm = fs.readFileSync(
+      path.join(process.cwd(), 'components/app/LoginForm.tsx'),
+      'utf8',
+    )
+    expect(loginForm).not.toMatch(/ADMIN_PASSWORD/)
+    expect(loginForm).toMatch(/adminLogin/)
+    expect(loginForm).toMatch(/Username/)
   })
 })

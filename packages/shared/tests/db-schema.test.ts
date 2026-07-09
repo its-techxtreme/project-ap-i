@@ -16,6 +16,9 @@ const EXPECTED_MIGRATIONS = [
   '0007_rls_policies.sql',
   '0008_indexes.sql',
   '0009_function_grants.sql',
+  '0012_audit_actor_anonymous.sql',
+  '0013_admin_commands.sql',
+  '0014_admin_login_attempts.sql',
 ]
 
 const RLS_TABLES = [
@@ -34,10 +37,20 @@ function readMigration(name: string): string {
 }
 
 describe('db schema — migration files (static)', () => {
-  it('all 9 migration files exist', () => {
+  it('all expected migration files exist', () => {
     for (const file of EXPECTED_MIGRATIONS) {
       expect(existsSync(join(MIGRATIONS_DIR, file)), `missing ${file}`).toBe(true)
     }
+  })
+
+  it('admin_commands outbox uses SKIP LOCKED claim and RLS', () => {
+    const sql = readMigration('0013_admin_commands.sql')
+    expect(sql).toMatch(/create table public\.admin_commands/)
+    expect(sql).toMatch(/claim_next_admin_command/)
+    expect(sql).toMatch(/for update skip locked/i)
+    expect(sql).toMatch(/enable row level security/i)
+    expect(sql).toMatch(/grant execute on function public\.claim_next_admin_command/)
+    expect(sql).toMatch(/to service_role/)
   })
 
   it('seed.sql exists and seeds three niches', () => {
@@ -106,6 +119,7 @@ describe('db schema — migration files (static)', () => {
     }
   })
 })
+
 
 /**
  * Integration tests require a live Supabase/Postgres database.

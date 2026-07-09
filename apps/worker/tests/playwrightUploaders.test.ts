@@ -24,6 +24,9 @@ const locatorMock = vi.fn(() => ({
     scrollIntoViewIfNeeded: scrollIntoViewIfNeededMock,
     boundingBox: boundingBoxMock,
     press: vi.fn().mockResolvedValue(undefined),
+    getAttribute: vi.fn().mockResolvedValue(null),
+    count: vi.fn().mockResolvedValue(1),
+    focus: vi.fn().mockResolvedValue(undefined),
   }),
   isVisible: vi.fn().mockResolvedValue(true),
   click: clickMock,
@@ -34,6 +37,9 @@ const locatorMock = vi.fn(() => ({
   scrollIntoViewIfNeeded: scrollIntoViewIfNeededMock,
   boundingBox: boundingBoxMock,
   press: vi.fn().mockResolvedValue(undefined),
+  getAttribute: vi.fn().mockResolvedValue(null),
+  count: vi.fn().mockResolvedValue(1),
+  focus: vi.fn().mockResolvedValue(undefined),
 }))
 
 vi.mock('../src/uploaders/playwrightContext', () => ({
@@ -44,26 +50,60 @@ vi.mock('../src/uploaders/loginChallengeDetection', () => ({
   detectLoginOrChallenge: (...args: unknown[]) => detectLoginOrChallengeMock(...args),
 }))
 
-vi.mock('../src/uploaders/playwrightHumanBehavior', () => ({
-  humanPause: vi.fn().mockResolvedValue(undefined),
-  humanReadingPause: vi.fn().mockResolvedValue(undefined),
-  humanIdleMotion: vi.fn().mockResolvedValue(undefined),
-  humanClick: vi.fn(async (_page: unknown, locator: { click: () => Promise<void> }) => {
-    await locator.click()
-  }),
-  humanType: vi.fn(
-    async (
-      locator: { fill: (v: string) => Promise<void>; pressSequentially: (v: string) => Promise<void> },
-      text: string,
-      options?: { clearFirst?: boolean },
-    ) => {
-      if (options?.clearFirst) await locator.fill('')
-      await locator.pressSequentially(text)
-    },
-  ),
-  humanScroll: vi.fn().mockResolvedValue(undefined),
-  humanSetFiles: vi.fn().mockResolvedValue(undefined),
-}))
+vi.mock('../src/uploaders/playwrightHumanBehavior', async () => {
+  const actualLocator = () =>
+    ({
+      first: () => ({
+        isVisible: vi.fn().mockResolvedValue(true),
+        click: clickMock,
+        fill: fillMock,
+        pressSequentially: pressSequentiallyMock,
+        waitFor: waitForMock,
+        setInputFiles: setInputFilesMock,
+        scrollIntoViewIfNeeded: scrollIntoViewIfNeededMock,
+        boundingBox: boundingBoxMock,
+        press: vi.fn().mockResolvedValue(undefined),
+        getAttribute: vi.fn().mockResolvedValue(null),
+        count: vi.fn().mockResolvedValue(1),
+        focus: vi.fn().mockResolvedValue(undefined),
+      }),
+      isVisible: vi.fn().mockResolvedValue(true),
+      click: clickMock,
+      fill: fillMock,
+      pressSequentially: pressSequentiallyMock,
+      waitFor: waitForMock,
+      setInputFiles: setInputFilesMock,
+      scrollIntoViewIfNeeded: scrollIntoViewIfNeededMock,
+      boundingBox: boundingBoxMock,
+      press: vi.fn().mockResolvedValue(undefined),
+      getAttribute: vi.fn().mockResolvedValue(null),
+      count: vi.fn().mockResolvedValue(1),
+      focus: vi.fn().mockResolvedValue(undefined),
+    }) as unknown
+
+  return {
+    humanPause: vi.fn().mockResolvedValue(undefined),
+    humanReadingPause: vi.fn().mockResolvedValue(undefined),
+    humanIdleMotion: vi.fn().mockResolvedValue(undefined),
+    humanClick: vi.fn(async (_page: unknown, locator: { click: () => Promise<void> }) => {
+      await locator.click()
+    }),
+    humanType: vi.fn(
+      async (
+        locator: { fill: (v: string) => Promise<void>; pressSequentially: (v: string) => Promise<void> },
+        text: string,
+        options?: { clearFirst?: boolean },
+      ) => {
+        if (options?.clearFirst) await locator.fill('')
+        await locator.pressSequentially(text)
+      },
+    ),
+    humanScroll: vi.fn().mockResolvedValue(undefined),
+    humanSetFiles: vi.fn().mockResolvedValue(undefined),
+    firstAttached: vi.fn(async () => actualLocator()),
+    clickFirstVisible: vi.fn(async () => true),
+  }
+})
 
 vi.mock('../src/logging/logger', () => ({
   logger: {
@@ -92,12 +132,12 @@ const baseInput = {
 
 function setupPageMocks(options?: { throwOnPublish?: boolean }) {
   gotoMock.mockResolvedValue(undefined)
-  clickMock.mockImplementation(async () => {
+  clickMock.mockResolvedValue(undefined)
+  setInputFilesMock.mockImplementation(async () => {
     if (options?.throwOnPublish) {
       throw new Error('sign in required to publish')
     }
   })
-  setInputFilesMock.mockResolvedValue(undefined)
   fillMock.mockResolvedValue(undefined)
   pressSequentiallyMock.mockResolvedValue(undefined)
   waitForMock.mockResolvedValue(undefined)
@@ -108,6 +148,11 @@ function setupPageMocks(options?: { throwOnPublish?: boolean }) {
   newPageMock.mockResolvedValue({
     goto: gotoMock,
     locator: locatorMock,
+    keyboard: {
+      press: vi.fn().mockResolvedValue(undefined),
+      type: vi.fn().mockResolvedValue(undefined),
+    },
+    screenshot: vi.fn().mockResolvedValue(Buffer.from('')),
     mouse: {
       move: vi.fn().mockResolvedValue(undefined),
       click: vi.fn().mockResolvedValue(undefined),

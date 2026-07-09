@@ -83,15 +83,22 @@ Test admin read.
 ### Vercel
 
 ```text
-Create project.
+Create project (rootDirectory = apps/web for this monorepo).
 Add NEXT_PUBLIC_SUPABASE_URL.
 Add NEXT_PUBLIC_SUPABASE_ANON_KEY.
-Add server-only secrets as sensitive environment variables.
-Deploy frontend.
-Test login.
-Test submit form.
-Test admin route protection.
+Add SUPABASE_URL + SUPABASE_SERVICE_ROLE_KEY as sensitive server env.
+Add WORKER_INTERNAL_TOKEN (server-only). Admin retry/delete no longer call the worker from Vercel.
+They enqueue rows in `admin_commands`; local n8n WF-07 polls `POST /admin-commands/process-next` on the private worker.
+WORKER_BASE_URL on Vercel can stay unset or point at a placeholder — it is not required for hosted admin actions.
+Add APP_BASE_URL=https://<your-deployment>.vercel.app
+Add ADMIN_USERNAME, ADMIN_PASSWORD_HASH, ADMIN_SESSION_SECRET (generate hash via `node --env-file=.env scripts/hash-admin-password.mjs`; never store plaintext ADMIN_PASSWORD on Vercel).
+Deploy frontend: from repo root `pnpm exec vercel deploy --prod`
+Add the production URL to Supabase Auth → URL Configuration → Site URL / Redirect URLs (optional; admin login no longer uses Supabase Auth).
+Test public submit form (no login).
+Test admin username/password login + route protection + lockout after repeated failures.
 ```
+
+Production URL (current): `https://project-ap-i.vercel.app`
 
 ### Local stack (worker + n8n)
 

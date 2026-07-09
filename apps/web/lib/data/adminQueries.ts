@@ -499,3 +499,49 @@ export async function getActiveNiches(): Promise<{ id: string; name: string; slu
   if (error) throw error
   return data ?? []
 }
+
+export type NicheMappingRow = {
+  id: string
+  name: string
+  slug: string
+  is_active: boolean
+  youtube_label: string | null
+  youtube_status: string | null
+  instagram_label: string | null
+  instagram_status: string | null
+}
+
+export async function getNicheAccountMappings(): Promise<NicheMappingRow[]> {
+  const { data: niches, error } = await supabaseAdmin
+    .from('niches')
+    .select('id, name, slug, is_active')
+    .order('name')
+
+  if (error) throw error
+
+  const { data: accounts, error: accountsError } = await supabaseAdmin
+    .from('platform_accounts')
+    .select('niche_id, platform, account_label, status')
+    .neq('status', 'disabled')
+
+  if (accountsError) throw accountsError
+
+  return (niches ?? []).map((niche) => {
+    const yt = (accounts ?? []).find(
+      (a) => a.niche_id === niche.id && a.platform === 'youtube',
+    )
+    const ig = (accounts ?? []).find(
+      (a) => a.niche_id === niche.id && a.platform === 'instagram',
+    )
+    return {
+      id: niche.id,
+      name: niche.name,
+      slug: niche.slug,
+      is_active: niche.is_active,
+      youtube_label: yt?.account_label ?? null,
+      youtube_status: yt?.status ?? null,
+      instagram_label: ig?.account_label ?? null,
+      instagram_status: ig?.status ?? null,
+    }
+  })
+}
