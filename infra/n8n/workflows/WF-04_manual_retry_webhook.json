@@ -24,7 +24,7 @@
     {
       "parameters": {
         "method": "POST",
-        "url": "=http://worker:3001/jobs/{{ $json.body.jobId }}/retry-upload",
+        "url": "={{ $env.WORKER_BASE_URL }}/jobs/{{ $json.body.jobId }}/retry-upload",
         "authentication": "genericCredentialType",
         "genericAuthType": "httpHeaderAuth",
         "sendBody": true,

@@ -31,4 +31,11 @@ describe('worker security checklist', () => {
   it('REAL_UPLOADS_ENABLED is false in test environment', () => {
     expect(config.REAL_UPLOADS_ENABLED).toBe(false)
   })
+
+  it('health checks object does not embed worker token', async () => {
+    const app = await buildServer()
+    const response = await app.inject({ method: 'GET', url: '/health' })
+    const json = response.json() as { checks: Record<string, unknown> }
+    expect(JSON.stringify(json.checks)).not.toContain(process.env.WORKER_INTERNAL_TOKEN ?? 'MISSING')
+  })
 })

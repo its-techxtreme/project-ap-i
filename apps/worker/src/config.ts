@@ -43,6 +43,8 @@ const configSchema = z.object({
   VERIFY_DELAY_MINUTES: z.string().default('30').transform(Number),
 
   WATERMARK_PATH: z.string().default('/app/assets/watermark.png'),
+  /** Directory containing memes.png / anime.png / sports.png (niche watermarks). */
+  WATERMARKS_DIR: z.string().optional(),
   TMP_DIR: z.string().default('/app/tmp/jobs'),
 
   MAX_SOURCE_DURATION_SECONDS: z.string().default('180').transform(Number),
@@ -76,3 +78,14 @@ if (!parsed.success) {
 }
 
 export const config = parsed.data
+
+/** Real uploads require installed Google Chrome — never bundled Chromium. */
+if (config.REAL_UPLOADS_ENABLED) {
+  const channel = (config.PLAYWRIGHT_CHANNEL ?? '').trim().toLowerCase()
+  if (channel !== 'chrome') {
+    console.error(
+      'Worker config validation failed: REAL_UPLOADS_ENABLED=true requires PLAYWRIGHT_CHANNEL=chrome',
+    )
+    process.exit(1)
+  }
+}

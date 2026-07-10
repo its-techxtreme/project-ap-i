@@ -21,7 +21,7 @@
     {
       "parameters": {
         "method": "GET",
-        "url": "={{ $env.SUPABASE_URL }}/rest/v1/platform_accounts?is_active=eq.true&login_required=eq.true&select=id,platform,display_name,login_required,last_successful_upload_at",
+        "url": "={{ $env.SUPABASE_URL }}/rest/v1/platform_accounts?status=eq.active&login_required=eq.true&select=id,platform,account_label,login_required,last_successful_upload_at,failure_count",
         "sendHeaders": true,
         "headerParameters": {
           "parameters": [
@@ -46,7 +46,7 @@
     {
       "parameters": {
         "method": "GET",
-        "url": "={{ $env.SUPABASE_URL }}/rest/v1/platform_accounts?is_active=eq.true&last_successful_upload_at=lt.{{ $now.minus({ hours: 48 }).toISO() }}&select=id,platform,display_name,last_successful_upload_at",
+        "url": "={{ $env.SUPABASE_URL }}/rest/v1/platform_accounts?status=eq.active&last_successful_upload_at=lt.{{ $now.minus({ hours: 48 }).toISO() }}&select=id,platform,account_label,last_successful_upload_at,failure_count",
         "sendHeaders": true,
         "headerParameters": {
           "parameters": [

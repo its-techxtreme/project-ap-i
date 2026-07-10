@@ -59,6 +59,8 @@ export function JobsTable({ jobs }: { jobs: JobListRow[] }) {
               <th className="px-3 py-2 font-medium">Status</th>
               <th className="px-3 py-2 font-medium">YouTube Status</th>
               <th className="px-3 py-2 font-medium">Instagram Status</th>
+              <th className="px-3 py-2 font-medium">YouTube URL</th>
+              <th className="px-3 py-2 font-medium">Instagram URL</th>
               <th className="px-3 py-2 font-medium">Drive File</th>
               <th className="px-3 py-2 font-medium">Retry Count</th>
               <th className="px-3 py-2 font-medium">Failure Reason</th>
@@ -86,6 +88,34 @@ export function JobsTable({ jobs }: { jobs: JobListRow[] }) {
                 </td>
                 <td className="px-3 py-2">
                   <StatusBadge status={job.instagram_upload_status} />
+                </td>
+                <td className="px-3 py-2">
+                  {job.youtube_url ? (
+                    <a
+                      href={job.youtube_url}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="text-primary underline-offset-4 hover:underline"
+                    >
+                      Open
+                    </a>
+                  ) : (
+                    '—'
+                  )}
+                </td>
+                <td className="px-3 py-2">
+                  {job.instagram_url ? (
+                    <a
+                      href={job.instagram_url}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="text-primary underline-offset-4 hover:underline"
+                    >
+                      Open
+                    </a>
+                  ) : (
+                    '—'
+                  )}
                 </td>
                 <td className="px-3 py-2">
                   {job.drive_view_url ? (

@@ -4,6 +4,7 @@ import { getJobById, getNicheSlugById, updateJobStatus } from '../db/jobsRepo'
 import { createUploadCoordinator } from '../uploaders'
 import { logger } from '../logging/logger'
 
+import { withUploadConcurrency } from './ConcurrencyGuard'
 import { finalizeUploadStatus } from './uploadFinalize'
 import { prepareLocalUploadFile } from './uploadLocalFile'
 
@@ -12,6 +13,10 @@ import { prepareLocalUploadFile } from './uploadLocalFile'
  * Uses MockUploader when REAL_UPLOADS_ENABLED is false; Playwright uploaders when enabled.
  */
 export async function runUpload(jobId: string): Promise<string> {
+  return withUploadConcurrency(() => runUploadInner(jobId))
+}
+
+async function runUploadInner(jobId: string): Promise<string> {
   const job = await getJobById(jobId)
   if (!job) {
     throw new ProjectApiError(ERROR_CODES.JOB_NOT_FOUND, `Job not found: ${jobId}`, { stage: 'upload' })
@@ -32,9 +37,15 @@ export async function runUpload(jobId: string): Promise<string> {
     )
   }
 
+  // Only mark platforms that still need work as uploading (preserve verified/uploaded).
+  const ytNeeds =
+    job.youtube_upload_status !== 'uploaded' && job.youtube_upload_status !== 'verified'
+  const igNeeds =
+    job.instagram_upload_status !== 'uploaded' && job.instagram_upload_status !== 'verified'
+
   await updateJobStatus(jobId, 'uploading', {
-    youtube_upload_status: 'uploading',
-    instagram_upload_status: 'uploading',
+    ...(ytNeeds ? { youtube_upload_status: 'uploading' } : {}),
+    ...(igNeeds ? { instagram_upload_status: 'uploading' } : {}),
   })
 
   const coordinator = createUploadCoordinator()
@@ -42,6 +53,13 @@ export async function runUpload(jobId: string): Promise<string> {
 
   if (localFilePath) {
     logger.info({ msg: 'Staged Drive file downloaded for upload', jobId, localFilePath })
+  }
+
+  const platformsToUpload: Array<'youtube' | 'instagram'> = []
+  if (ytNeeds) platformsToUpload.push('youtube')
+  if (igNeeds) platformsToUpload.push('instagram')
+  if (platformsToUpload.length === 0) {
+    platformsToUpload.push('youtube', 'instagram')
   }
 
   try {
@@ -57,7 +75,7 @@ export async function runUpload(jobId: string): Promise<string> {
       youtubeRetryCount: job.youtube_retry_count,
       instagramRetryCount: job.instagram_retry_count,
       localFilePath,
-      platformsToUpload: ['youtube', 'instagram'],
+      platformsToUpload,
     })
   } catch (err) {
     if (err instanceof ProjectApiError && err.code === ERROR_CODES.NICHE_ACCOUNT_MAPPING_INVALID) {

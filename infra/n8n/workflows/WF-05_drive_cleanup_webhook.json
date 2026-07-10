@@ -24,7 +24,7 @@
     {
       "parameters": {
         "method": "POST",
-        "url": "=http://worker:3001/jobs/{{ $json.body.jobId }}/delete-drive-file",
+        "url": "={{ $env.WORKER_BASE_URL }}/jobs/{{ $json.body.jobId }}/delete-drive-file",
         "authentication": "genericCredentialType",
         "genericAuthType": "httpHeaderAuth",
         "options": {}

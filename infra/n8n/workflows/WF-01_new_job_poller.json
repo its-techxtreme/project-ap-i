@@ -21,7 +21,7 @@
     {
       "parameters": {
         "method": "POST",
-        "url": "=http://worker:3001/jobs/claim",
+        "url": "={{ $env.WORKER_BASE_URL }}/jobs/claim",
         "authentication": "genericCredentialType",
         "genericAuthType": "httpHeaderAuth",
         "options": {

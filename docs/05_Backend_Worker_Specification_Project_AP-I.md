@@ -260,11 +260,14 @@ One URL per job
 
 ```text
 Speed: 1.1x
-Watermark: bottom-right, 70 percent opacity, small size
+Watermark: niche-specific logo (memes / anime / sports), bottom-right, 70 percent opacity, small size
 Visual filter: mild standardization
 Audio: tempo adjusted to match speed
 Output: MP4/H.264/AAC
 ```
+
+Watermark assets live at `apps/worker/assets/watermarks/{memes,anime,sports}.png`.
+Optional override: `WATERMARKS_DIR`. Fallback: `WATERMARK_PATH` if a niche file is missing.
 
 ### Conceptual FFmpeg flow
 
@@ -334,8 +337,12 @@ AP-I_<nicheSlug>_<jobId>_<yyyyMMdd_HHmm>.mp4
 source_url
 source_platform
 niche
-optional source title/channel metadata
+source title from yt-dlp info.json (when available)
+source caption/description from yt-dlp info.json (when available)
+optional source channel/uploader
 ```
+
+Downloader writes `--write-info-json` and passes title/description into metadata generation.
 
 ### Outputs
 
@@ -348,22 +355,27 @@ hashtags optional
 
 ### Requirements
 
-- Keep YouTube title concise.
+- Prefer rephrasing the original source caption/description (title as backup).
+- Keep the same topic/meaning; do not invent unrelated copy.
+- Add 3–5 niche hashtags on YouTube description and Instagram caption.
+- Keep YouTube title concise (max ~70 chars preferred).
 - Avoid fake claims.
 - Avoid misleading health/finance/legal claims if relevant.
 - Avoid spam-like hashtags.
 - Do not include internal job IDs.
+- Strip source promo CTAs, @mentions, and external URLs when rewriting.
 - Generate in the target language style configured later.
 
 ### Failure behavior
 
 If metadata generation fails:
 
-- Use fallback template.
+- Prefer lightly cleaned original source caption/title + niche tags.
+- Otherwise use niche fallback template.
 - Mark `metadata_status = fallback_used`.
 - Continue upload unless admin config says metadata is mandatory.
 
-Fallback example:
+Fallback example (no source text):
 
 ```text
 Title: Latest update in <niche>
@@ -423,13 +435,19 @@ mark job needs_manual_review or retryable_after_login
 Responsibilities:
 
 - Open persistent browser profile for target Instagram account.
+- Snapshot the newest profile reel/post URL **before** create (baseline).
 - Navigate to creation/upload flow.
 - Upload edited file.
 - Fill caption.
-- Publish.
-- Capture success state if available.
+- Publish (Share).
+- Confirm success only with a **real** Instagram media URL (`/reel/`, `/p/`, or `/tv/`):
+  - Prefer Share-dialog / “See post” link when present.
+  - Otherwise require the profile’s newest media URL to **differ from the baseline**.
+- Never invent synthetic `ig-<jobId>-<timestamp>` media IDs. Missing confirmation = upload failed.
 
 Same login challenge rules apply.
+
+Verification also rejects synthetic `ig-` / `yt-` placeholders and requires real YouTube/Instagram URLs before marking verified / deleting Drive.
 
 ## Verification module
 

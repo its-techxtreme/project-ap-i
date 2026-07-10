@@ -8,6 +8,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { requireAdmin } from '@/lib/auth/requireAdmin'
 import { getJobDetail } from '@/lib/data/adminQueries'
 import { formatRelativeTime, shortId } from '@/lib/format/relativeTime'
+import { pickLatestSuccessfulUpload, resolveUploadHref } from '@/lib/format/uploadRefs'
 
 function Field({ label, value }: { label: string; value: React.ReactNode }) {
   return (
@@ -25,15 +26,36 @@ function UploadReference({
   url: string | null | undefined
   mediaId: string | null | undefined
 }) {
-  if (url) {
+  const href = resolveUploadHref({ platform_url: url, platform_media_id: mediaId })
+  if (href) {
     return (
-      <a href={url} target="_blank" rel="noreferrer" className="underline">
-        {url}
+      <a href={href} target="_blank" rel="noreferrer" className="break-all underline">
+        {href}
       </a>
     )
   }
   if (mediaId) return mediaId
   return '—'
+}
+
+function EventMessage({ message }: { message: string | null }) {
+  if (!message) return <p className="mt-1 text-muted-foreground">No message</p>
+
+  // Turn http(s) URLs in timeline messages into clickable links.
+  const parts = message.split(/(https?:\/\/[^\s|]+)/g)
+  return (
+    <p className="mt-1 break-words text-muted-foreground">
+      {parts.map((part, index) =>
+        /^https?:\/\//i.test(part) ? (
+          <a key={`${part}-${index}`} href={part} target="_blank" rel="noreferrer" className="underline">
+            {part}
+          </a>
+        ) : (
+          <span key={`${part}-${index}`}>{part}</span>
+        ),
+      )}
+    </p>
+  )
 }
 
 export default async function AdminJobDetailPage({ params }: { params: Promise<{ id: string }> }) {
@@ -48,8 +70,8 @@ export default async function AdminJobDetailPage({ params }: { params: Promise<{
   const submitter = job.submitter as { email: string | null; full_name: string | null } | null
   const youtubeAccount = job.youtube_account as { account_label: string } | null
   const instagramAccount = job.instagram_account as { account_label: string } | null
-  const latestYoutubeAttempt = uploadAttempts.find((attempt) => attempt.platform === 'youtube')
-  const latestInstagramAttempt = uploadAttempts.find((attempt) => attempt.platform === 'instagram')
+  const latestYoutubeAttempt = pickLatestSuccessfulUpload(uploadAttempts, 'youtube')
+  const latestInstagramAttempt = pickLatestSuccessfulUpload(uploadAttempts, 'instagram')
 
   return (
     <div className="space-y-6">
@@ -130,7 +152,7 @@ export default async function AdminJobDetailPage({ params }: { params: Promise<{
           <Field label="YouTube account" value={youtubeAccount?.account_label ?? 'Not assigned'} />
           <Field label="YouTube status" value={<StatusBadge status={job.youtube_upload_status} />} />
           <Field
-            label="YouTube uploaded URL/ID"
+            label="YouTube uploaded URL"
             value={
               <UploadReference
                 url={latestYoutubeAttempt?.platform_url}
@@ -144,7 +166,7 @@ export default async function AdminJobDetailPage({ params }: { params: Promise<{
             value={<StatusBadge status={job.instagram_upload_status} />}
           />
           <Field
-            label="Instagram uploaded URL/ID"
+            label="Instagram uploaded URL"
             value={
               <UploadReference
                 url={latestInstagramAttempt?.platform_url}
@@ -186,7 +208,7 @@ export default async function AdminJobDetailPage({ params }: { params: Promise<{
                       {formatRelativeTime(event.created_at)}
                     </span>
                   </div>
-                  <p className="mt-1 text-muted-foreground">{event.message ?? 'No message'}</p>
+                  <EventMessage message={event.message} />
                 </li>
               ))}
             </ol>

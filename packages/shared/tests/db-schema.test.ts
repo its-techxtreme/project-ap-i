@@ -19,6 +19,7 @@ const EXPECTED_MIGRATIONS = [
   '0012_audit_actor_anonymous.sql',
   '0013_admin_commands.sql',
   '0014_admin_login_attempts.sql',
+  '0015_reclaim_stale_locks.sql',
 ]
 
 const RLS_TABLES = [
@@ -93,6 +94,14 @@ describe('db schema — migration files (static)', () => {
     const sql = readMigration('0006_functions.sql')
     expect(sql).toMatch(/claim_next_job/)
     expect(sql).toMatch(/security definer/i)
+    expect(sql).toMatch(/for update skip locked/i)
+  })
+
+  it('claim_next_job reclaims expired locked jobs (0015)', () => {
+    const sql = readMigration('0015_reclaim_stale_locks.sql')
+    expect(sql).toMatch(/status = 'locked'/)
+    expect(sql).toMatch(/lock_expires_at < now\(\)/)
+    expect(sql).toMatch(/lock_reclaimed/)
     expect(sql).toMatch(/for update skip locked/i)
   })
 

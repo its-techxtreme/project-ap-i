@@ -86,28 +86,23 @@ export async function updateWorkflow(client, id, payload) {
 
 export async function publishWorkflow(client, id) {
   const attempts = [
-    ['POST', `/workflows/${id}/publish`],
     ['POST', `/workflows/${id}/activate`],
+    ['POST', `/workflows/${id}/publish`],
   ]
 
   for (const [method, route] of attempts) {
-    const { ok, status, data } = await client.api(method, route)
-    if (ok && (data.activeVersionId || data.active === true || data.success === true)) {
-      return data
+    const { ok, data } = await client.api(method, route)
+    // n8n 2.x activate returns the workflow object with active:true
+    if (ok) {
+      if (data.active === true || data.activeVersionId || data.success === true || data.id) {
+        return data
+      }
     }
   }
 
-  const wf = await getWorkflow(client, id)
-  const { ok, status, data } = await client.api('PUT', `/workflows/${id}`, {
-    name: wf.name,
-    nodes: wf.nodes,
-    connections: wf.connections,
-    settings: wf.settings ?? {},
-    staticData: wf.staticData ?? null,
-    active: true,
-  })
-  if (!ok) throw new Error(`publish ${id} failed → ${status}: ${JSON.stringify(data)}`)
-  return data
+  const fresh = await getWorkflow(client, id)
+  if (fresh.active) return fresh
+  throw new Error(`publish ${id} failed — activate/publish endpoints rejected and workflow still inactive`)
 }
 
 export async function runWorkflowTest(client, workflowId, pinData) {

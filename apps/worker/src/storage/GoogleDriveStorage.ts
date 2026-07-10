@@ -54,11 +54,13 @@ export class GoogleDriveStorage implements DriveStorage {
 
     logger.info({ msg: 'Starting Drive upload', jobId: input.jobId, fileName })
 
+    const UPLOAD_TIMEOUT_MS = 10 * 60_000
+
     try {
       const { size: fileSize } = assertLocalFileReadable(input.localFilePath)
       const fileStream = fs.createReadStream(input.localFilePath)
 
-      const response = await this.getDrive().files.create(
+      const uploadPromise = this.getDrive().files.create(
         {
           requestBody: {
             name: fileName,
@@ -69,11 +71,13 @@ export class GoogleDriveStorage implements DriveStorage {
             body: fileStream,
           },
           fields: 'id,name,webViewLink',
+          supportsAllDrives: true,
         },
         {
+          timeout: UPLOAD_TIMEOUT_MS,
           onUploadProgress: (evt) => {
-            if (evt.bytesRead > 0 && evt.bytesRead % (10 * 1024 * 1024) === 0) {
-              logger.debug({
+            if (evt.bytesRead > 0) {
+              logger.info({
                 msg: 'Drive upload progress',
                 jobId: input.jobId,
                 bytes: evt.bytesRead,
@@ -83,6 +87,16 @@ export class GoogleDriveStorage implements DriveStorage {
           },
         },
       )
+
+      const response = await Promise.race([
+        uploadPromise,
+        new Promise<never>((_, reject) => {
+          setTimeout(() => {
+            fileStream.destroy()
+            reject(new Error(`Drive upload timed out after ${UPLOAD_TIMEOUT_MS}ms`))
+          }, UPLOAD_TIMEOUT_MS)
+        }),
+      ])
 
       const file = response.data
       if (!file.id || !file.name) {

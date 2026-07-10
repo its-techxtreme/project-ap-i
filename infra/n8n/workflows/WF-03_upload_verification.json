@@ -22,7 +22,7 @@
     {
       "parameters": {
         "method": "POST",
-        "url": "=http://worker:3001/jobs/{{ $json.jobId }}/verify",
+        "url": "={{ $env.WORKER_BASE_URL }}/jobs/{{ $json.jobId }}/verify",
         "authentication": "genericCredentialType",
         "genericAuthType": "httpHeaderAuth",
         "options": {}
@@ -191,7 +191,7 @@
     {
       "parameters": {
         "method": "POST",
-        "url": "=http://worker:3001/jobs/{{ $json.jobId }}/retry-upload",
+        "url": "={{ $env.WORKER_BASE_URL }}/jobs/{{ $json.jobId }}/retry-upload",
         "authentication": "genericCredentialType",
         "genericAuthType": "httpHeaderAuth",
         "options": {}

@@ -21,7 +21,7 @@ export function buildFfmpegArgs(opts: FfmpegPresetOptions): string[] {
 
   const videoFilter = [
     `[0:v]setpts=PTS/1.1,eq=saturation=1.1:contrast=1.05[v_sped]`,
-    `[1:v]scale=80:-1,format=rgba,colorchannelmixer=aa=0.7[watermark]`,
+    `[1:v]scale=56:-1,format=rgba,colorchannelmixer=aa=0.7[watermark]`,
     `[v_sped][watermark]overlay=W-w-10:H-h-10[v_out]`,
   ].join(';')
 

@@ -21,7 +21,7 @@
     {
       "parameters": {
         "method": "POST",
-        "url": "=http://worker:3001/admin-commands/process-next",
+        "url": "={{ $env.WORKER_BASE_URL }}/admin-commands/process-next",
         "authentication": "genericCredentialType",
         "genericAuthType": "httpHeaderAuth",
         "options": {

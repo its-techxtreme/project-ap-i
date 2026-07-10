@@ -4,10 +4,13 @@ import { getJobById, updateJobStatus, writeJobEvent, writeAuditLog } from '../db
 import { supabaseAdmin } from '../db/supabaseAdmin'
 import { createDriveStorage } from '../storage'
 import { logger } from '../logging/logger'
+import { isRealPlatformMediaId } from '../uploaders/platformMediaIds'
 
 const MAX_RETRY_COUNT = 2
 
 type RetryOutcome = 'ok' | 'retry' | 'manual'
+
+export { isRealPlatformMediaId }
 
 function platformOutcome(failed: boolean, retryCount: number): RetryOutcome {
   if (!failed) return 'ok'
@@ -24,9 +27,41 @@ async function hasRecordedUploadAttempts(jobId: string): Promise<boolean> {
   if (error || !data) return false
 
   const rows = data as Array<{ platform: string; platform_media_id: string | null }>
-  const youtubeOk = rows.some((r) => r.platform === 'youtube' && r.platform_media_id)
-  const instagramOk = rows.some((r) => r.platform === 'instagram' && r.platform_media_id)
+  const youtubeOk = rows.some(
+    (r) => r.platform === 'youtube' && isRealPlatformMediaId('youtube', r.platform_media_id),
+  )
+  const instagramOk = rows.some(
+    (r) => r.platform === 'instagram' && isRealPlatformMediaId('instagram', r.platform_media_id),
+  )
   return youtubeOk && instagramOk
+}
+
+async function getPublishedPlatformUrls(jobId: string): Promise<{
+  youtubeUrl: string | null
+  instagramUrl: string | null
+}> {
+  const { data } = await supabaseAdmin
+    .from('upload_attempts')
+    .select('platform, status, platform_media_id, platform_url')
+    .eq('job_id', jobId)
+    .eq('status', 'uploaded')
+
+  const rows = (data ?? []) as Array<{
+    platform: string
+    platform_media_id: string | null
+    platform_url: string | null
+  }>
+
+  const pick = (platform: 'youtube' | 'instagram'): string | null => {
+    for (const row of rows) {
+      if (row.platform !== platform) continue
+      const candidate = row.platform_url ?? row.platform_media_id
+      if (isRealPlatformMediaId(platform, candidate)) return candidate
+    }
+    return null
+  }
+
+  return { youtubeUrl: pick('youtube'), instagramUrl: pick('instagram') }
 }
 
 async function cleanupDriveFile(job: DbJobRow): Promise<void> {
@@ -99,7 +134,9 @@ export async function verifyJob(jobId: string): Promise<void> {
   const youtubeRetryCount = job.youtube_retry_count
   const instagramRetryCount = job.instagram_retry_count
 
-  const bothUploaded = youtubeStatus === 'uploaded' && instagramStatus === 'uploaded'
+  const bothUploaded =
+    (youtubeStatus === 'uploaded' || youtubeStatus === 'verified') &&
+    (instagramStatus === 'uploaded' || instagramStatus === 'verified')
   const anyFailed = youtubeStatus === 'failed' || instagramStatus === 'failed'
   const anyLoginRequired = youtubeStatus === 'login_required' || instagramStatus === 'login_required'
 
@@ -126,13 +163,29 @@ export async function verifyJob(jobId: string): Promise<void> {
       completed_at: new Date().toISOString(),
     })
 
-    await writeJobEvent(jobId, 'verify', 'verification_completed', 'Both platforms verified')
+    const { youtubeUrl, instagramUrl } = await getPublishedPlatformUrls(jobId)
+    const urlParts = [
+      youtubeUrl ? `YouTube: ${youtubeUrl}` : null,
+      instagramUrl ? `Instagram: ${instagramUrl}` : null,
+    ].filter(Boolean)
+
+    await writeJobEvent(
+      jobId,
+      'verify',
+      'verification_completed',
+      urlParts.length > 0
+        ? `Both platforms verified — ${urlParts.join(' | ')}`
+        : 'Both platforms verified',
+      'info',
+      { youtubeUrl, instagramUrl },
+    )
 
     await writeAuditLog({
       actorType: 'worker',
       action: 'job_verified',
       targetType: 'job',
       targetId: jobId,
+      metadata: { youtubeUrl, instagramUrl },
     })
 
     return

@@ -2,6 +2,7 @@ import fs from 'node:fs/promises'
 import path from 'node:path'
 import { execFile } from 'node:child_process'
 import { promisify } from 'node:util'
+import os from 'node:os'
 
 const execFileAsync = promisify(execFile)
 
@@ -40,14 +41,65 @@ async function lookupOnPath(binary: string): Promise<string | null> {
   }
 }
 
+async function lookupWinGetPackage(binary: string): Promise<string | null> {
+  if (process.platform !== 'win32') return null
+  const exe = binary.toLowerCase().endsWith('.exe') ? binary : `${binary}.exe`
+  const roots = [
+    path.join(os.homedir(), 'AppData', 'Local', 'Microsoft', 'WinGet', 'Packages'),
+    path.join(os.homedir(), 'AppData', 'Local', 'Microsoft', 'WinGet', 'Links'),
+  ]
+
+  for (const root of roots) {
+    try {
+      const entries = await fs.readdir(root, { withFileTypes: true })
+      for (const entry of entries) {
+        if (entry.name.toLowerCase() === exe.toLowerCase()) {
+          const full = path.join(root, entry.name)
+          if (await pathExists(full)) return full
+        }
+        if (!entry.isDirectory()) continue
+        // Prefer packages that mention the binary name (e.g. yt-dlp.yt-dlp_...)
+        if (!entry.name.toLowerCase().includes(binary.toLowerCase().replace(/\.exe$/, ''))) {
+          continue
+        }
+        const candidate = path.join(root, entry.name, exe)
+        if (await pathExists(candidate)) return candidate
+      }
+    } catch {
+      // root missing
+    }
+  }
+  return null
+}
+
+function envOverride(binary: string): string | undefined {
+  const key = binary.replace(/\.exe$/i, '').toUpperCase().replace(/-/g, '_') + '_PATH'
+  // yt-dlp → YT_DLP_PATH, ffmpeg → FFMPEG_PATH
+  const aliases: Record<string, string> = {
+    'yt-dlp': 'YT_DLP_PATH',
+    ffmpeg: 'FFMPEG_PATH',
+    ffprobe: 'FFPROBE_PATH',
+  }
+  const envKey = aliases[binary] ?? key
+  const value = process.env[envKey]?.trim()
+  return value || undefined
+}
+
 /**
  * Resolve CLI binaries to absolute paths.
  * On Windows, WinGet shims named `yt-dlp` can spawn with exit 0 and empty I/O;
- * the real `.exe` must be used.
+ * the real `.exe` must be used. Also searches WinGet Packages when PATH is incomplete
+ * (common for detached worker processes).
  */
 export async function resolveBinary(binary: string): Promise<string> {
   const cached = binaryCache.get(binary)
   if (cached) return cached
+
+  const fromEnv = envOverride(binary)
+  if (fromEnv && (await pathExists(fromEnv))) {
+    binaryCache.set(binary, fromEnv)
+    return fromEnv
+  }
 
   if (path.isAbsolute(binary) && (await pathExists(binary))) {
     binaryCache.set(binary, binary)
@@ -58,6 +110,12 @@ export async function resolveBinary(binary: string): Promise<string> {
   if (fromPath) {
     binaryCache.set(binary, fromPath)
     return fromPath
+  }
+
+  const fromWinGet = await lookupWinGetPackage(binary)
+  if (fromWinGet) {
+    binaryCache.set(binary, fromWinGet)
+    return fromWinGet
   }
 
   // Fall back to bare name — spawn may still work on Unix.

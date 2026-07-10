@@ -29,6 +29,8 @@ ENV PORT=3001
 WORKDIR /app
 COPY --from=builder /out/worker ./
 COPY apps/worker/assets/watermark.png ./assets/watermark.png
+COPY apps/worker/assets/watermarks ./assets/watermarks
+ENV WATERMARKS_DIR=/app/assets/watermarks
 
 RUN npx playwright install-deps chromium
 RUN npx playwright install chromium

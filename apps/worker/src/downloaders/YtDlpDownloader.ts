@@ -7,6 +7,7 @@ import { config } from '../config'
 import { logger } from '../logging/logger'
 import { runCommand } from '../utils/runCommand'
 
+import { pickSourceCaptionText, readYtDlpSourceInfo } from './sourceInfo'
 import type { Downloader, DownloadInput, DownloadOutput } from './types'
 
 const MAX_DURATION = config.MAX_SOURCE_DURATION_SECONDS
@@ -22,6 +23,8 @@ async function resolveDownloadedPath(tempDir: string, printed: string): Promise<
   for (const candidate of candidates) {
     try {
       await fs.access(candidate)
+      // Skip info.json sidecars if they somehow appear in print output
+      if (candidate.endsWith('.info.json')) continue
       return candidate
     } catch {
       // try next
@@ -29,7 +32,7 @@ async function resolveDownloadedPath(tempDir: string, printed: string): Promise<
   }
 
   const entries = await fs.readdir(tempDir)
-  const sourceFile = entries.find((name) => name.startsWith('source.'))
+  const sourceFile = entries.find((name) => name.startsWith('source.') && !name.endsWith('.info.json'))
   if (!sourceFile) return null
   return path.join(tempDir, sourceFile)
 }
@@ -72,6 +75,7 @@ export class YtDlpDownloader implements Downloader {
           '--no-playlist',
           '--restrict-filenames',
           '--no-overwrites',
+          '--write-info-json',
           '-f',
           'mp4/bestvideo[ext=mp4]+bestaudio[ext=m4a]/best[ext=mp4]/best',
           '--merge-output-format',
@@ -133,13 +137,27 @@ export class YtDlpDownloader implements Downloader {
       )
     }
 
+    const sourceInfo = await readYtDlpSourceInfo(input.tempDir)
+    const sourceCaption = pickSourceCaptionText(sourceInfo)
+
     logger.info({
       msg: 'Download complete',
       jobId: input.jobId,
       fileSize: size,
       durationSeconds: duration,
       localPath,
+      hasSourceTitle: Boolean(sourceInfo.title),
+      hasSourceDescription: Boolean(sourceInfo.description),
+      sourceCaptionLength: sourceCaption?.length ?? 0,
     })
-    return { localPath, fileSize: size }
+
+    return {
+      localPath,
+      fileSize: size,
+      duration: duration ?? undefined,
+      title: sourceInfo.title,
+      description: sourceInfo.description ?? sourceCaption,
+      uploader: sourceInfo.uploader,
+    }
   }
 }

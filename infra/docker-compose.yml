@@ -1,12 +1,21 @@
-# Project AP-I — local Docker stack (worker + n8n)
+# Project AP-I — local Docker stack
+#
+# Canonical unattended path (real uploads):
+#   pnpm stack:up          → n8n only + native worker on host
+#
+# Mock / dry-run (Docker worker, no Chrome profiles):
+#   pnpm docker:up:full    → worker + n8n (WORKER_BASE_URL=http://worker:3001)
+#
 # From repo root:
-#   pnpm docker:up
+#   pnpm docker:up         → n8n only (points at host.docker.internal:3001)
 #   pnpm docker:logs
+#   pnpm docker:down
 
 name: project-ap-i
 
 services:
   worker:
+    profiles: ['full']
     build:
       context: ..
       dockerfile: apps/worker/Dockerfile
@@ -16,6 +25,10 @@ services:
     environment:
       NODE_ENV: production
       PORT: 3001
+      # Docker worker is mock/dry-run only — never enable real Playwright uploads here
+      REAL_UPLOADS_ENABLED: 'false'
+      YOUTUBE_UPLOADS_ENABLED: 'false'
+      INSTAGRAM_UPLOADS_ENABLED: 'false'
     ports:
       - '3001:3001'
     restart: unless-stopped
@@ -28,24 +41,24 @@ services:
     environment:
       # Overrides for Docker networking (rest comes from ../.env)
       N8N_PORT: 5678
-      WORKER_BASE_URL: http://worker:3001
-      VERIFY_DELAY_MINUTES: 30
+      # Default: native worker on host. Override with N8N_WORKER_BASE_URL for full profile.
+      WORKER_BASE_URL: ${N8N_WORKER_BASE_URL:-http://host.docker.internal:3001}
+      VERIFY_DELAY_MINUTES: ${VERIFY_DELAY_MINUTES:-30}
       EXECUTIONS_DATA_SAVE_ON_ERROR: all
       EXECUTIONS_DATA_SAVE_ON_SUCCESS: all
       EXECUTIONS_DATA_PRUNE: 'true'
       EXECUTIONS_DATA_MAX_AGE: 168
       # Local dev: compact insights every minute so Overview prod stats update quickly
-      # (default is 60 min; Overview reads insights_by_period, not raw executions list)
       N8N_INSIGHTS_COMPACTION_INTERVAL_MINUTES: 1
       N8N_ENFORCE_SETTINGS_FILE_PERMISSIONS: 'true'
       N8N_BLOCK_ENV_ACCESS_IN_NODE: 'false'
       N8N_EXPRESSIONS_ALLOWED_ENV_VARS: WORKER_BASE_URL,VERIFY_DELAY_MINUTES,SUPABASE_URL,SUPABASE_SERVICE_ROLE_KEY
     ports:
       - '5678:5678'
+    extra_hosts:
+      - 'host.docker.internal:host-gateway'
     volumes:
       - n8n_data:/home/node/.n8n
-    depends_on:
-      - worker
     restart: unless-stopped
 
 volumes:

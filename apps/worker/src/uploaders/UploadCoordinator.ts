@@ -5,7 +5,15 @@ import { supabaseAdmin } from '../db/supabaseAdmin'
 import { logger } from '../logging/logger'
 
 import { resolveNicheAccounts } from './accountResolver'
-import type { PlatformUploader, UploadJobInput } from './types'
+import { isRealPlatformMediaId } from './platformMediaIds'
+import { isTransientUploadFailure } from './transientUploadErrors'
+import type { PlatformUploader, UploadJobInput, UploadResult } from './types'
+
+const TRANSIENT_UPLOAD_ATTEMPTS = 3
+
+function sleep(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms))
+}
 
 export class UploadCoordinator {
   constructor(
@@ -103,20 +111,66 @@ export class UploadCoordinator {
       )
     }
 
-    const result = await uploader.upload({
-      jobId: job.id,
-      nicheSlug: job.nicheSlug,
-      driveFileId: job.driveFileId,
-      driveViewUrl: job.driveViewUrl,
-      localFilePath: job.localFilePath,
-      platform,
-      account,
-      metadata,
-    })
+    let result: UploadResult = {
+      success: false,
+      errorCode: platform === 'youtube' ? 'YOUTUBE_UPLOAD_FAILED' : 'INSTAGRAM_UPLOAD_FAILED',
+      errorMessage: 'Upload did not run',
+    }
 
-    const attemptStatus = result.success
+    for (let transientTry = 0; transientTry < TRANSIENT_UPLOAD_ATTEMPTS; transientTry++) {
+      result = await uploader.upload({
+        jobId: job.id,
+        nicheSlug: job.nicheSlug,
+        driveFileId: job.driveFileId,
+        driveViewUrl: job.driveViewUrl,
+        localFilePath: job.localFilePath,
+        platform,
+        account,
+        metadata,
+      })
+
+      if (result.success || result.loginRequired || !isTransientUploadFailure(result)) {
+        break
+      }
+
+      if (transientTry < TRANSIENT_UPLOAD_ATTEMPTS - 1) {
+        const delayMs = 8_000 * (transientTry + 1)
+        logger.warn({
+          msg: 'Transient upload failure — in-process retry',
+          jobId: job.id,
+          platform,
+          transientTry,
+          delayMs,
+          errorCode: result.errorCode,
+          errorMessage: result.errorMessage,
+        })
+        await sleep(delayMs)
+      }
+    }
+
+    // Defense in depth: never persist "uploaded" with synthetic / missing media IDs.
+    let effective = result
+    if (
+      result.success &&
+      !isRealPlatformMediaId(platform, result.platformMediaId ?? result.platformUrl)
+    ) {
+      logger.error({
+        msg: 'Uploader reported success without a real platform media URL — treating as failed',
+        jobId: job.id,
+        platform,
+        platformMediaId: result.platformMediaId,
+      })
+      effective = {
+        success: false,
+        errorCode: platform === 'youtube' ? 'YOUTUBE_UPLOAD_FAILED' : 'INSTAGRAM_UPLOAD_FAILED',
+        errorMessage:
+          'Upload reported success without a real platform media URL (refusing synthetic id).',
+      }
+    }
+
+    const attemptStatus = effective.success
       ? 'uploaded'
-      : result.loginRequired
+      : effective.loginRequired
         ? 'login_required'
         : 'failed'
 
@@ -124,19 +178,19 @@ export class UploadCoordinator {
       .from('upload_attempts')
       .update({
         status: attemptStatus,
-        platform_media_id: result.platformMediaId ?? null,
-        platform_url: result.platformUrl ?? null,
-        error_code: result.errorCode ?? null,
-        error_message: result.errorMessage ?? null,
-        login_required: result.loginRequired ?? false,
+        platform_media_id: effective.platformMediaId ?? null,
+        platform_url: effective.platformUrl ?? null,
+        error_code: effective.errorCode ?? null,
+        error_message: effective.errorMessage ?? null,
+        login_required: effective.loginRequired ?? false,
         finished_at: new Date().toISOString(),
       })
       .eq('id', attempt.id)
 
     const statusField = platform === 'youtube' ? 'youtube_upload_status' : 'instagram_upload_status'
-    const platformStatus = result.success
+    const platformStatus = effective.success
       ? 'uploaded'
-      : result.loginRequired
+      : effective.loginRequired
         ? 'login_required'
         : 'failed'
 
@@ -145,7 +199,40 @@ export class UploadCoordinator {
       .update({ [statusField]: platformStatus })
       .eq('id', job.id)
 
-    if (result.loginRequired) {
+    if (effective.success) {
+      const publishedUrl = effective.platformUrl ?? effective.platformMediaId ?? null
+      await writeJobEvent(
+        job.id,
+        'upload',
+        `${platform}_upload_completed`,
+        publishedUrl
+          ? `${platform} upload completed: ${publishedUrl}`
+          : `${platform} upload completed`,
+        'info',
+        {
+          platform,
+          platformUrl: publishedUrl,
+          platformMediaId: effective.platformMediaId ?? null,
+          attemptNumber,
+        },
+      )
+    } else {
+      await writeJobEvent(
+        job.id,
+        'upload',
+        `${platform}_upload_failed`,
+        effective.errorMessage ?? `${platform} upload failed`,
+        effective.loginRequired ? 'warning' : 'error',
+        {
+          platform,
+          errorCode: effective.errorCode ?? null,
+          loginRequired: effective.loginRequired ?? false,
+          attemptNumber,
+        },
+      )
+    }
+
+    if (effective.loginRequired) {
       await supabaseAdmin
         .from('platform_accounts')
         .update({ login_required: true, status: 'login_required' })

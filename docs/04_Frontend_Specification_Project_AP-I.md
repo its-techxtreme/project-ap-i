@@ -315,6 +315,8 @@ Niche
 Status
 YouTube Status
 Instagram Status
+YouTube URL
+Instagram URL
 Drive File
 Retry Count
 Failure Reason
@@ -383,6 +385,8 @@ Failures:
 
 Timeline:
   Every major event from job_events/audit_logs
+  Upload completed events include clickable YouTube/Instagram URLs
+  Verification completed event includes both published URLs
 ```
 
 ## Failed review page

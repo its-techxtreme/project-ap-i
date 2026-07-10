@@ -10,7 +10,7 @@ import type { MetadataInput, MetadataOutput, MetadataProvider } from './types'
 export const DEFAULT_AI_MODEL = 'meta/llama-3.1-8b-instruct'
 
 const METADATA_SYSTEM_PROMPT =
-  'You write social video metadata. Output valid JSON only with keys youtubeTitle, youtubeDescription, instagramCaption.'
+  'You rewrite social video metadata from the original source caption/title. Rephrase meaning, keep the same topic, add niche hashtags. Output valid JSON only with keys youtubeTitle, youtubeDescription, instagramCaption.'
 
 export function isAiProviderConfigured(): boolean {
   const key = config.AI_PROVIDER_API_KEY
@@ -28,14 +28,28 @@ function aiBaseUrl(): string {
 
 export class AiMetadataProvider implements MetadataProvider {
   async generate(input: MetadataInput): Promise<MetadataOutput> {
+    const sourceForFallback = {
+      title: input.sourceTitle,
+      description: input.sourceDescription,
+    }
+
     if (!isAiProviderConfigured()) {
       logger.warn({ msg: 'AI provider not configured, using fallback', jobId: input.jobId })
-      return getFallbackMetadata(input.nicheSlug)
+      return getFallbackMetadata(input.nicheSlug, sourceForFallback)
     }
 
     const prompt = buildMetadataPrompt(input)
     const model = config.AI_MODEL ?? DEFAULT_AI_MODEL
     const maxAttempts = 2
+
+    logger.info({
+      msg: 'Generating AI metadata from source caption',
+      jobId: input.jobId,
+      nicheSlug: input.nicheSlug,
+      hasSourceTitle: Boolean(input.sourceTitle?.trim()),
+      hasSourceDescription: Boolean(input.sourceDescription?.trim()),
+      sourceDescriptionLength: input.sourceDescription?.trim().length ?? 0,
+    })
 
     for (let attempt = 1; attempt <= maxAttempts; attempt++) {
       try {
@@ -51,7 +65,7 @@ export class AiMetadataProvider implements MetadataProvider {
               { role: 'system', content: METADATA_SYSTEM_PROMPT },
               { role: 'user', content: prompt },
             ],
-            temperature: 0.4,
+            temperature: 0.35,
             max_tokens: 512,
           }),
           signal: AbortSignal.timeout(60_000),
@@ -102,10 +116,10 @@ export class AiMetadataProvider implements MetadataProvider {
           jobId: input.jobId,
           err: String(err),
         })
-        return getFallbackMetadata(input.nicheSlug)
+        return getFallbackMetadata(input.nicheSlug, sourceForFallback)
       }
     }
 
-    return getFallbackMetadata(input.nicheSlug)
+    return getFallbackMetadata(input.nicheSlug, sourceForFallback)
   }
 }

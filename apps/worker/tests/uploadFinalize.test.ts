@@ -32,6 +32,20 @@ describe('uploadFinalize', () => {
     expect(status).toBe('awaiting_verification')
   })
 
+  it('total failure parks in awaiting_verification for automated retry', async () => {
+    updateMock.mockReset()
+    const status = await finalizeUploadStatus('job-4', 'failed', 'failed')
+    expect(status).toBe('awaiting_verification')
+    expect(updateMock).toHaveBeenCalledWith(
+      'job-4',
+      'awaiting_verification',
+      expect.objectContaining({
+        failure_reason: 'One or more platform uploads failed',
+        verification_due_at: expect.any(String),
+      }),
+    )
+  })
+
   it('login required uses platform-specific failure code', async () => {
     updateMock.mockReset()
     const status = await finalizeUploadStatus('job-3', 'uploaded', 'login_required')
@@ -51,5 +65,10 @@ describe('uploadFinalize', () => {
   it('platformsNeedingUpload auto-detects failed platforms when unspecified', () => {
     expect(platformsNeedingUpload('failed', 'uploaded')).toEqual(['youtube'])
     expect(platformsNeedingUpload('uploaded', 'failed')).toEqual(['instagram'])
+  })
+
+  it('platformsNeedingUpload returns empty when both platforms already succeeded', () => {
+    expect(platformsNeedingUpload('uploaded', 'uploaded')).toEqual([])
+    expect(platformsNeedingUpload('verified', 'verified')).toEqual([])
   })
 })

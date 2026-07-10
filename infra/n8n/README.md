@@ -72,9 +72,11 @@ pnpm docker:down
    - `WF-05_drive_cleanup_webhook.json`
    - `WF-06_account_health_check.json` (optional)
    - `WF-07_admin_command_poller.json` (hosted admin retry/delete outbox)
+   - `WF-08_verification_cron.json` (due-job verification fallback)
 3. Link credentials on each HTTP node (`WorkerToken`, `WebhookInternalToken`)
 4. In WF-01 → **Run WF-02 Process Job** node → select workflow `WF-02 Process Job`
 5. In WF-02 → **Run WF-03 Verify** node → select workflow `WF-03 Upload Verification`
+6. Activate WF-08 so verification still runs if n8n restarts during the WF-02 wait
 
 ### Option B — CLI (after n8n login + API key)
 
@@ -95,8 +97,11 @@ pnpm n8n:test:all
 | WF-05 | Webhook | Optional local Drive cleanup (`/project-ap-i/drive-cleanup`) |
 | WF-06 | Every 6 h | Alert on `login_required` or stale uploads (optional) |
 | WF-07 | Every 1 min | Drain `admin_commands` outbox → `POST /admin-commands/process-next` |
+| WF-08 | Every 10 min | Query due `awaiting_verification` jobs → `POST /jobs/:id/verify` |
 
-Worker calls use `{{ $env.WORKER_BASE_URL }}` (Docker default: `http://worker:3001`).
+Worker calls use `{{ $env.WORKER_BASE_URL }}`.
+
+Canonical unattended stack (`pnpm stack:up`): n8n sets `WORKER_BASE_URL=http://host.docker.internal:3001` (native worker on host). Mock stack (`pnpm docker:up:full`): `http://worker:3001`.
 
 ### Hosted admin → local worker (outbox)
 
@@ -130,10 +135,10 @@ Checklist:
 
 ## Troubleshooting
 
-- **n8n can't reach worker** — use `http://worker:3001` inside n8n, not `localhost:3001`
+- **n8n can't reach worker** — canonical stack uses `http://host.docker.internal:3001`; full Docker mock uses `http://worker:3001` (never `localhost:3001` from inside the n8n container)
 - **Credentials unreadable after restart** — `N8N_ENCRYPTION_KEY` changed; recreate credentials
 - **Execute Workflow node empty** — re-select WF-02 / WF-03 after import
-- **Wait node stuck** — n8n must stay running; verification cron fallback is documented in `docs/06_N8N_Workflow_Specification_Project_AP-I.md` for production hardening
+- **Wait node stuck** — activate **WF-08 Verification Cron**; it picks up due jobs even if WF-02's wait was interrupted
 - **Overview shows 0 prod executions but Executions tab has rows** — n8n Insights compacts raw metrics into `insights_by_period` on an interval (default **60 minutes**). Until compaction runs, the Overview banner stays at 0 even though `/home/executions` lists successful schedule/webhook runs. Local Docker sets `N8N_INSIGHTS_COMPACTION_INTERVAL_MINUTES=1` so stats update within ~1 minute after restart. Manual test runs from the editor do **not** count toward prod stats (only active schedule/webhook parent workflows do).
 
 ## Files
@@ -149,4 +154,6 @@ infra/n8n/
     WF-04_manual_retry_webhook.json
     WF-05_drive_cleanup_webhook.json
     WF-06_account_health_check.json
+    WF-07_admin_command_poller.json
+    WF-08_verification_cron.json
 ```

@@ -7,19 +7,72 @@
 | Component | Where it runs | How to start |
 |-----------|---------------|--------------|
 | Web app (Next.js) | Local — `apps/web` | `pnpm --filter @project-api/web dev` |
-| Worker API | Local Docker or native Node | `pnpm docker:up` or `pnpm --filter @project-api/worker dev` |
-| n8n | Local Docker | `pnpm docker:up` → http://localhost:5678 |
+| Worker API (real uploads) | **Native Node on host** | `pnpm stack:up` (preferred) |
+| Worker API (mock only) | Docker | `pnpm docker:up:full` |
+| n8n | Local Docker | Started by `pnpm stack:up` or `pnpm docker:up` → http://localhost:5678 |
 | Supabase | Cloud (hosted project) | Configure in `.env` / `.env.local` |
 | Google Drive | Cloud API | OAuth tokens in `.env` |
 | Playwright profiles | Local disk, **outside git** | `playwright-profiles/` at repo root (gitignored) |
 
+## Canonical unattended stack (Phase 16+)
+
+Real YouTube/Instagram uploads need **installed Google Chrome** + persistent profiles on the host. The Docker worker image cannot do this reliably.
+
+```bash
+# One command: free port 3001, start Docker n8n, build + start native worker
+pnpm stack:up
+pnpm stack:status
+
+# Web (separate terminal)
+pnpm --filter @project-api/web dev
+
+# Stop everything
+pnpm stack:down
+```
+
+n8n reaches the host worker at `http://host.docker.internal:3001` (`WORKER_BASE_URL` inside the n8n container).
+
+## Autostart on Windows logon (recommended for daily use)
+
+So you do not need to type `pnpm stack:up` every morning:
+
+```bash
+# One-time install (current Windows user only — no admin / no SYSTEM service)
+pnpm stack:autostart:install
+```
+
+What it does:
+
+- Registers Scheduled Task **ProjectAP-I Stack Autostart** at **logon**
+- Runs as **your user** with **Limited** rights (not elevated)
+- Waits for Docker Engine (launches Docker Desktop if needed)
+- Then runs the same safe path as `pnpm stack:up`
+- Skips if the worker is already healthy
+- Writes `.stack-autostart.log` (no secrets)
+
+Optional: Docker Desktop → Settings → General → **Start Docker Desktop when you sign in**.
+
+```bash
+pnpm stack:autostart            # test now (same script the task runs)
+pnpm stack:status               # confirm worker + n8n
+pnpm stack:autostart:uninstall  # remove the Scheduled Task
+```
+
+Laptop off → nothing runs. Log in → after ~3 minutes + Docker ready → n8n + worker come up.
+
+**Mock / dry-run only** (no real Playwright uploads):
+
+```bash
+pnpm docker:up:full   # Docker worker + n8n; upload flags forced false in compose
+```
+
 ## Prerequisites
 
 - Node.js >= 20, pnpm >= 9
-- Docker Desktop (for worker + n8n stack)
-- FFmpeg and yt-dlp on PATH (for native worker dev) or inside Docker image
-- Google Chrome (for Playwright upload sessions via `PLAYWRIGHT_CHANNEL=chrome`)
-- Supabase project with migrations applied
+- Docker Desktop (for n8n; optional Docker worker for mock mode)
+- FFmpeg and yt-dlp on PATH (for native worker)
+- **Google Chrome** installed (required for real uploads — `PLAYWRIGHT_CHANNEL=chrome`)
+- Supabase project with migrations applied (including `0015_reclaim_stale_locks.sql`)
 
 ## First-time setup
 
@@ -37,12 +90,12 @@ pnpm setup:local-env
 # 4. Apply Supabase migrations (via Supabase CLI or MCP)
 # See docs/07 and supabase/migrations/
 
-# 5. Start worker + n8n
-pnpm docker:up
+# 5. Start canonical stack (n8n + native worker)
+pnpm stack:up
 
 # 6. Configure n8n (first time only)
 # Open http://localhost:5678 → create owner account → import workflows
-# See infra/n8n/README.md
+# See infra/n8n/README.md — include WF-08 Verification Cron
 
 # 7. Start web app (separate terminal)
 pnpm --filter @project-api/web dev
@@ -55,13 +108,14 @@ Open http://localhost:3000 for the web app.
 ```text
 <repo-root>/
   .env                          ← shared secrets (never commit)
+  .stack-worker.pid             ← native worker PID from stack:up (gitignored)
   apps/web/.env.local           ← Next.js env (Supabase public keys + server secrets)
   playwright-profiles/          ← browser sessions (gitignored)
     memes-yt/
     memes-ig/
     ...
-  infra/docker-compose.yml      ← worker + n8n
-  tmp/                          ← optional native worker temp (if not using Docker paths)
+  infra/docker-compose.yml      ← n8n (+ optional Docker worker profile)
+  apps/worker/tmp/jobs/         ← native worker temp
 ```
 
 ## Key environment variables (local)
@@ -73,24 +127,25 @@ N8N_PROTOCOL=http
 WEBHOOK_URL=http://localhost:5678/
 REAL_UPLOADS_ENABLED=false
 PLAYWRIGHT_HEADLESS=false
-PLAYWRIGHT_CHANNEL=chrome
-PLAYWRIGHT_PROFILES_DIR=C:\path\to\repo\playwright-profiles   # optional; defaults to repo root
+PLAYWRIGHT_CHANNEL=chrome          # required when REAL_UPLOADS_ENABLED=true
+PLAYWRIGHT_PROFILES_DIR=C:\path\to\repo\playwright-profiles
+VERIFY_DELAY_MINUTES=30            # use 1–2 for local smoke only
+WATERMARK_PATH=C:\path\to\repo\apps\worker\assets\watermark.png
+# Per-niche logos (default if unset: apps/worker/assets/watermarks/{memes,anime,sports}.png)
+# WATERMARKS_DIR=C:\path\to\repo\apps\worker\assets\watermarks
+TMP_DIR=C:\path\to\repo\apps\worker\tmp\jobs
 ```
 
-Run `pnpm setup:local-env` to fill localhost defaults idempotently.
+`pnpm stack:up` rewrites Docker-style `/app/...` paths to local defaults automatically.
 
-## Daily dev workflow
+## Daily workflow
 
 ```bash
-# Terminal 1 — stack
-pnpm docker:up
-pnpm docker:logs          # optional, watch worker/n8n
-
-# Terminal 2 — web
+pnpm stack:up
+pnpm stack:status
 pnpm --filter @project-api/web dev
-
-# Checks before committing
-pnpm check
+# ... submit jobs via /submit — n8n WF-01 claims within ~2 minutes
+pnpm stack:down
 ```
 
 ## Playwright profile login (local)
@@ -101,43 +156,45 @@ Profiles live in `playwright-profiles/` (gitignored). Log in manually per niche/
 pnpm --filter @project-api/worker smoke:playwright -- --login --profile memes-yt
 ```
 
-See `apps/worker/scripts/smoke-playwright.ts` and Phase 13 docs. **Never commit profiles or cookies.**
+See `apps/worker/scripts/smoke-playwright.ts`. **Never commit profiles or cookies.**
 
-## Real uploads (Phase 15+)
+YouTube uploads always select **“No, it’s not made for kids”** (never Made for Kids).
 
-Real uploads are opt-in via `.env` on the **local machine only**:
+## Real uploads
+
+Opt-in via `.env` on the **local machine only**:
 
 ```env
 REAL_UPLOADS_ENABLED=true
 YOUTUBE_UPLOADS_ENABLED=true
 INSTAGRAM_UPLOADS_ENABLED=true
+PLAYWRIGHT_CHANNEL=chrome
 ```
 
-Reset all three to `false` after smoke testing. Never enable in CI, Vercel, or committed env files.
+Worker refuses to start real uploads without `PLAYWRIGHT_CHANNEL=chrome`. Reset all upload flags to `false` after smoke testing. Never enable in CI, Vercel, or committed env files.
+
+### Drive OAuth refresh
+
+```bash
+node --env-file=.env apps/worker/scripts/drive-oauth-via-profile.mjs
+node --env-file=.env scripts/google-drive-ensure-folders.mjs
+```
 
 ## Concurrency on local machine
 
-Keep `MAX_FFMPEG_CONCURRENCY=1` on typical dev laptops (same rule as original VPS spec). Increase only after profiling on your hardware.
-
-## Optional: native worker (no Docker)
-
-For debugging worker code without rebuilding the image:
-
-```bash
-pnpm --filter @project-api/worker dev
-```
-
-Ensure FFmpeg, yt-dlp, and env vars are available on PATH. Set `TMP_DIR` and `WATERMARK_PATH` to local paths (not `/app/...`).
+Keep `MAX_FFMPEG_CONCURRENCY=1` on typical dev laptops.
 
 ## Troubleshooting
 
 | Issue | Check |
 |-------|-------|
 | Worker 401 | `WORKER_INTERNAL_TOKEN` matches in `.env` and n8n `WorkerToken` credential |
-| n8n can't reach worker | Docker: `WORKER_BASE_URL=http://worker:3001` (set in compose). Native worker: `http://host.docker.internal:3001` on Windows Docker |
-| Web can't reach worker | `WORKER_BASE_URL=http://localhost:3001` in web server env |
-| Playwright login_required | Re-run profile login script; check `PLAYWRIGHT_PROFILES_DIR` |
-| Drive upload fails | Run `node --env-file=.env scripts/google-drive-auth.mjs` — see `infra/google-drive/SETUP.md` |
+| n8n can't reach worker | Canonical: `WORKER_BASE_URL=http://host.docker.internal:3001` in n8n container. Mock: `http://worker:3001` |
+| Port 3001 busy | `pnpm stack:up` frees it; or `pnpm stack:down` |
+| Playwright login_required | Re-run profile login; confirm `PLAYWRIGHT_CHANNEL=chrome` |
+| Drive upload fails | Drive OAuth scripts above; see `infra/google-drive/SETUP.md` |
+| Job stuck `locked` | Migration `0015` reclaims expired locks on next claim |
+| Verification never runs | Activate WF-08; or wait for WF-02 Wait → WF-03 |
 
 ## Deferred: VPS production
 

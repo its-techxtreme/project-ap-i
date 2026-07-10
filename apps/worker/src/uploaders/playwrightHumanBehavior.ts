@@ -53,12 +53,19 @@ export async function humanClick(page: Page, locator: Locator): Promise<void> {
 
 /**
  * Type into textarea/input OR contenteditable (#textbox in YouTube Studio / IG caption).
+ *
+ * IMPORTANT: never type the full string twice. A previous bug used pressSequentially
+ * then fell back to keyboard.type(fullText) on any error — that appended a second
+ * copy mid-caption (e.g. "...comments bWhen you finally...").
  */
 export async function humanType(
   locator: Locator,
   text: string,
   options?: { clearFirst?: boolean },
 ): Promise<void> {
+  const page = locator.page()
+  const value = text.normalize('NFC')
+
   await locator.waitFor({ state: 'attached', timeout: 60_000 })
   await locator.scrollIntoViewIfNeeded().catch(() => undefined)
   await humanPause(600, 1600)
@@ -69,24 +76,116 @@ export async function humanType(
   await humanPause(200, 500)
 
   if (options?.clearFirst !== false) {
-    await locator.press('Control+A').catch(() => undefined)
-    await humanPause(150, 400)
-    await locator.press('Backspace').catch(() => undefined)
-    await humanPause(300, 700)
+    await clearEditableField(locator)
   }
 
-  // Contenteditable fields often ignore pressSequentially on the outer node —
-  // prefer keyboard.type after focus.
-  const delay = randomInt(config.PLAYWRIGHT_TYPING_DELAY_MIN_MS, config.PLAYWRIGHT_TYPING_DELAY_MAX_MS)
+  const tagName = await locator.evaluate((el) => el.tagName.toLowerCase()).catch(() => '')
+  const isNativeInput = tagName === 'input' || tagName === 'textarea'
+
+  if (isNativeInput) {
+    // Atomic replace — no mid-type restart risk.
+    await locator.fill(value)
+    await humanPause(400, 900)
+    return
+  }
+
+  // Contenteditable (YT Studio / IG caption): one keyboard pass only.
+  const delay = randomInt(
+    Math.max(30, Math.min(config.PLAYWRIGHT_TYPING_DELAY_MIN_MS, 80)),
+    Math.max(50, Math.min(config.PLAYWRIGHT_TYPING_DELAY_MAX_MS, 140)),
+  )
+
   try {
-    await locator.pressSequentially(text, { delay })
+    await page.keyboard.type(value, { delay })
   } catch {
-    const page = locator.page()
-    await page.keyboard.type(text, { delay })
+    // Do not append — clear and set once.
+    await clearEditableField(locator)
+    await setContentEditableText(locator, value)
   }
 
-  await humanPause(1200, 3000)
+  const current = await readEditableText(locator)
+  if (isDuplicatedMetadataText(current, value)) {
+    await clearEditableField(locator)
+    await setContentEditableText(locator, value)
+  }
+
+  await humanPause(800, 1800)
 }
+
+async function clearEditableField(locator: Locator): Promise<void> {
+  const page = locator.page()
+  await locator.click({ clickCount: 3, delay: randomInt(40, 100) }).catch(() => undefined)
+  await humanPause(80, 200)
+  await page.keyboard.press('Control+A').catch(() => undefined)
+  await humanPause(60, 150)
+  await page.keyboard.press('Backspace').catch(() => undefined)
+  await humanPause(100, 250)
+  await locator
+    .evaluate((el) => {
+      if (el instanceof HTMLInputElement || el instanceof HTMLTextAreaElement) {
+        el.value = ''
+        el.dispatchEvent(new Event('input', { bubbles: true }))
+        return
+      }
+      el.textContent = ''
+      el.dispatchEvent(new InputEvent('input', { bubbles: true, inputType: 'deleteContent' }))
+    })
+    .catch(() => undefined)
+  await humanPause(150, 350)
+}
+
+async function setContentEditableText(locator: Locator, value: string): Promise<void> {
+  await locator
+    .evaluate((el, t) => {
+      el.focus()
+      if (el instanceof HTMLInputElement || el instanceof HTMLTextAreaElement) {
+        el.value = t
+      } else {
+        el.textContent = t
+      }
+      el.dispatchEvent(new InputEvent('input', { bubbles: true, inputType: 'insertText', data: t }))
+      el.dispatchEvent(new Event('change', { bubbles: true }))
+    }, value)
+    .catch(() => undefined)
+}
+
+async function readEditableText(locator: Locator): Promise<string> {
+  return locator
+    .evaluate((el) => {
+      if (el instanceof HTMLInputElement || el instanceof HTMLTextAreaElement) return el.value
+      return (el as HTMLElement).innerText || el.textContent || ''
+    })
+    .catch(() => '')
+}
+
+/** Detect caption/title that was typed twice (partial + full restart). */
+export function isDuplicatedMetadataText(actual: string, expected: string): boolean {
+  const a = actual.replace(/\s+/g, ' ').trim()
+  const e = expected.replace(/\s+/g, ' ').trim()
+  if (!e || a === e) return false
+
+  // Exact expected substring appears more than once.
+  let from = 0
+  let hits = 0
+  while (from <= a.length) {
+    const idx = a.indexOf(e, from)
+    if (idx < 0) break
+    hits += 1
+    from = idx + Math.max(1, Math.floor(e.length / 2))
+    if (hits >= 2) return true
+  }
+
+  // Prefix of expected restarts after a near-complete first pass (the screenshot case).
+  const probe = e.slice(0, Math.min(48, e.length))
+  if (probe.length >= 12) {
+    const first = a.indexOf(probe)
+    const second = first >= 0 ? a.indexOf(probe, first + probe.length) : -1
+    if (first >= 0 && second > first) return true
+  }
+
+  return a.length > e.length * 1.35
+}
+
 
 /**
  * Pause before setInputFiles.

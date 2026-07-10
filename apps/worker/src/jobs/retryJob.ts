@@ -3,10 +3,15 @@ import { getJobById, getNicheSlugById, updateJobStatus, writeJobEvent, writeAudi
 import { createUploadCoordinator } from '../uploaders'
 import { logger } from '../logging/logger'
 
+import { withUploadConcurrency } from './ConcurrencyGuard'
 import { finalizeUploadStatus, platformsNeedingUpload } from './uploadFinalize'
 import { prepareLocalUploadFile } from './uploadLocalFile'
 
 export async function retryJob(jobId: string, platform?: 'youtube' | 'instagram'): Promise<void> {
+  return withUploadConcurrency(() => retryJobInner(jobId, platform))
+}
+
+async function retryJobInner(jobId: string, platform?: 'youtube' | 'instagram'): Promise<void> {
   const job = await getJobById(jobId)
   if (!job) {
     throw new ProjectApiError(ERROR_CODES.JOB_NOT_FOUND, `Job not found: ${jobId}`)
@@ -42,6 +47,12 @@ export async function retryJob(jobId: string, platform?: 'youtube' | 'instagram'
     job.instagram_upload_status,
     platform,
   )
+
+  if (targets.length === 0) {
+    logger.info({ msg: 'Retry upload skipped — no platforms need upload', jobId, platform })
+    await finalizeUploadStatus(jobId, job.youtube_upload_status, job.instagram_upload_status)
+    return
+  }
 
   logger.info({ msg: 'Starting retry upload', jobId, platform, targets })
 

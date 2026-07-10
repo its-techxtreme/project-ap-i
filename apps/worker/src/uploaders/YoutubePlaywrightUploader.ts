@@ -5,7 +5,8 @@ import { logger } from '../logging/logger'
 import { config } from '../config'
 
 import { detectLoginOrChallenge } from './loginChallengeDetection'
-import { launchAuthenticatedContext } from './playwrightContext'
+import { withAuthenticatedContext } from './playwrightContext'
+import { isPlaywrightProfileBusyError } from './playwrightProfileLock'
 import {
   clickFirstVisible,
   firstAttached,
@@ -84,9 +85,10 @@ export class YoutubePlaywrightUploader implements PlatformUploader {
       }
     }
 
-    let context
+    const localFilePath = input.localFilePath
+
     try {
-      context = await launchAuthenticatedContext(profilePath)
+      return await withAuthenticatedContext(profilePath, async (context) => {
       const page = await context.newPage()
 
       await page.goto('https://www.youtube.com/', { waitUntil: 'domcontentloaded', timeout: 60_000 })
@@ -144,7 +146,7 @@ export class YoutubePlaywrightUploader implements PlatformUploader {
       const fileInput = page.locator('input[type="file"]').first()
       await fileInput.waitFor({ state: 'attached', timeout: 45_000 })
       await humanSetFiles(fileInput)
-      await fileInput.setInputFiles(input.localFilePath)
+      await fileInput.setInputFiles(localFilePath)
 
       // Details dialog can take a while after file select / processing starts.
       const titleField = await firstAttached(
@@ -203,7 +205,7 @@ export class YoutubePlaywrightUploader implements PlatformUploader {
         }
       }
 
-      // Required: Made for Kids — Next stays disabled until answered.
+      // Hard rule: always "No, it's not made for kids" (never Made for Kids / kids audience).
       await page.keyboard.press('Escape').catch(() => undefined)
       const kidsAnswered = await clickFirstVisible(
         page,
@@ -219,7 +221,9 @@ export class YoutubePlaywrightUploader implements PlatformUploader {
       )
       if (!kidsAnswered) {
         await saveDebugScreenshot(page, input.jobId, 'kids-missing')
-        throw new Error('YouTube Made for Kids audience question not answered')
+        throw new Error(
+          'YouTube audience question not answered — must select "No, it\'s not made for kids"',
+        )
       }
       await humanPause(800, 1600)
 
@@ -321,6 +325,25 @@ export class YoutubePlaywrightUploader implements PlatformUploader {
         )
       }
 
+      // Require a real watch/shorts URL — do not invent yt-<jobId> IDs for real uploads.
+      if (!platformUrl) {
+        await saveDebugScreenshot(page, input.jobId, 'share-url-missing')
+        // Studio sometimes needs a moment after Publish for the link to appear.
+        await humanPause(2000, 4000)
+        const linkRetry = page
+          .locator('a[href*="youtu.be/"], a[href*="youtube.com/watch"], a[href*="youtube.com/shorts/"]')
+          .first()
+        if (await linkRetry.isVisible({ timeout: 20_000 }).catch(() => false)) {
+          platformUrl = (await linkRetry.getAttribute('href')) ?? undefined
+        }
+      }
+
+      if (!platformUrl) {
+        throw new Error(
+          'YouTube publish clicked but no video URL was captured — refusing synthetic media id',
+        )
+      }
+
       logger.info({
         msg: 'YouTube upload completed',
         jobId: input.jobId,
@@ -330,28 +353,24 @@ export class YoutubePlaywrightUploader implements PlatformUploader {
 
       return {
         success: true,
-        platformMediaId: platformUrl ?? `yt-${input.jobId}-${Date.now()}`,
+        platformMediaId: platformUrl,
         platformUrl,
       }
+      })
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : String(err)
-
-      try {
-        const pages = context?.pages() ?? []
-        const page = pages[pages.length - 1]
-        if (page) await saveDebugScreenshot(page, input.jobId, 'failed')
-      } catch {
-        // best-effort
-      }
 
       if (isLoginRelatedError(msg)) {
         return loginRequiredResult('YOUTUBE_LOGIN_REQUIRED', msg)
       }
 
+      if (isPlaywrightProfileBusyError(err) || msg.includes('PROFILE_BUSY')) {
+        logger.warn({ msg: 'YouTube profile busy — transient', jobId: input.jobId, error: msg })
+        return { success: false, errorCode: 'PROFILE_BUSY', errorMessage: msg }
+      }
+
       logger.error({ msg: 'YouTube upload failed', jobId: input.jobId, error: msg })
       return { success: false, errorCode: 'YOUTUBE_UPLOAD_FAILED', errorMessage: msg }
-    } finally {
-      await context?.close()
     }
   }
 }

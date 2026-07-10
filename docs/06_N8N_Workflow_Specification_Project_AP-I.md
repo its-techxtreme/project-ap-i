@@ -136,13 +136,13 @@ If worker returns failure:
 
 Wait node after process/upload completion or cron query for jobs in `awaiting_verification` where `verification_due_at <= now()`.
 
-Preferred robust design:
+Preferred robust design (implemented as **WF-08 Verification Cron**):
 
 ```text
 Cron every 10 minutes checks jobs due for verification.
 ```
 
-This is more reliable than a single wait node if n8n restarts.
+WF-02 still waits `VERIFY_DELAY_MINUTES` then calls WF-03. WF-08 is the resilience path if n8n restarts mid-wait.
 
 ### Steps
 

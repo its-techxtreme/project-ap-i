@@ -58,6 +58,27 @@ describe('buildMetadataPrompt', () => {
     expect(prompt).toContain('anime edits')
   })
 
+  it('instructs rephrasing the original source caption', () => {
+    const prompt = buildMetadataPrompt({
+      ...sampleInput,
+      sourceTitle: 'Original reel title',
+      sourceDescription: 'This is the original Instagram caption about the clip',
+    })
+
+    expect(prompt).toContain('REPHRASE')
+    expect(prompt).toContain('Original source caption/description:')
+    expect(prompt).toContain('This is the original Instagram caption about the clip')
+    expect(prompt).toContain('Original reel title')
+    expect(prompt).toContain('Do NOT invent an unrelated topic')
+  })
+
+  it('notes when source caption is unavailable', () => {
+    const prompt = buildMetadataPrompt(sampleInput)
+
+    expect(prompt).toContain('not available')
+    expect(prompt).toContain('do NOT invent a fake story')
+  })
+
   it('does not include job ID, service role key, or internal paths', () => {
     const prompt = buildMetadataPrompt(sampleInput)
 
@@ -65,6 +86,22 @@ describe('buildMetadataPrompt', () => {
     expect(prompt).not.toContain('SUPABASE_SERVICE_ROLE_KEY')
     expect(prompt).not.toContain('/app/')
     expect(prompt).not.toContain('service role')
+  })
+})
+
+describe('getFallbackMetadata', () => {
+  it('uses original source caption when AI is unavailable', async () => {
+    const { getFallbackMetadata } = await import('../src/metadata/fallbacks')
+    const result = getFallbackMetadata('anime', {
+      description: 'Naruto vs Sasuke final fight scene https://example.com/spam',
+    })
+
+    expect(result.generatedBy).toBe('fallback')
+    expect(result.youtubeTitle).toContain('Naruto vs Sasuke')
+    expect(result.youtubeDescription).toContain('Naruto vs Sasuke')
+    expect(result.youtubeDescription).not.toContain('https://example.com')
+    expect(result.youtubeDescription).toContain('#anime')
+    expect(result.instagramCaption).toContain('#anime')
   })
 })
 
@@ -306,7 +343,13 @@ describe('runProcessPipeline metadata persistence', () => {
       },
       {
         downloader: {
-          download: vi.fn().mockResolvedValue({ localPath: sourcePath, fileSize: 100 }),
+          download: vi.fn().mockResolvedValue({
+            localPath: sourcePath,
+            fileSize: 100,
+            title: 'Source title about cats',
+            description: 'Original caption: cats being chaotic again',
+            uploader: 'CatChannel',
+          }),
         },
         processor: {
           process: vi.fn().mockResolvedValue({ outputPath, fileSize: 200 }),
@@ -327,9 +370,9 @@ describe('runProcessPipeline metadata persistence', () => {
     )
 
     expect(readyUpdate?.[0]).toMatchObject({
-      youtube_title: '[MOCK] memes video - test title',
-      youtube_description: expect.stringContaining('[MOCK]'),
-      instagram_caption: expect.stringContaining('[MOCK]'),
+      youtube_title: expect.stringContaining('cats being chaotic'),
+      youtube_description: expect.stringContaining('cats being chaotic'),
+      instagram_caption: expect.stringContaining('cats being chaotic'),
       metadata_status: 'generated',
     })
 

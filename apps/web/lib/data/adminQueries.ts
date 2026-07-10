@@ -1,5 +1,6 @@
 import { endOfDayIso, sanitizePartialUuid } from '@/lib/format/dateFilters'
 import { formatRelativeTime } from '@/lib/format/relativeTime'
+import { pickLatestSuccessfulUpload, resolveUploadHref } from '@/lib/format/uploadRefs'
 import { supabaseAdmin } from '@/lib/supabase/admin'
 
 const PROCESSING_STATUSES = [
@@ -19,6 +20,35 @@ function startOfTodayIso(): string {
   const now = new Date()
   now.setHours(0, 0, 0, 0)
   return now.toISOString()
+}
+
+async function loadPlatformUrlsByJobId(
+  jobIds: string[],
+): Promise<Map<string, { youtube_url: string | null; instagram_url: string | null }>> {
+  const map = new Map<string, { youtube_url: string | null; instagram_url: string | null }>()
+  for (const id of jobIds) {
+    map.set(id, { youtube_url: null, instagram_url: null })
+  }
+  if (jobIds.length === 0) return map
+
+  const { data } = await supabaseAdmin
+    .from('upload_attempts')
+    .select('job_id, platform, status, platform_url, platform_media_id, finished_at')
+    .in('job_id', jobIds)
+    .eq('status', 'uploaded')
+    .order('finished_at', { ascending: false })
+
+  const attempts = data ?? []
+  for (const jobId of jobIds) {
+    const forJob = attempts.filter((a) => a.job_id === jobId)
+    const yt = pickLatestSuccessfulUpload(forJob, 'youtube')
+    const ig = pickLatestSuccessfulUpload(forJob, 'instagram')
+    map.set(jobId, {
+      youtube_url: yt ? resolveUploadHref(yt) : null,
+      instagram_url: ig ? resolveUploadHref(ig) : null,
+    })
+  }
+  return map
 }
 
 export type JobSummary = {
@@ -60,6 +90,8 @@ export type JobListRow = {
   status: string
   youtube_upload_status: string
   instagram_upload_status: string
+  youtube_url: string | null
+  instagram_url: string | null
   drive_view_url: string | null
   retry_count: number
   failure_reason: string | null
@@ -218,9 +250,13 @@ export async function getJobs(
 
   if (error) throw error
 
-  const jobs: JobListRow[] = (data ?? []).map((row) => {
+  const rows = data ?? []
+  const urlMap = await loadPlatformUrlsByJobId(rows.map((row) => row.id))
+
+  const jobs: JobListRow[] = rows.map((row) => {
     const niche = row.niches as { name: string } | { name: string }[] | null
     const nicheName = Array.isArray(niche) ? niche[0]?.name : niche?.name
+    const urls = urlMap.get(row.id) ?? { youtube_url: null, instagram_url: null }
 
     return {
       id: row.id,
@@ -232,6 +268,8 @@ export async function getJobs(
       status: row.status,
       youtube_upload_status: row.youtube_upload_status,
       instagram_upload_status: row.instagram_upload_status,
+      youtube_url: urls.youtube_url,
+      instagram_url: urls.instagram_url,
       drive_view_url: row.drive_view_url,
       retry_count: row.retry_count,
       failure_reason: row.failure_reason,
@@ -312,9 +350,13 @@ export async function getFailedJobs(): Promise<FailedJobRow[]> {
 
   if (error) throw error
 
-  return (data ?? []).map((row) => {
+  const rows = data ?? []
+  const urlMap = await loadPlatformUrlsByJobId(rows.map((row) => row.id))
+
+  return rows.map((row) => {
     const niche = row.niches as { name: string } | { name: string }[] | null
     const nicheName = Array.isArray(niche) ? niche[0]?.name : niche?.name
+    const urls = urlMap.get(row.id) ?? { youtube_url: null, instagram_url: null }
 
     return {
       id: row.id,
@@ -326,6 +368,8 @@ export async function getFailedJobs(): Promise<FailedJobRow[]> {
       status: row.status,
       youtube_upload_status: row.youtube_upload_status,
       instagram_upload_status: row.instagram_upload_status,
+      youtube_url: urls.youtube_url,
+      instagram_url: urls.instagram_url,
       drive_view_url: row.drive_view_url,
       retry_count: row.retry_count,
       failure_reason: row.failure_reason,

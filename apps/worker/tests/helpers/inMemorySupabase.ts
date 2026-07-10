@@ -173,21 +173,40 @@ export class InMemorySupabase {
 
     const workerId = args.worker_id as string
     const lockMinutes = (args.lock_minutes as number) ?? 45
-    const queued = this.tables.jobs.find((job) => job.status === 'queued')
-    if (!queued) {
+    const now = new Date()
+    const claimable = this.tables.jobs.find((job) => {
+      if (job.status === 'queued') return true
+      if (job.status === 'locked' && job.lock_expires_at) {
+        return new Date(String(job.lock_expires_at)).getTime() < now.getTime()
+      }
+      return false
+    })
+    if (!claimable) {
       return { data: null, error: null }
     }
 
-    const now = new Date()
+    const wasStale = claimable.status === 'locked'
     const lockExpires = new Date(now.getTime() + lockMinutes * 60_000)
-    Object.assign(queued, {
+    Object.assign(claimable, {
       status: 'locked',
       locked_by: workerId,
       locked_at: now.toISOString(),
       lock_expires_at: lockExpires.toISOString(),
     })
 
-    return { data: { ...queued }, error: null }
+    if (wasStale) {
+      this.tables.job_events.push({
+        id: randomUUID(),
+        job_id: claimable.id,
+        stage: 'claim',
+        event_type: 'lock_reclaimed',
+        severity: 'warning',
+        message: `Expired lock reclaimed by worker ${workerId}`,
+        created_at: now.toISOString(),
+      })
+    }
+
+    return { data: { ...claimable }, error: null }
   }
 
   filterRows(table: string, filters: Array<{ column: string; value: unknown }>): Row[] {

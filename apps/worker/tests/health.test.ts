@@ -9,6 +9,12 @@ describe('GET /health', () => {
 
     expect(response.statusCode).toBe(200)
     expect(response.json()).toMatchObject({ ok: true })
+    expect(response.json().checks).toMatchObject({
+      ffmpeg: expect.objectContaining({ ok: true }),
+      ytDlp: expect.objectContaining({ ok: true }),
+      disk: expect.objectContaining({ ok: true }),
+      supabase: expect.objectContaining({ ok: true }),
+    })
   })
 
   it('includes realUploadsEnabled false', async () => {
@@ -16,6 +22,12 @@ describe('GET /health', () => {
     const response = await app.inject({ method: 'GET', url: '/health' })
 
     expect(response.json().realUploadsEnabled).toBe(false)
+  })
+
+  it('reports playwrightChannel from config', async () => {
+    const app = await buildServer()
+    const response = await app.inject({ method: 'GET', url: '/health' })
+    expect(typeof response.json().checks.playwrightChannel).toBe('string')
   })
 
   it('does not expose secrets in the response body', async () => {

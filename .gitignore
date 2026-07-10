@@ -3,6 +3,12 @@
 .env.*
 !.env.example
 
+# Local stack PID tracking
+.stack-worker.pid
+.stack-worker.log
+.stack-autostart.log
+.stack-autostart.lock
+
 # Dependencies
 node_modules/
 .pnpm-store/
@@ -38,6 +44,7 @@ pnpm-debug.log*
 !apps/worker/tests/fixtures/sample.mp4
 !apps/worker/tests/fixtures/watermark.png
 !apps/worker/assets/watermark.png
+!apps/worker/assets/watermarks/*.png
 apps/worker/tests/fixtures/_ffmpeg-test/
 apps/worker/tmp/
 

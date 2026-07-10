@@ -1,0 +1,433 @@
+{
+  "name": "WF-08 Verification Cron",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "minutes",
+              "minutesInterval": 2
+            }
+          ]
+        }
+      },
+      "id": "a8000008-0008-4000-8000-000000000001",
+      "name": "Every 2 Minutes",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [240, 300]
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "={{ $env.SUPABASE_URL }}/rest/v1/jobs?status=eq.awaiting_verification&verification_due_at=lte.{{ $now.toISO() }}&select=id,verification_due_at&order=verification_due_at.asc&limit=10",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "apikey",
+              "value": "={{ $env.SUPABASE_SERVICE_ROLE_KEY }}"
+            },
+            {
+              "name": "Authorization",
+              "value": "=Bearer {{ $env.SUPABASE_SERVICE_ROLE_KEY }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "a8000008-0008-4000-8000-000000000002",
+      "name": "Query Due Verifications",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [480, 300],
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "={{ $env.SUPABASE_URL }}/rest/v1/jobs?status=eq.ready_to_upload&or=(youtube_upload_status.eq.retry_scheduled,instagram_upload_status.eq.retry_scheduled)&select=id&order=updated_at.asc&limit=1",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "apikey",
+              "value": "={{ $env.SUPABASE_SERVICE_ROLE_KEY }}"
+            },
+            {
+              "name": "Authorization",
+              "value": "=Bearer {{ $env.SUPABASE_SERVICE_ROLE_KEY }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "a8000008-0008-4000-8000-000000000012",
+      "name": "Query Scheduled Retries",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [480, 520],
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "a8000008-0008-4000-8000-000000000010",
+              "leftValue": "={{ Array.isArray($json) ? $json.length : ($json.id ? 1 : 0) }}",
+              "rightValue": 0,
+              "operator": {
+                "type": "number",
+                "operation": "gt"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "a8000008-0008-4000-8000-000000000003",
+      "name": "Any Due Jobs?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [720, 300]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "a8000008-0008-4000-8000-000000000014",
+              "leftValue": "={{ Array.isArray($json) ? $json.length : ($json.id ? 1 : 0) }}",
+              "rightValue": 0,
+              "operator": {
+                "type": "number",
+                "operation": "gt"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "a8000008-0008-4000-8000-000000000013",
+      "name": "Any Scheduled Retries?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [720, 520]
+    },
+    {
+      "parameters": {
+        "jsCode": "const raw = items[0]?.json;\nconst rows = Array.isArray(raw) ? raw : raw?.id ? [raw] : [];\nif (!rows.length) return [];\nreturn rows.map((row) => ({ json: { jobId: row.id } }));"
+      },
+      "id": "a8000008-0008-4000-8000-000000000004",
+      "name": "Split Job IDs",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [960, 220]
+    },
+    {
+      "parameters": {
+        "jsCode": "const raw = items[0]?.json;\nconst rows = Array.isArray(raw) ? raw : raw?.id ? [raw] : [];\nif (!rows.length) return [];\nreturn rows.map((row) => ({ json: { jobId: row.id } }));"
+      },
+      "id": "a8000008-0008-4000-8000-000000000015",
+      "name": "Split Retry Job IDs",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [960, 520]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $env.WORKER_BASE_URL }}/jobs/{{ $json.jobId }}/verify",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "options": {
+          "timeout": 120000
+        }
+      },
+      "id": "a8000008-0008-4000-8000-000000000005",
+      "name": "Verify Job",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1200, 220],
+      "credentials": {
+        "httpHeaderAuth": {
+          "name": "WorkerToken"
+        }
+      },
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "a8000008-0008-4000-8000-000000000011",
+              "leftValue": "={{ $json.retryScheduled }}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "a8000008-0008-4000-8000-000000000007",
+      "name": "Retry Scheduled?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [1440, 220]
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "a8000008-0008-4000-8000-000000000016",
+              "name": "jobId",
+              "value": "={{ $json.jobId }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "a8000008-0008-4000-8000-000000000008",
+      "name": "Prepare Verify Retry",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [1680, 140]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $env.WORKER_BASE_URL }}/jobs/{{ $json.jobId }}/retry-upload",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "options": {
+          "timeout": 900000
+        }
+      },
+      "id": "a8000008-0008-4000-8000-000000000009",
+      "name": "Retry Upload After Verify",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1920, 140],
+      "credentials": {
+        "httpHeaderAuth": {
+          "name": "WorkerToken"
+        }
+      },
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $env.WORKER_BASE_URL }}/jobs/{{ $json.jobId }}/retry-upload",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "options": {
+          "timeout": 900000
+        }
+      },
+      "id": "a8000008-0008-4000-8000-000000000017",
+      "name": "Retry Scheduled Upload",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1200, 520],
+      "credentials": {
+        "httpHeaderAuth": {
+          "name": "WorkerToken"
+        }
+      },
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {},
+      "id": "a8000008-0008-4000-8000-000000000006",
+      "name": "No Due Jobs",
+      "type": "n8n-nodes-base.noOp",
+      "typeVersion": 1,
+      "position": [960, 400]
+    },
+    {
+      "parameters": {},
+      "id": "a8000008-0008-4000-8000-000000000018",
+      "name": "No Scheduled Retries",
+      "type": "n8n-nodes-base.noOp",
+      "typeVersion": 1,
+      "position": [960, 680]
+    }
+  ],
+  "connections": {
+    "Every 2 Minutes": {
+      "main": [
+        [
+          {
+            "node": "Query Due Verifications",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Query Scheduled Retries",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Query Due Verifications": {
+      "main": [
+        [
+          {
+            "node": "Any Due Jobs?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Query Scheduled Retries": {
+      "main": [
+        [
+          {
+            "node": "Any Scheduled Retries?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Any Due Jobs?": {
+      "main": [
+        [
+          {
+            "node": "Split Job IDs",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "No Due Jobs",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Any Scheduled Retries?": {
+      "main": [
+        [
+          {
+            "node": "Split Retry Job IDs",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "No Scheduled Retries",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Split Job IDs": {
+      "main": [
+        [
+          {
+            "node": "Verify Job",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Split Retry Job IDs": {
+      "main": [
+        [
+          {
+            "node": "Retry Scheduled Upload",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Verify Job": {
+      "main": [
+        [
+          {
+            "node": "Retry Scheduled?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Retry Scheduled?": {
+      "main": [
+        [
+          {
+            "node": "Prepare Verify Retry",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        []
+      ]
+    },
+    "Prepare Verify Retry": {
+      "main": [
+        [
+          {
+            "node": "Retry Upload After Verify",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "saveManualExecutions": false
+  },
+  "staticData": null,
+  "meta": {
+    "templateCredsSetupCompleted": false
+  },
+  "pinData": {},
+  "tags": [
+    {
+      "name": "project-ap-i"
+    }
+  ]
+}

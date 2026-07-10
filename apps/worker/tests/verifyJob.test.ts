@@ -88,8 +88,20 @@ describe('verifyJob', () => {
             eq: vi.fn().mockReturnValue({
               eq: vi.fn().mockResolvedValue({
                 data: [
-                  { id: 'a1', platform: 'youtube', status: 'uploaded', platform_media_id: 'yt-1' },
-                  { id: 'a2', platform: 'instagram', status: 'uploaded', platform_media_id: 'ig-1' },
+                  {
+                    id: 'a1',
+                    platform: 'youtube',
+                    status: 'uploaded',
+                    platform_media_id: 'https://www.youtube.com/watch?v=abc123XYZ01',
+                    platform_url: 'https://www.youtube.com/watch?v=abc123XYZ01',
+                  },
+                  {
+                    id: 'a2',
+                    platform: 'instagram',
+                    status: 'uploaded',
+                    platform_media_id: 'https://www.instagram.com/reel/ABC123xyz/',
+                    platform_url: 'https://www.instagram.com/reel/ABC123xyz/',
+                  },
                 ],
                 error: null,
               }),
@@ -122,6 +134,52 @@ describe('verifyJob', () => {
         verification_status: 'verified',
         completed_at: expect.any(String),
       }),
+    )
+  })
+
+  it('Synthetic ig-/yt- media ids are not treated as verified uploads', async () => {
+    fromMock.mockImplementation((table: string) => {
+      if (table === 'upload_attempts') {
+        return {
+          select: vi.fn().mockReturnValue({
+            eq: vi.fn().mockReturnValue({
+              eq: vi.fn().mockResolvedValue({
+                data: [
+                  {
+                    id: 'a1',
+                    platform: 'youtube',
+                    status: 'uploaded',
+                    platform_media_id: 'https://www.youtube.com/watch?v=abc123XYZ01',
+                  },
+                  {
+                    id: 'a2',
+                    platform: 'instagram',
+                    status: 'uploaded',
+                    platform_media_id: 'ig-d2c2f0b4-b9d0-41ec-8247-aff5da8aa587-1783623944909',
+                  },
+                ],
+                error: null,
+              }),
+            }),
+          }),
+        }
+      }
+      return { insert: insertMock }
+    })
+
+    const job = mockJob({
+      youtube_upload_status: 'uploaded',
+      instagram_upload_status: 'uploaded',
+    })
+    vi.mocked(getJobById).mockResolvedValue(job)
+
+    await verifyJob('job-test-1')
+
+    expect(driveDeleteMock).not.toHaveBeenCalled()
+    expect(updateMock).toHaveBeenCalledWith(
+      'job-test-1',
+      'awaiting_verification',
+      expect.objectContaining({ verification_status: 'uncertain' }),
     )
   })
 
@@ -261,7 +319,12 @@ describe('verifyJob', () => {
       'job-test-1',
       'verify',
       'verification_completed',
-      'Both platforms verified',
+      expect.stringContaining('Both platforms verified'),
+      'info',
+      expect.objectContaining({
+        youtubeUrl: expect.stringContaining('youtube.com'),
+        instagramUrl: expect.stringContaining('instagram.com'),
+      }),
     )
   })
 

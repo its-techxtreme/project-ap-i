@@ -8,7 +8,7 @@ import fs from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 
-import { createN8nClient, listWorkflows, updateWorkflow } from './lib/n8n-api.mjs'
+import { createN8nClient, listWorkflows, publishWorkflow, updateWorkflow } from './lib/n8n-api.mjs'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 const repoRoot = path.resolve(__dirname, '..')
@@ -130,6 +130,8 @@ async function main() {
       'WF-04 Manual Retry Webhook': 'WF-04_manual_retry_webhook.json',
       'WF-05 Drive Cleanup Webhook': 'WF-05_drive_cleanup_webhook.json',
       'WF-06 Account Health Check': 'WF-06_account_health_check.json',
+      'WF-07 Admin Command Poller': 'WF-07_admin_command_poller.json',
+      'WF-08 Verification Cron': 'WF-08_verification_cron.json',
     }).find(([name]) => name === wf.name)?.[1]
 
     if (!fileName) continue
@@ -163,6 +165,32 @@ async function main() {
     })
 
     console.log(`  wired workflow: ${wf.name} (${wf.id})`)
+  }
+
+  // Activate in dependency order: callees before callers (n8n requires published sub-workflows).
+  const activateNames = [
+    'WF-03 Upload Verification',
+    'WF-02 Process Job',
+    'WF-01 New Job Poller',
+    'WF-04 Manual Retry Webhook',
+    'WF-05 Drive Cleanup Webhook',
+    'WF-06 Account Health Check',
+    'WF-07 Admin Command Poller',
+    'WF-08 Verification Cron',
+  ]
+  const refreshed = await listAllWorkflows()
+  for (const name of activateNames) {
+    const wf = refreshed.find((w) => w.name === name)
+    if (!wf) {
+      console.warn(`  skip activate (missing): ${name}`)
+      continue
+    }
+    try {
+      await publishWorkflow(client, wf.id)
+      console.log(`  activated: ${name}`)
+    } catch (err) {
+      console.warn(`  activate failed: ${name} — ${err.message}`)
+    }
   }
 
   console.log('\nSetup complete.')

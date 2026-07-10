@@ -8,6 +8,11 @@ import { MOCK_UPLOAD_FINAL_STATUS } from './statusTransitions'
 type Platform = 'youtube' | 'instagram'
 type UploadStatus = string | null | undefined
 
+/** uploaded = just published; verified = already confirmed earlier (e.g. IG-only recovery). */
+function isUploadSuccess(status: UploadStatus): boolean {
+  return status === 'uploaded' || status === 'verified'
+}
+
 function resolveLoginFailureCode(
   youtubeStatus: UploadStatus,
   instagramStatus: UploadStatus,
@@ -32,18 +37,19 @@ function resolveUploadFailureCode(
 
 /**
  * Applies the correct job status after an upload or retry-upload attempt.
- * Both platforms uploaded → awaiting_verification.
- * Partial success → awaiting_verification (verifyJob schedules per-platform retry).
- * Login required or total failure → needs_manual_review.
+ * Both platforms uploaded → awaiting_verification (full verify delay).
+ * Partial success → awaiting_verification (short due — auto-retry failed side).
+ * Login required → needs_manual_review.
+ * Total failure → awaiting_verification (short due) so verify→retry can recover.
  */
 export async function finalizeUploadStatus(
   jobId: string,
   youtubeStatus: UploadStatus,
   instagramStatus: UploadStatus,
 ): Promise<string> {
-  const bothUploaded = youtubeStatus === 'uploaded' && instagramStatus === 'uploaded'
+  const bothUploaded = isUploadSuccess(youtubeStatus) && isUploadSuccess(instagramStatus)
   const anyLoginRequired = youtubeStatus === 'login_required' || instagramStatus === 'login_required'
-  const anyUploaded = youtubeStatus === 'uploaded' || instagramStatus === 'uploaded'
+  const anyUploaded = isUploadSuccess(youtubeStatus) || isUploadSuccess(instagramStatus)
   const anyFailed = youtubeStatus === 'failed' || instagramStatus === 'failed'
 
   if (bothUploaded) {
@@ -63,18 +69,24 @@ export async function finalizeUploadStatus(
   }
 
   if (anyUploaded && anyFailed) {
+    // Partial success: enter verification early so WF-08 can schedule platform retries
+    // without waiting the full VERIFY_DELAY_MINUTES (failed side needs faster recovery).
+    const partialRetryMinutes = Math.min(2, config.VERIFY_DELAY_MINUTES)
     await updateJobStatus(jobId, MOCK_UPLOAD_FINAL_STATUS, {
       uploaded_at: new Date().toISOString(),
-      verification_due_at: new Date(Date.now() + config.VERIFY_DELAY_MINUTES * 60_000).toISOString(),
+      verification_due_at: new Date(Date.now() + partialRetryMinutes * 60_000).toISOString(),
     })
     return MOCK_UPLOAD_FINAL_STATUS
   }
 
-  await updateJobStatus(jobId, 'needs_manual_review', {
+  // Total failure: still park in awaiting_verification with a short due time so the
+  // automated verify→retry path can recover transient Playwright failures.
+  await updateJobStatus(jobId, MOCK_UPLOAD_FINAL_STATUS, {
     failure_code: resolveUploadFailureCode(youtubeStatus, instagramStatus),
     failure_reason: 'One or more platform uploads failed',
+    verification_due_at: new Date(Date.now() + 2 * 60_000).toISOString(),
   })
-  return 'needs_manual_review'
+  return MOCK_UPLOAD_FINAL_STATUS
 }
 
 /** Platforms that should be (re)uploaded on retry. */
@@ -92,9 +104,7 @@ export function platformsNeedingUpload(
   if (retryable.has(youtubeStatus ?? 'pending')) needs.push('youtube')
   if (retryable.has(instagramStatus ?? 'pending')) needs.push('instagram')
 
-  if (needs.length === 0) {
-    return ['youtube', 'instagram']
-  }
-
+  // Never fall back to re-uploading successful platforms — that caused duplicate posts
+  // when WF-08 drained stale retry-upload requests after a job already succeeded.
   return needs
 }

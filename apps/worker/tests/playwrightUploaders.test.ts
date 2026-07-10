@@ -13,6 +13,8 @@ const boundingBoxMock = vi.fn()
 const newPageMock = vi.fn()
 const detectLoginOrChallengeMock = vi.fn()
 
+const getAttributeMock = vi.fn().mockResolvedValue('https://youtu.be/testVideoId123')
+
 const locatorMock = vi.fn(() => ({
   first: () => ({
     isVisible: vi.fn().mockResolvedValue(true),
@@ -24,7 +26,7 @@ const locatorMock = vi.fn(() => ({
     scrollIntoViewIfNeeded: scrollIntoViewIfNeededMock,
     boundingBox: boundingBoxMock,
     press: vi.fn().mockResolvedValue(undefined),
-    getAttribute: vi.fn().mockResolvedValue(null),
+    getAttribute: getAttributeMock,
     count: vi.fn().mockResolvedValue(1),
     focus: vi.fn().mockResolvedValue(undefined),
   }),
@@ -37,7 +39,7 @@ const locatorMock = vi.fn(() => ({
   scrollIntoViewIfNeeded: scrollIntoViewIfNeededMock,
   boundingBox: boundingBoxMock,
   press: vi.fn().mockResolvedValue(undefined),
-  getAttribute: vi.fn().mockResolvedValue(null),
+  getAttribute: getAttributeMock,
   count: vi.fn().mockResolvedValue(1),
   focus: vi.fn().mockResolvedValue(undefined),
 }))
@@ -63,7 +65,7 @@ vi.mock('../src/uploaders/playwrightHumanBehavior', async () => {
         scrollIntoViewIfNeeded: scrollIntoViewIfNeededMock,
         boundingBox: boundingBoxMock,
         press: vi.fn().mockResolvedValue(undefined),
-        getAttribute: vi.fn().mockResolvedValue(null),
+        getAttribute: getAttributeMock,
         count: vi.fn().mockResolvedValue(1),
         focus: vi.fn().mockResolvedValue(undefined),
       }),
@@ -76,7 +78,7 @@ vi.mock('../src/uploaders/playwrightHumanBehavior', async () => {
       scrollIntoViewIfNeeded: scrollIntoViewIfNeededMock,
       boundingBox: boundingBoxMock,
       press: vi.fn().mockResolvedValue(undefined),
-      getAttribute: vi.fn().mockResolvedValue(null),
+      getAttribute: getAttributeMock,
       count: vi.fn().mockResolvedValue(1),
       focus: vi.fn().mockResolvedValue(undefined),
     }) as unknown
@@ -283,7 +285,8 @@ describe('YoutubePlaywrightUploader', () => {
     const result = await uploader.upload(baseInput)
 
     expect(result.success).toBe(true)
-    expect(result.platformMediaId).toMatch(/^yt-job-pw-1-/)
+    expect(result.platformMediaId).toBe('https://youtu.be/testVideoId123')
+    expect(result.platformUrl).toBe('https://youtu.be/testVideoId123')
     expect(closeMock).toHaveBeenCalled()
     expect(gotoMock).toHaveBeenCalledWith('https://www.youtube.com/', expect.any(Object))
   })

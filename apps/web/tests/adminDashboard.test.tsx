@@ -66,6 +66,8 @@ describe('JobsTable', () => {
             status: 'queued',
             youtube_upload_status: 'pending',
             instagram_upload_status: 'pending',
+            youtube_url: null,
+            instagram_url: null,
             drive_view_url: null,
             retry_count: 0,
             failure_reason: null,
@@ -81,6 +83,8 @@ describe('JobsTable', () => {
     expect(screen.getByText('Niche')).toBeInTheDocument()
     expect(screen.getByText('YouTube Status')).toBeInTheDocument()
     expect(screen.getByText('Instagram Status')).toBeInTheDocument()
+    expect(screen.getByText('YouTube URL')).toBeInTheDocument()
+    expect(screen.getByText('Instagram URL')).toBeInTheDocument()
     expect(screen.getByText('Drive File')).toBeInTheDocument()
     expect(screen.getByText('Retry Count')).toBeInTheDocument()
     expect(screen.getByText('Failure Reason')).toBeInTheDocument()
@@ -176,6 +180,8 @@ describe('FailedJobsTable', () => {
             status: 'failed',
             youtube_upload_status: 'failed',
             instagram_upload_status: 'pending',
+            youtube_url: null,
+            instagram_url: null,
             drive_view_url: null,
             retry_count: 1,
             failure_reason: 'Upload failed',

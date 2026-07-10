@@ -30,8 +30,14 @@ export class MockUploader implements PlatformUploader {
 
     return {
       success: true,
-      platformMediaId: `mock-${input.platform}-${input.jobId}`,
-      platformUrl: `https://${input.platform}.com/mock/${input.jobId}`,
+      platformMediaId:
+        input.platform === 'youtube'
+          ? `https://www.youtube.com/watch?v=mock${input.jobId.replace(/-/g, '').slice(0, 11)}`
+          : `https://www.instagram.com/reel/mock${input.jobId.replace(/-/g, '').slice(0, 11)}/`,
+      platformUrl:
+        input.platform === 'youtube'
+          ? `https://www.youtube.com/watch?v=mock${input.jobId.replace(/-/g, '').slice(0, 11)}`
+          : `https://www.instagram.com/reel/mock${input.jobId.replace(/-/g, '').slice(0, 11)}/`,
     }
   }
 }

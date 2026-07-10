@@ -1,24 +1,24 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
-const execaMock = vi.fn()
+const runCommandMock = vi.fn()
 
-vi.mock('execa', () => ({
-  execa: (...args: unknown[]) => execaMock(...args),
+vi.mock('../src/utils/runCommand', () => ({
+  runCommand: (...args: unknown[]) => runCommandMock(...args),
 }))
 
 describe('sourceHasAudio', () => {
   beforeEach(() => {
-    execaMock.mockReset()
+    runCommandMock.mockReset()
     vi.resetModules()
   })
 
   it('returns true when ffprobe finds an audio stream', async () => {
-    execaMock.mockResolvedValue({ stdout: '0\n' })
+    runCommandMock.mockResolvedValue({ stdout: '0\n', stderr: '', exitCode: 0 })
 
     const { sourceHasAudio } = await import('../src/processors/probeMedia')
     await expect(sourceHasAudio('/tmp/source.mp4')).resolves.toBe(true)
 
-    expect(execaMock).toHaveBeenCalledWith(
+    expect(runCommandMock).toHaveBeenCalledWith(
       'ffprobe',
       expect.arrayContaining(['-select_streams', 'a', '/tmp/source.mp4']),
       expect.objectContaining({ timeout: 30_000 }),
@@ -26,14 +26,14 @@ describe('sourceHasAudio', () => {
   })
 
   it('returns false when ffprobe finds no audio stream', async () => {
-    execaMock.mockResolvedValue({ stdout: '' })
+    runCommandMock.mockResolvedValue({ stdout: '', stderr: '', exitCode: 0 })
 
     const { sourceHasAudio } = await import('../src/processors/probeMedia')
     await expect(sourceHasAudio('/tmp/source.mp4')).resolves.toBe(false)
   })
 
   it('returns false when ffprobe fails', async () => {
-    execaMock.mockRejectedValue(new Error('ffprobe failed'))
+    runCommandMock.mockRejectedValue(new Error('ffprobe failed'))
 
     const { sourceHasAudio } = await import('../src/processors/probeMedia')
     await expect(sourceHasAudio('/tmp/source.mp4')).resolves.toBe(false)

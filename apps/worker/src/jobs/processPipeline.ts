@@ -1,11 +1,11 @@
 import type { JobStatus } from '@project-api/shared'
 import { ERROR_CODES, ProjectApiError } from '@project-api/shared'
 
-import { config } from '../config'
 import type { Downloader } from '../downloaders/types'
 import type { DbJobRow } from '../db/jobsRepo'
 import { getNicheSlugById, updateJobStatus, writeJobEvent } from '../db/jobsRepo'
 import type { Processor } from '../processors/types'
+import { resolveWatermarkPath } from '../processors/resolveWatermarkPath'
 import type { MetadataProvider } from '../metadata/types'
 import type { DriveStorage } from '../storage/types'
 
@@ -113,17 +113,34 @@ export async function runProcessPipeline(
     await updateJobStatus(jobId, 'downloaded', { download_status: 'succeeded' })
     await writeJobEvent(jobId, 'download', 'download_completed', 'Source download complete', 'info', {
       fileSize: downloadResult.fileSize,
+      hasSourceTitle: Boolean(downloadResult.title),
+      hasSourceDescription: Boolean(downloadResult.description),
+      sourceDescriptionLength: downloadResult.description?.length ?? 0,
     })
 
+    const nicheSlug = await resolvedDeps.getNicheSlug(job.niche_id)
+    if (!nicheSlug || !isValidNicheSlug(nicheSlug)) {
+      throw new ProjectApiError(
+        ERROR_CODES.NICHE_ACCOUNT_NOT_FOUND,
+        `Niche slug not found for niche_id: ${job.niche_id}`,
+        { stage: 'processing', retryable: false },
+      )
+    }
+
+    const watermarkPath = resolveWatermarkPath(nicheSlug)
+
     await updateJobStatus(jobId, 'processing', { processing_status: 'running' })
-    await writeJobEvent(jobId, 'process', 'processing_started', 'Starting FFmpeg processing')
+    await writeJobEvent(jobId, 'process', 'processing_started', 'Starting FFmpeg processing', 'info', {
+      nicheSlug,
+      watermarkPath,
+    })
 
     const processResult = await withFfmpegConcurrency(() =>
       resolvedDeps.processor.process({
         jobId,
         sourcePath: downloadResult.localPath,
         tempDir,
-        watermarkPath: config.WATERMARK_PATH,
+        watermarkPath,
       }),
     )
 
@@ -133,19 +150,11 @@ export async function runProcessPipeline(
     })
     await writeJobEvent(jobId, 'process', 'processing_completed', 'FFmpeg processing complete', 'info', {
       outputSize: processResult.fileSize,
+      watermarkPath,
     })
 
     await updateJobStatus(jobId, 'staging_to_drive')
     await writeJobEvent(jobId, 'staging_to_drive', 'drive_upload_started', 'Starting Drive upload')
-
-    const nicheSlug = await resolvedDeps.getNicheSlug(job.niche_id)
-    if (!nicheSlug || !isValidNicheSlug(nicheSlug)) {
-      throw new ProjectApiError(
-        ERROR_CODES.NICHE_ACCOUNT_NOT_FOUND,
-        `Niche slug not found for niche_id: ${job.niche_id}`,
-        { stage: 'staging_to_drive', retryable: false },
-      )
-    }
 
     const driveResult = await resolvedDeps.driveStorage.upload({
       jobId,
@@ -164,6 +173,9 @@ export async function runProcessPipeline(
       sourceUrl: job.source_url,
       sourcePlatform: job.source_platform,
       nicheSlug,
+      sourceTitle: downloadResult.title,
+      sourceDescription: downloadResult.description,
+      sourceChannel: downloadResult.uploader,
     })
 
     const metadataStatus = metadata.generatedBy === 'ai' ? 'generated' : 'fallback_used'

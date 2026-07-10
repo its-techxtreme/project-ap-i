@@ -4,10 +4,10 @@ import path from 'node:path'
 
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
-const execaMock = vi.fn()
+const runCommandMock = vi.fn()
 
-vi.mock('execa', () => ({
-  execa: (...args: unknown[]) => execaMock(...args),
+vi.mock('../src/utils/runCommand', () => ({
+  runCommand: (...args: unknown[]) => runCommandMock(...args),
 }))
 
 describe('MockDownloader', () => {
@@ -48,12 +48,13 @@ describe('MockDownloader', () => {
     expect(result.fileSize).toBe(fixtureStat.size)
     expect(result.duration).toBe(30)
     expect(result.title).toBe('Mock video')
+    expect(result.description).toContain('Original mock caption')
   })
 })
 
 describe('YtDlpDownloader', () => {
   beforeEach(() => {
-    execaMock.mockReset()
+    runCommandMock.mockReset()
   })
 
   it('uses argument array with source URL as separate element', async () => {
@@ -62,8 +63,10 @@ describe('YtDlpDownloader', () => {
     const localPath = path.join(tempDir, 'source.mp4')
     await fs.copyFile(path.join(__dirname, 'fixtures/sample.mp4'), localPath)
 
-    execaMock.mockResolvedValue({
-      stdout: localPath,
+    runCommandMock.mockImplementation(async (cmd: string) => {
+      if (cmd === 'yt-dlp') return { stdout: localPath, stderr: '', exitCode: 0 }
+      if (cmd === 'ffprobe') return { stdout: '30.0\n', stderr: '', exitCode: 0 }
+      return { stdout: '', stderr: '', exitCode: 0 }
     })
 
     const { YtDlpDownloader } = await import('../src/downloaders/YtDlpDownloader')
@@ -76,22 +79,61 @@ describe('YtDlpDownloader', () => {
       sourcePlatform: 'youtube',
     })
 
-    expect(execaMock).toHaveBeenCalledOnce()
-    const [command, args, options] = execaMock.mock.calls[0] as [string, string[], { timeout: number }]
+    expect(runCommandMock).toHaveBeenCalled()
+    const ytCall = runCommandMock.mock.calls.find((c) => c[0] === 'yt-dlp') as [
+      string,
+      string[],
+      { timeout: number },
+    ]
+    expect(ytCall).toBeTruthy()
+    const [, args, options] = ytCall
 
-    expect(command).toBe('yt-dlp')
     expect(Array.isArray(args)).toBe(true)
     expect(args[args.length - 1]).toBe(sourceUrl)
     expect(args).toContain('--max-filesize')
-    expect(args).toContain('--match-filter')
-    expect(options.timeout).toBe(120_000)
-    expect(options.shell).toBeUndefined()
+    expect(args).toContain('--write-info-json')
+    expect(options.timeout).toBe(180_000)
     expect(result.localPath).toBe(localPath)
     expect(result.fileSize).toBeGreaterThan(0)
   })
 
+  it('returns title and description from yt-dlp info.json', async () => {
+    const sourceUrl = 'https://www.instagram.com/reel/abc123/'
+    const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), 'ytdlp-info-'))
+    const localPath = path.join(tempDir, 'source.mp4')
+    await fs.copyFile(path.join(__dirname, 'fixtures/sample.mp4'), localPath)
+    await fs.writeFile(
+      path.join(tempDir, 'source.info.json'),
+      JSON.stringify({
+        title: 'IG short title',
+        description: 'Original reel caption about the play of the day',
+        uploader: 'sportsfan',
+      }),
+    )
+
+    runCommandMock.mockImplementation(async (cmd: string) => {
+      if (cmd === 'yt-dlp') return { stdout: localPath, stderr: '', exitCode: 0 }
+      if (cmd === 'ffprobe') return { stdout: '12.0\n', stderr: '', exitCode: 0 }
+      return { stdout: '', stderr: '', exitCode: 0 }
+    })
+
+    const { YtDlpDownloader } = await import('../src/downloaders/YtDlpDownloader')
+    const downloader = new YtDlpDownloader()
+
+    const result = await downloader.download({
+      sourceUrl,
+      jobId: 'job-info',
+      tempDir,
+      sourcePlatform: 'instagram',
+    })
+
+    expect(result.title).toBe('IG short title')
+    expect(result.description).toBe('Original reel caption about the play of the day')
+    expect(result.uploader).toBe('sportsfan')
+  })
+
   it('wraps yt-dlp failures in DOWNLOAD_FAILED', async () => {
-    execaMock.mockRejectedValue(new Error('network error'))
+    runCommandMock.mockRejectedValue(new Error('network error'))
 
     const { YtDlpDownloader } = await import('../src/downloaders/YtDlpDownloader')
     const downloader = new YtDlpDownloader()
@@ -107,7 +149,7 @@ describe('YtDlpDownloader', () => {
   })
 
   it('wraps yt-dlp timeouts in DOWNLOAD_TIMEOUT', async () => {
-    execaMock.mockRejectedValue(new Error('Command timed out after 120000 milliseconds'))
+    runCommandMock.mockRejectedValue(new Error('Command timed out after 120000ms: yt-dlp'))
 
     const { YtDlpDownloader } = await import('../src/downloaders/YtDlpDownloader')
     const downloader = new YtDlpDownloader()
@@ -124,12 +166,12 @@ describe('YtDlpDownloader', () => {
 
   it('does not invoke yt-dlp when INTEGRATION_TESTS_ENABLED is false', async () => {
     vi.resetModules()
-    execaMock.mockReset()
+    runCommandMock.mockReset()
 
     const { createDownloader } = await import('../src/downloaders/index')
     const downloader = createDownloader()
 
     expect(downloader.constructor.name).toBe('MockDownloader')
-    expect(execaMock).not.toHaveBeenCalled()
+    expect(runCommandMock).not.toHaveBeenCalled()
   })
 })

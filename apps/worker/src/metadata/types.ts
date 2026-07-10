@@ -3,7 +3,10 @@ export interface MetadataInput {
   sourceUrl: string
   sourcePlatform: 'youtube' | 'instagram'
   nicheSlug: 'memes' | 'anime' | 'sports'
+  /** Original source title from yt-dlp when available. */
   sourceTitle?: string
+  /** Original source caption/description from yt-dlp when available. */
+  sourceDescription?: string
   sourceChannel?: string
 }
 

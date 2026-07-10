@@ -23,7 +23,43 @@ const FALLBACK_TEMPLATES: Record<string, MetadataOutput> = {
   },
 }
 
-export function getFallbackMetadata(nicheSlug: string): MetadataOutput {
+const NICHE_TAGS: Record<string, string> = {
+  memes: '#memes #shorts #funny #reels',
+  anime: '#anime #shorts #animeedit #reels',
+  sports: '#sports #shorts #highlights #reels',
+}
+
+function cleanSourceText(text: string): string {
+  return text
+    .replace(/https?:\/\/\S+/gi, '')
+    .replace(/\s+/g, ' ')
+    .trim()
+}
+
+/**
+ * Fallback metadata when AI is unavailable.
+ * Prefer lightly cleaned original source caption/title + niche tags over generic templates.
+ */
+export function getFallbackMetadata(
+  nicheSlug: string,
+  source?: { title?: string; description?: string },
+): MetadataOutput {
+  const tags = NICHE_TAGS[nicheSlug] ?? '#shorts #reels'
+  const raw = source?.description?.trim() || source?.title?.trim()
+  const cleaned = raw ? cleanSourceText(raw) : ''
+
+  if (cleaned.length >= 8) {
+    const titleBase = cleaned.slice(0, 70)
+    const body = cleaned.slice(0, 400)
+    const captionBody = cleaned.slice(0, 300)
+    return {
+      youtubeTitle: titleBase,
+      youtubeDescription: `${body}\n\n${tags}`,
+      instagramCaption: `${captionBody} ${tags}`,
+      generatedBy: 'fallback',
+    }
+  }
+
   return (
     FALLBACK_TEMPLATES[nicheSlug] ?? {
       youtubeTitle: 'Check out this short clip #shorts',

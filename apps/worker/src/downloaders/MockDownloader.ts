@@ -28,6 +28,13 @@ export class MockDownloader implements Downloader {
     const dest = path.join(input.tempDir, 'source.mp4')
     await fs.copyFile(fixturePath, dest)
     const stat = await fs.stat(dest)
-    return { localPath: dest, fileSize: stat.size, duration: 30, title: 'Mock video' }
+    return {
+      localPath: dest,
+      fileSize: stat.size,
+      duration: 30,
+      title: 'Mock video',
+      description: 'Original mock caption about this clip for rephrase tests',
+      uploader: 'Mock Channel',
+    }
   }
 }

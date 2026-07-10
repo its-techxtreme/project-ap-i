@@ -83,8 +83,8 @@ describe('MockUploader', () => {
     const uploader = new MockUploader()
     const result = await uploader.upload(baseInput)
 
-    expect(result.platformMediaId).toBe('mock-youtube-job-mock-1')
-    expect(result.platformUrl).toBe('https://youtube.com/mock/job-mock-1')
+    expect(result.platformMediaId).toBe('https://www.youtube.com/watch?v=mockjobmock1')
+    expect(result.platformUrl).toBe('https://www.youtube.com/watch?v=mockjobmock1')
   })
 
   it('checkSession returns healthy', async () => {

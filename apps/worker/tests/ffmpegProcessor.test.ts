@@ -7,10 +7,10 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { buildFfmpegArgs } from '../src/processors/WatermarkPreset'
 
-const execaMock = vi.fn()
+const runCommandMock = vi.fn()
 
-vi.mock('execa', () => ({
-  execa: (...args: unknown[]) => execaMock(...args),
+vi.mock('../src/utils/runCommand', () => ({
+  runCommand: (...args: unknown[]) => runCommandMock(...args),
 }))
 
 vi.mock('../src/processors/probeMedia', () => ({
@@ -68,6 +68,7 @@ describe('buildFfmpegArgs', () => {
     const filterIndex = args.indexOf('-filter_complex')
 
     expect(args[filterIndex + 1]).toContain('colorchannelmixer=aa=0.7')
+    expect(args[filterIndex + 1]).toContain('scale=56:-1')
   })
 })
 
@@ -77,7 +78,7 @@ describe('FfmpegProcessor', () => {
   let watermarkPath: string
 
   beforeEach(async () => {
-    execaMock.mockReset()
+    runCommandMock.mockReset()
     tempDir = await fs.mkdtemp(path.join(os.tmpdir(), 'ffmpeg-test-'))
     sourcePath = path.join(tempDir, 'source.mp4')
     watermarkPath = path.join(tempDir, 'watermark.png')
@@ -119,7 +120,7 @@ describe('FfmpegProcessor', () => {
   })
 
   it('throws FFMPEG_FAILED when ffmpeg exits with non-zero code', async () => {
-    execaMock.mockRejectedValue(new Error('ffmpeg exited with code 1'))
+    runCommandMock.mockRejectedValue(new Error('ffmpeg exited with code 1'))
 
     const { FfmpegProcessor } = await import('../src/processors/FfmpegProcessor')
     const processor = new FfmpegProcessor()
@@ -138,7 +139,7 @@ describe('FfmpegProcessor', () => {
 
   it('names output file job_<jobId>_edited.mp4', async () => {
     const outputPath = path.join(tempDir, 'job_job-42_edited.mp4')
-    execaMock.mockResolvedValue({})
+    runCommandMock.mockResolvedValue({ stdout: '', stderr: '', exitCode: 0 })
     vi.spyOn(fs, 'stat').mockResolvedValue({ size: 2048 } as Awaited<ReturnType<typeof fs.stat>>)
 
     const { FfmpegProcessor } = await import('../src/processors/FfmpegProcessor')
@@ -152,6 +153,6 @@ describe('FfmpegProcessor', () => {
     })
 
     expect(result.outputPath).toBe(outputPath)
-    expect(execaMock.mock.calls[0]?.[1]).toContain(outputPath)
+    expect(runCommandMock.mock.calls[0]?.[1]).toContain(outputPath)
   })
 })

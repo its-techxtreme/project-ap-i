@@ -84,11 +84,17 @@ describe('UploadCoordinator', () => {
       youtube: { id: YT_ACCT, accountLabel: 'Memes YT' },
       instagram: { id: IG_ACCT, accountLabel: 'Memes IG' },
     })
-    uploadMock.mockResolvedValue({
+    uploadMock.mockImplementation((input: { platform: string; jobId: string }) => ({
       success: true,
-      platformMediaId: 'mock-media-id',
-      platformUrl: 'https://example.com/post',
-    })
+      platformMediaId:
+        input.platform === 'youtube'
+          ? 'https://www.youtube.com/watch?v=abc123XYZ01'
+          : 'https://www.instagram.com/reel/ABC123xyz/',
+      platformUrl:
+        input.platform === 'youtube'
+          ? 'https://www.youtube.com/watch?v=abc123XYZ01'
+          : 'https://www.instagram.com/reel/ABC123xyz/',
+    }))
     setupSuccessfulDbMocks()
   })
 
@@ -174,8 +180,8 @@ describe('UploadCoordinator', () => {
     })
     uploadMock.mockResolvedValueOnce({
       success: true,
-      platformMediaId: 'mock-ig',
-      platformUrl: 'https://instagram.com/mock',
+      platformMediaId: 'https://www.instagram.com/reel/ABC123xyz/',
+      platformUrl: 'https://www.instagram.com/reel/ABC123xyz/',
     })
 
     const { UploadCoordinator } = await import('../src/uploaders/UploadCoordinator')
@@ -190,6 +196,29 @@ describe('UploadCoordinator', () => {
       (call) => call[0]?.login_required === true && call[0]?.status === 'login_required',
     )
     expect(accountUpdates.length).toBeGreaterThan(0)
+  })
+
+  it('rejects synthetic media ids even when uploader reports success', async () => {
+    uploadMock.mockImplementation((input: { platform: string }) => ({
+      success: true,
+      platformMediaId:
+        input.platform === 'youtube'
+          ? 'yt-job-upload-1-1783623944909'
+          : 'ig-job-upload-1-1783623944909',
+    }))
+
+    const { UploadCoordinator } = await import('../src/uploaders/UploadCoordinator')
+    const coordinator = new UploadCoordinator(
+      { upload: uploadMock, checkSession: vi.fn() },
+      { upload: uploadMock, checkSession: vi.fn() },
+    )
+
+    await coordinator.uploadBothPlatforms(baseJob)
+
+    const ytFailed = updateMock.mock.calls.some((c) => c[0]?.youtube_upload_status === 'failed')
+    const igFailed = updateMock.mock.calls.some((c) => c[0]?.instagram_upload_status === 'failed')
+    expect(ytFailed).toBe(true)
+    expect(igFailed).toBe(true)
   })
 
   it('missing account mapping sets job to needs_manual_review', async () => {
