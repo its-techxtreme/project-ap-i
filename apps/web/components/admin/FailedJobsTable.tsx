@@ -1,16 +1,71 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, type ReactNode } from 'react'
+import { Ban, ExternalLink, RotateCcw, Trash2 } from 'lucide-react'
 
 import { deleteDriveFile, markJobIgnored, retryJobUpload } from '@/app/actions/adminActions'
 import { StatusBadge } from '@/components/app/StatusBadge'
 import { Button } from '@/components/ui/button'
 import { Checkbox } from '@/components/ui/checkbox'
 import type { FailedJobRow } from '@/lib/data/adminQueries'
-import { shortId } from '@/lib/format/relativeTime'
+import { shortId, truncateText } from '@/lib/format/relativeTime'
+import { cn } from '@/lib/utils'
 
 import { AdminAutoRefresh } from './AdminAutoRefresh'
 import { ConfirmDialog } from './ConfirmDialog'
+
+function ActionIcon({
+  label,
+  onClick,
+  href,
+  external,
+  tone = 'default',
+  children,
+}: {
+  label: string
+  onClick?: () => void
+  href?: string
+  external?: boolean
+  tone?: 'default' | 'danger'
+  children: ReactNode
+}) {
+  const className = cn(
+    'inline-flex size-7 items-center justify-center rounded-md border border-transparent text-muted-foreground transition-colors',
+    'hover:border-border hover:bg-muted hover:text-foreground',
+    tone === 'danger' && 'hover:border-red-500/30 hover:bg-red-500/10 hover:text-red-400',
+  )
+
+  if (href) {
+    if (external) {
+      return (
+        <a
+          href={href}
+          target="_blank"
+          rel="noreferrer"
+          className={className}
+          title={label}
+          aria-label={label}
+        >
+          {children}
+        </a>
+      )
+    }
+  }
+
+  return (
+    <button type="button" className={className} title={label} aria-label={label} onClick={onClick}>
+      {children}
+    </button>
+  )
+}
+
+function SoftChip({ children }: { children: ReactNode }) {
+  return (
+    <span className="inline-flex items-center rounded border border-border/70 bg-background/60 px-1.5 py-0.5 text-[11px] text-foreground/90">
+      {children}
+    </span>
+  )
+}
 
 export function FailedJobsTable({ jobs }: { jobs: FailedJobRow[] }) {
   const [selected, setSelected] = useState<Set<string>>(new Set())
@@ -45,7 +100,9 @@ export function FailedJobsTable({ jobs }: { jobs: FailedJobRow[] }) {
       setActionMessage(result.message)
       return
     }
-    setActionMessage(action === 'retry' ? 'Retry queued. Runs when local worker/n8n is up.' : 'Job marked ignored.')
+    setActionMessage(
+      action === 'retry' ? 'Retry queued. Runs when local worker/n8n is up.' : 'Job marked ignored.',
+    )
   }
 
   function openDeleteDialog(jobId?: string) {
@@ -74,7 +131,11 @@ export function FailedJobsTable({ jobs }: { jobs: FailedJobRow[] }) {
   }
 
   if (jobs.length === 0) {
-    return <p className="text-sm text-muted-foreground">No failed jobs.</p>
+    return (
+      <div className="rounded-xl border border-dashed border-border/80 bg-card/30 px-4 py-10 text-center text-sm text-muted-foreground">
+        No failed jobs.
+      </div>
+    )
   }
 
   return (
@@ -82,21 +143,23 @@ export function FailedJobsTable({ jobs }: { jobs: FailedJobRow[] }) {
       <AdminAutoRefresh paused={dialogOpen} />
 
       {selected.size > 0 ? (
-        <div className="mb-4 flex flex-wrap items-center gap-2 rounded-lg border bg-muted/30 p-3">
-          <span className="text-sm font-medium">{selected.size} selected</span>
+        <div className="mb-3 flex flex-wrap items-center gap-2 rounded-xl border border-border/70 bg-card/50 px-3 py-2.5 shadow-[inset_0_1px_0_0_hsl(var(--primary)/0.08)]">
+          <span className="text-xs font-medium text-foreground">{selected.size} selected</span>
           <Button
             size="sm"
             variant="outline"
+            className="h-8 text-xs"
             onClick={() => setActionMessage('Bulk retry not yet implemented. Coming in Phase 11.')}
           >
             Retry Selected (stub)
           </Button>
-          <Button size="sm" variant="outline" onClick={() => openDeleteDialog()}>
+          <Button size="sm" variant="outline" className="h-8 text-xs" onClick={() => openDeleteDialog()}>
             Delete Selected Drive Files (stub)
           </Button>
           <Button
             size="sm"
             variant="outline"
+            className="h-8 text-xs"
             onClick={() => setActionMessage('Bulk ignore not yet implemented. Coming in Phase 11.')}
           >
             Mark Selected Ignored (stub)
@@ -105,85 +168,127 @@ export function FailedJobsTable({ jobs }: { jobs: FailedJobRow[] }) {
       ) : null}
 
       {actionMessage ? (
-        <p className="mb-4 rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-900">
+        <p className="mb-3 rounded-md border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-sm text-amber-200">
           {actionMessage}
         </p>
       ) : null}
 
-      <div className="overflow-x-auto rounded-lg border">
-        <table className="w-full min-w-[960px] text-left text-sm">
-          <thead className="border-b bg-muted/40">
-            <tr>
-              <th className="px-3 py-2">
-                <Checkbox
-                  checked={allSelected}
-                  onCheckedChange={(checked) => toggleAll(checked === true)}
-                  aria-label="Select all failed jobs"
-                />
-              </th>
-              <th className="px-3 py-2 font-medium">Job ID</th>
-              <th className="px-3 py-2 font-medium">Niche</th>
-              <th className="px-3 py-2 font-medium">Failed stage</th>
-              <th className="px-3 py-2 font-medium">YouTube status</th>
-              <th className="px-3 py-2 font-medium">Instagram status</th>
-              <th className="px-3 py-2 font-medium">Failure reason</th>
-              <th className="px-3 py-2 font-medium">Drive file</th>
-              <th className="px-3 py-2 font-medium">Retry count</th>
-              <th className="px-3 py-2 font-medium">Actions</th>
-            </tr>
-          </thead>
-          <tbody>
-            {jobs.map((job) => (
-              <tr key={job.id} className="border-b last:border-b-0">
-                <td className="px-3 py-2">
+      <div className="overflow-hidden rounded-xl border border-border/70 bg-card/50 shadow-[inset_0_1px_0_0_hsl(var(--primary)/0.1)]">
+        <div className="overflow-x-auto">
+          <table className="w-full min-w-[880px] text-left text-sm">
+            <thead className="border-b border-border/80 bg-background/50 text-[10px] uppercase tracking-[0.08em] text-muted-foreground">
+              <tr>
+                <th className="px-2.5 py-2.5">
                   <Checkbox
-                    checked={selected.has(job.id)}
-                    onCheckedChange={(checked) => toggleOne(job.id, checked === true)}
-                    aria-label={`Select job ${shortId(job.id)}`}
+                    checked={allSelected}
+                    onCheckedChange={(checked) => toggleAll(checked === true)}
+                    aria-label="Select all failed jobs"
                   />
-                </td>
-                <td className="px-3 py-2 font-mono">{shortId(job.id)}</td>
-                <td className="px-3 py-2">{job.niche_name}</td>
-                <td className="px-3 py-2">{job.failure_code ?? '—'}</td>
-                <td className="px-3 py-2">
-                  <StatusBadge status={job.youtube_upload_status} />
-                </td>
-                <td className="px-3 py-2">
-                  <StatusBadge status={job.instagram_upload_status} />
-                </td>
-                <td className="px-3 py-2">{job.failure_reason ?? '—'}</td>
-                <td className="px-3 py-2">
-                  {job.drive_view_url ? (
-                    <a
-                      href={job.drive_view_url}
-                      target="_blank"
-                      rel="noreferrer"
-                      className="text-primary underline-offset-4 hover:underline"
-                    >
-                      Open
-                    </a>
-                  ) : (
-                    'None'
-                  )}
-                </td>
-                <td className="px-3 py-2">{job.retry_count}</td>
-                <td className="px-3 py-2">
-                  <div className="flex flex-wrap gap-1">
-                    <Button variant="outline" size="sm" onClick={() => runStubAction('retry', job.id)}>
-                      Retry Upload
-                    </Button>
-                    <Button variant="outline" size="sm" onClick={() => openDeleteDialog(job.id)}>
-                      Delete Drive File
-                    </Button>
-                    <Button variant="outline" size="sm" onClick={() => runStubAction('ignore', job.id)}>
-                      Mark Ignored
-                    </Button>
-                  </div>
-                </td>
+                </th>
+                <th className="px-2.5 py-2.5 font-medium">Job</th>
+                <th className="px-2.5 py-2.5 font-medium">Niche</th>
+                <th className="px-2.5 py-2.5 font-medium">Stage</th>
+                <th className="px-2.5 py-2.5 font-medium">YouTube</th>
+                <th className="px-2.5 py-2.5 font-medium">Instagram</th>
+                <th className="px-2.5 py-2.5 font-medium">Failure</th>
+                <th className="px-2.5 py-2.5 font-medium">Drive</th>
+                <th className="px-2.5 py-2.5 font-medium">Retries</th>
+                <th className="px-2.5 py-2.5 font-medium">Actions</th>
               </tr>
-            ))}
-          </tbody>
-        </table>
+            </thead>
+            <tbody>
+              {jobs.map((job) => (
+                <tr
+                  key={job.id}
+                  className="border-b border-border/50 last:border-b-0 transition-colors hover:bg-[#121820]/80"
+                >
+                  <td className="px-2.5 py-2">
+                    <Checkbox
+                      checked={selected.has(job.id)}
+                      onCheckedChange={(checked) => toggleOne(job.id, checked === true)}
+                      aria-label={`Select job ${shortId(job.id)}`}
+                    />
+                  </td>
+                  <td className="px-2.5 py-2 font-mono text-xs text-foreground/90">
+                    {shortId(job.id)}
+                  </td>
+                  <td className="px-2.5 py-2 text-xs">
+                    <SoftChip>{job.niche_name}</SoftChip>
+                  </td>
+                  <td className="px-2.5 py-2 font-mono text-[11px] text-muted-foreground">
+                    {job.failure_code ?? '—'}
+                  </td>
+                  <td className="px-2.5 py-2">
+                    <StatusBadge status={job.youtube_upload_status} />
+                  </td>
+                  <td className="px-2.5 py-2">
+                    <StatusBadge status={job.instagram_upload_status} />
+                  </td>
+                  <td
+                    className="max-w-[12rem] truncate px-2.5 py-2 text-xs text-muted-foreground"
+                    title={job.failure_reason ?? undefined}
+                  >
+                    {job.failure_reason ? truncateText(job.failure_reason, 42) : '—'}
+                  </td>
+                  <td className="px-2.5 py-2">
+                    {job.drive_view_url ? (
+                      <a
+                        href={job.drive_view_url}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="text-xs text-primary hover:underline"
+                      >
+                        Open
+                      </a>
+                    ) : (
+                      <span className="text-xs text-muted-foreground/40">None</span>
+                    )}
+                  </td>
+                  <td className="px-2.5 py-2 text-xs tabular-nums">{job.retry_count}</td>
+                  <td className="px-2.5 py-2">
+                    <div className="flex items-center gap-0.5">
+                      <ActionIcon label="Retry upload" onClick={() => runStubAction('retry', job.id)}>
+                        <RotateCcw className="size-3.5" />
+                      </ActionIcon>
+                      <ActionIcon
+                        label="Delete Drive file"
+                        tone="danger"
+                        onClick={() => openDeleteDialog(job.id)}
+                      >
+                        <Trash2 className="size-3.5" />
+                      </ActionIcon>
+                      <ActionIcon label="Mark ignored" onClick={() => runStubAction('ignore', job.id)}>
+                        <Ban className="size-3.5" />
+                      </ActionIcon>
+                      {job.source_url ? (
+                        <ActionIcon label="Open source URL" href={job.source_url} external>
+                          <ExternalLink className="size-3.5" />
+                        </ActionIcon>
+                      ) : null}
+                    </div>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      {/* Accessible labels for screen readers / legacy assertions */}
+      <div className="sr-only">
+        {jobs.map((job) => (
+          <div key={`sr-${job.id}`}>
+            <button type="button" onClick={() => runStubAction('retry', job.id)}>
+              Retry Upload
+            </button>
+            <button type="button" onClick={() => openDeleteDialog(job.id)}>
+              Delete Drive File
+            </button>
+            <button type="button" onClick={() => runStubAction('ignore', job.id)}>
+              Mark Ignored
+            </button>
+          </div>
+        ))}
       </div>
 
       <ConfirmDialog

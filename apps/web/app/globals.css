@@ -92,6 +92,42 @@
   }
 }
 
+/* Glass / login atmosphere — outside @layer so filters are not stripped */
+.glass-panel {
+  background:
+    linear-gradient(
+      160deg,
+      hsl(0 0% 100% / 0.1) 0%,
+      hsl(0 0% 100% / 0.02) 45%,
+      hsl(172 66% 50% / 0.05) 100%
+    ),
+    hsl(220 28% 8% / 0.32);
+  border: 1px solid hsl(172 66% 50% / 0.3);
+  box-shadow:
+    inset 0 1px 0 0 hsl(0 0% 100% / 0.16),
+    inset 0 -1px 0 0 hsl(0 0% 0% / 0.28),
+    0 0 0 1px hsl(0 0% 0% / 0.4),
+    0 28px 64px -24px hsl(0 0% 0% / 0.8);
+  -webkit-backdrop-filter: blur(28px) saturate(1.5);
+  backdrop-filter: blur(28px) saturate(1.5);
+}
+
+.login-grid {
+  background-image:
+    linear-gradient(hsl(215 18% 14% / 0.5) 1px, transparent 1px),
+    linear-gradient(90deg, hsl(215 18% 14% / 0.5) 1px, transparent 1px);
+  background-size: 44px 44px;
+  mask-image: radial-gradient(ellipse 75% 65% at 50% 42%, black 15%, transparent 78%);
+}
+
+.login-stage {
+  background-color: hsl(220 28% 3%);
+  background-image:
+    radial-gradient(ellipse 55% 45% at 18% 12%, hsl(172 66% 50% / 0.22), transparent 55%),
+    radial-gradient(ellipse 45% 40% at 88% 78%, hsl(172 66% 50% / 0.12), transparent 50%),
+    radial-gradient(ellipse 80% 60% at 50% 100%, hsl(220 28% 6% / 0.9), transparent 55%);
+}
+
 @keyframes enter {
   from {
     opacity: 0;

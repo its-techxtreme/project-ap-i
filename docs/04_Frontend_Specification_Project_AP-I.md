@@ -114,13 +114,17 @@ Sidebar:
   Settings
 
 Topbar:
-  Search
-  Current user
   Environment badge
+  Submissions link (opens public form at `/`)
+  Theme toggle
+  Current user
+  Log out
 
 Main content:
-  Cards, tables, filters, actions
+  Dense tables, compact filters, icon actions
 ```
+
+Login (`/login`): dark glassmorphism sign-in panel with teal atmosphere graphics; admin theme by default.
 
 ## Visual design
 

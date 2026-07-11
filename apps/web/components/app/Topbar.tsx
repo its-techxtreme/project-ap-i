@@ -1,10 +1,12 @@
 'use client'
 
 import Link from 'next/link'
+import { FilePlus2 } from 'lucide-react'
 
 import { LogoutButton } from '@/components/app/LogoutButton'
 import { ThemeToggle } from '@/components/theme/ThemeToggle'
 import { Badge } from '@/components/ui/badge'
+import { Button } from '@/components/ui/button'
 
 function envLabel(): string {
   const vercel = process.env.NEXT_PUBLIC_VERCEL_ENV
@@ -34,6 +36,17 @@ export function Topbar({ email }: { email?: string | null }) {
         </Badge>
       </div>
       <div className="flex items-center gap-2 sm:gap-3">
+        <Button
+          asChild
+          variant="outline"
+          size="sm"
+          className="h-8 gap-1.5 border-border/70 bg-background/40 text-xs hover:border-primary/40 hover:bg-primary/10 hover:text-primary"
+        >
+          <Link href="/" target="_blank" rel="noreferrer">
+            <FilePlus2 className="size-3.5" aria-hidden />
+            <span className="hidden sm:inline">Submissions</span>
+          </Link>
+        </Button>
         <ThemeToggle />
         {label ? (
           <span className="hidden max-w-[200px] truncate text-sm text-muted-foreground sm:inline">
