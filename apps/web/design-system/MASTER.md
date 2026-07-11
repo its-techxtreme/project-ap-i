@@ -32,13 +32,15 @@
 ### Dark
 | Role | Hex |
 |---|---|
-| Background | `#070B12` |
-| Surface | `#0F1623` |
+| Background | `#030508` |
+| Surface | `#0A0E14` |
 | Ink | `#E8EEF7` |
 | Muted | `#8B97AB` |
 | Accent / CTA | `#2DD4BF` |
 | Accent soft | `#134E4A` |
-| Border | `#1E2A3B` |
+| Border | `#1A222E` |
+
+Admin Jobs filters omit date range (no Created from / Created to). Compact toolbar + status chips only.
 
 ## Layout rules
 - Public: one composition — brand hero + single form card. No dashboard chrome.

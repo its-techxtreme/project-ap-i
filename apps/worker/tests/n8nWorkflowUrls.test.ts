@@ -23,11 +23,12 @@ describe('n8n workflow worker URLs', () => {
     }
   })
 
-  it('WF-06 uses status=eq.active and account_label', () => {
-    const raw = fs.readFileSync(path.join(workflowsDir, 'WF-06_account_health_check.json'), 'utf8')
-    expect(raw).toContain('status=eq.active')
-    expect(raw).toContain('account_label')
-    expect(raw).not.toContain('is_active=eq.true')
-    expect(raw).not.toContain('display_name')
+  it('WF-08 drains pending ready_to_upload and crash-stuck retries', () => {
+    const raw = fs.readFileSync(path.join(workflowsDir, 'WF-08_verification_cron.json'), 'utf8')
+    expect(raw).toContain('Query Pending Uploads')
+    expect(raw).toContain('/upload')
+    expect(raw).toContain('status=in.(ready_to_upload,uploading)')
+    expect(raw).toContain('youtube_upload_status=eq.pending')
+    expect(raw).toContain('failure_code=is.null')
   })
 })

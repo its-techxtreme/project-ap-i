@@ -44,4 +44,6 @@ export const DEFAULTS = {
   VERIFY_DELAY_MINUTES: 30,
   MAX_SOURCE_DURATION_SECONDS: 180,
   MAX_SOURCE_FILE_SIZE_MB: 500,
+  /** Successful uploads per platform account per rolling 24h before deferring. */
+  DAILY_UPLOAD_LIMIT_PER_ACCOUNT: 5,
 } as const

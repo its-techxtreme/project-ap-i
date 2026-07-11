@@ -1,37 +1,42 @@
 const statusColors: Record<string, string> = {
-  queued: 'bg-gray-100 text-gray-700',
-  locked: 'bg-blue-100 text-blue-700',
-  processing: 'bg-blue-100 text-blue-700',
-  ready_to_upload: 'bg-purple-100 text-purple-700',
-  uploading: 'bg-indigo-100 text-indigo-700',
-  awaiting_verification: 'bg-amber-100 text-amber-700',
-  completed: 'bg-green-100 text-green-700',
-  failed: 'bg-red-100 text-red-700',
-  needs_manual_review: 'bg-orange-100 text-orange-700',
-  login_required: 'bg-red-100 text-red-700',
-  ignored: 'bg-gray-100 text-gray-400',
-  pending: 'bg-gray-100 text-gray-600',
-  uploaded: 'bg-blue-100 text-blue-700',
-  verified: 'bg-green-100 text-green-700',
-  skipped: 'bg-gray-100 text-gray-500',
-  debug: 'bg-gray-100 text-gray-500',
-  info: 'bg-blue-100 text-blue-700',
-  warning: 'bg-amber-100 text-amber-800',
-  error: 'bg-red-100 text-red-700',
-  active: 'bg-green-100 text-green-700',
-  paused: 'bg-gray-100 text-gray-600',
-  failing: 'bg-orange-100 text-orange-700',
-  disabled: 'bg-gray-100 text-gray-400',
+  queued: 'bg-muted text-muted-foreground',
+  locked: 'bg-sky-500/15 text-sky-400',
+  processing: 'bg-sky-500/15 text-sky-400',
+  downloading: 'bg-sky-500/15 text-sky-400',
+  downloaded: 'bg-sky-500/15 text-sky-400',
+  staging_to_drive: 'bg-sky-500/15 text-sky-400',
+  ready_to_upload: 'bg-violet-500/15 text-violet-300',
+  uploading: 'bg-indigo-500/15 text-indigo-300',
+  awaiting_verification: 'bg-amber-500/15 text-amber-300',
+  completed: 'bg-emerald-500/15 text-emerald-400',
+  failed: 'bg-red-500/15 text-red-400',
+  needs_manual_review: 'bg-orange-500/15 text-orange-300',
+  login_required: 'bg-red-500/15 text-red-400',
+  ignored: 'bg-muted text-muted-foreground/70',
+  pending: 'bg-muted text-muted-foreground',
+  uploaded: 'bg-sky-500/15 text-sky-400',
+  verified: 'bg-emerald-500/15 text-emerald-400',
+  retry_scheduled: 'bg-amber-500/15 text-amber-300',
+  skipped: 'bg-muted text-muted-foreground',
+  debug: 'bg-muted text-muted-foreground',
+  info: 'bg-sky-500/15 text-sky-400',
+  warning: 'bg-amber-500/15 text-amber-300',
+  error: 'bg-red-500/15 text-red-400',
+  active: 'bg-emerald-500/15 text-emerald-400',
+  paused: 'bg-muted text-muted-foreground',
+  failing: 'bg-orange-500/15 text-orange-300',
+  disabled: 'bg-muted text-muted-foreground/70',
 }
 
 export function StatusBadge({ status }: { status: string }) {
-  const colorClass = statusColors[status] ?? 'bg-gray-100 text-gray-500'
+  const colorClass = statusColors[status] ?? 'bg-muted text-muted-foreground'
   const label = status.replace(/_/g, ' ')
 
   return (
     <span
-      className={`inline-flex items-center rounded px-2 py-0.5 text-xs font-medium ${colorClass}`}
+      className={`inline-flex max-w-[9.5rem] items-center truncate rounded border border-white/5 px-1.5 py-0.5 text-[11px] font-medium leading-tight ${colorClass}`}
       aria-label={`Status: ${label}`}
+      title={label}
     >
       {label}
     </span>

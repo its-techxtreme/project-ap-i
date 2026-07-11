@@ -385,6 +385,17 @@ Instagram caption: New short update. #shorts #reels
 
 ## Upload modules
 
+### Daily upload limit (per account)
+
+Each YouTube and Instagram `platform_accounts` row may publish at most **5** successful uploads per **rolling 24-hour window** (`DAILY_UPLOAD_LIMIT_PER_ACCOUNT`, default `5`).
+
+- Counted from distinct successful `upload_attempts` (`status=uploaded`) with `finished_at` in the last 24 hours, plus in-flight `uploading` jobs for that account.
+- When a niche’s needed account is at the cap:
+  - New jobs stay **`queued`** (claim is released).
+  - Already-processed jobs stay **`ready_to_upload`** (no Playwright attempt, no retry loop).
+- If YouTube returns “daily upload limit reached”, the job is parked the same way instead of failing into verify→retry loops.
+- Slots free as older uploads age out of the 24h window (not UTC midnight).
+
 ### Common uploader interface
 
 ```ts

@@ -126,13 +126,10 @@ Main content:
 
 ### Style direction
 
-- Clean SaaS dashboard.
-- White background.
-- Neutral cards.
-- Rounded corners.
-- Subtle borders.
-- Color-coded status badges.
-- No overly flashy gradients.
+- Admin: near-black ops console (`#030508` canvas), teal accent, Syne + Public Sans.
+- Public submit: light brand composition (separate from admin chrome).
+- Dense tables, hairline borders, color-coded status badges.
+- Soft teal atmosphere glow only — no purple/indigo themes.
 
 ### Status colors
 
@@ -150,13 +147,15 @@ login_required: red
 
 ### Typography
 
-Use system font or Inter.
+- Display / brand: Syne
+- Body / UI: Public Sans
+- Never use Inter, Roboto, Arial, or system-ui as primary
 
 Recommended:
 
 ```text
-Headings: semibold
-Body: regular
+Headings: semibold (Syne on page titles)
+Body: regular (Public Sans)
 Tables: small but readable
 Badges: medium weight
 ```
@@ -329,9 +328,11 @@ Filters:
 Status
 Niche
 Source platform
-Created date
-Upload platform status
+YouTube upload status
+Instagram upload status
 ```
+
+Note: Jobs filters do not include created-date range (Created from / Created to). Date filters remain on Logs only.
 
 Actions:
 

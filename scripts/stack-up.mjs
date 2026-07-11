@@ -217,12 +217,77 @@ async function main() {
     }
     throw err
   }
+  // 5) Re-activate n8n pollers (Docker restarts often leave workflows inactive)
+  await ensureN8nWorkflowsActive(env)
+
   console.log('\nStack is up:')
   console.log(`  worker:  http://127.0.0.1:${PORT}/health  ok=${health.ok}`)
   console.log(`  n8n:     http://localhost:5678`)
   console.log(`  uploads: real=${health.realUploadsEnabled} yt=${health.youtubeUploadsEnabled} ig=${health.instagramUploadsEnabled}`)
   console.log(`  chrome:  channel=${health.checks?.playwrightChannel}`)
   console.log('\nNext: pnpm stack:status')
+}
+
+async function waitForN8n(baseUrl, attempts = 30) {
+  for (let i = 0; i < attempts; i++) {
+    try {
+      const res = await fetch(baseUrl)
+      if (res.ok || res.status === 401 || res.status === 200) return
+    } catch {
+      // retry
+    }
+    await sleep(1000)
+  }
+}
+
+async function ensureN8nWorkflowsActive(env) {
+  const apiKey = env.N8N_API_KEY
+  if (!apiKey || apiKey === 'REPLACE_ME') {
+    console.log('  n8n: skip workflow activate (N8N_API_KEY not set)')
+    return
+  }
+
+  const baseUrl = (env.N8N_API_BASE_URL || env.WEBHOOK_URL || 'http://localhost:5678/').replace(
+    /\/$/,
+    '',
+  )
+
+  try {
+    await waitForN8n(baseUrl)
+    const { createN8nClient, listWorkflows, publishWorkflow } = await import('./lib/n8n-api.mjs')
+    const client = createN8nClient(env)
+    const activateNames = [
+      'WF-03 Upload Verification',
+      'WF-02 Process Job',
+      'WF-01 New Job Poller',
+      'WF-04 Manual Retry Webhook',
+      'WF-05 Drive Cleanup Webhook',
+      'WF-07 Admin Command Poller',
+      'WF-08 Verification Cron',
+    ]
+    const workflows = await listWorkflows(client)
+    let activated = 0
+    for (const name of activateNames) {
+      const wf = workflows.find((w) => w.name === name)
+      if (!wf) continue
+      if (wf.active) {
+        activated += 1
+        continue
+      }
+      try {
+        await publishWorkflow(client, wf.id)
+        activated += 1
+        console.log(`  n8n: activated ${name}`)
+      } catch (err) {
+        console.warn(`  n8n: could not activate ${name} — ${err.message}`)
+        console.warn('         run: pnpm n8n:setup')
+      }
+    }
+    console.log(`  n8n: ${activated}/${activateNames.length} critical workflows active`)
+  } catch (err) {
+    console.warn(`  n8n: workflow activate skipped — ${err.message || err}`)
+    console.warn('         run: pnpm n8n:setup')
+  }
 }
 
 main().catch((err) => {

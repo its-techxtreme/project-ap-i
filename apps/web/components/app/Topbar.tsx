@@ -18,7 +18,7 @@ export function Topbar({ email }: { email?: string | null }) {
   const label = email
 
   return (
-    <header className="flex h-14 items-center justify-between border-b border-border bg-card/80 px-4 backdrop-blur-sm md:px-6">
+    <header className="flex h-14 items-center justify-between border-b border-border/80 bg-[#05070b]/90 px-4 backdrop-blur-md md:px-6">
       <div className="flex items-center gap-3">
         <Link
           href="/admin"
@@ -28,7 +28,7 @@ export function Topbar({ email }: { email?: string | null }) {
         </Link>
         <Badge
           variant="outline"
-          className="hidden font-normal capitalize text-muted-foreground sm:inline-flex"
+          className="hidden border-primary/25 bg-primary/10 font-normal capitalize text-primary sm:inline-flex"
         >
           {env}
         </Badge>

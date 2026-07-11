@@ -10,8 +10,17 @@ export function isTransientUploadFailure(result: {
 }): boolean {
   if (result.success || result.loginRequired) return false
   if (result.errorCode === 'PROFILE_BUSY') return true
+  if (result.errorCode === 'DAILY_UPLOAD_LIMIT_REACHED') return false
 
   const msg = (result.errorMessage ?? '').toLowerCase()
+  if (
+    msg.includes('daily upload limit') ||
+    msg.includes('upload limit reached') ||
+    msg.includes('upload limit has been reached')
+  ) {
+    return false
+  }
+
   return (
     msg.includes('opening in existing browser session') ||
     msg.includes('profile is already in use') ||

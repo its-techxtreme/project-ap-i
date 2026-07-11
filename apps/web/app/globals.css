@@ -31,29 +31,29 @@
   }
 
   .dark {
-    /* Dark — admin default */
-    --background: 216 36% 5%;
+    /* Dark — admin default (near-black ops console) */
+    --background: 220 28% 3%;
     --foreground: 214 40% 94%;
-    --card: 217 32% 10%;
+    --card: 220 24% 6%;
     --card-foreground: 214 40% 94%;
-    --popover: 217 32% 10%;
+    --popover: 220 24% 6%;
     --popover-foreground: 214 40% 94%;
     --primary: 172 66% 50%;
-    --primary-foreground: 216 36% 6%;
-    --secondary: 217 28% 14%;
+    --primary-foreground: 220 28% 4%;
+    --secondary: 220 20% 10%;
     --secondary-foreground: 214 40% 94%;
-    --muted: 217 24% 14%;
-    --muted-foreground: 215 14% 61%;
-    --accent: 175 50% 18%;
+    --muted: 220 18% 10%;
+    --muted-foreground: 215 12% 58%;
+    --accent: 175 45% 14%;
     --accent-foreground: 172 66% 70%;
     --destructive: 0 72% 55%;
     --destructive-foreground: 0 0% 100%;
-    --border: 216 28% 17%;
-    --input: 216 28% 17%;
+    --border: 215 18% 14%;
+    --input: 215 18% 14%;
     --ring: 172 66% 50%;
-    --atmosphere-from: 216 40% 7%;
-    --atmosphere-to: 200 30% 8%;
-    --surface-elevated: 217 32% 12%;
+    --atmosphere-from: 220 30% 5%;
+    --atmosphere-to: 210 22% 4%;
+    --surface-elevated: 220 22% 8%;
   }
 
   * {
@@ -73,8 +73,9 @@
   .bg-atmosphere {
     background-color: hsl(var(--background));
     background-image:
-      radial-gradient(ellipse 80% 60% at 20% -10%, hsl(var(--atmosphere-from) / 0.9), transparent 55%),
-      radial-gradient(ellipse 70% 50% at 90% 10%, hsl(var(--primary) / 0.08), transparent 50%),
+      radial-gradient(ellipse 70% 55% at 12% -8%, hsl(var(--primary) / 0.1), transparent 52%),
+      radial-gradient(ellipse 80% 60% at 20% -10%, hsl(var(--atmosphere-from) / 0.85), transparent 55%),
+      radial-gradient(ellipse 60% 40% at 95% 5%, hsl(var(--primary) / 0.04), transparent 48%),
       linear-gradient(165deg, hsl(var(--atmosphere-from)), hsl(var(--atmosphere-to)));
   }
 

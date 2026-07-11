@@ -49,6 +49,8 @@ const configSchema = z.object({
 
   MAX_SOURCE_DURATION_SECONDS: z.string().default('180').transform(Number),
   MAX_SOURCE_FILE_SIZE_MB: z.string().default('500').transform(Number),
+  /** Max successful uploads per platform account per rolling 24h (default 5). */
+  DAILY_UPLOAD_LIMIT_PER_ACCOUNT: z.string().default('5').transform(Number),
   INTEGRATION_TESTS_ENABLED: z
     .string()
     .default('false')

@@ -24,7 +24,7 @@ export function AppShell({
           <Topbar email={email} />
           <div className="flex flex-1">
             <Sidebar />
-            <main className="flex-1 p-4 md:p-6">{children}</main>
+            <main className="flex-1 p-4 md:p-6 lg:p-7">{children}</main>
           </div>
         </div>
       </ThemeProvider>

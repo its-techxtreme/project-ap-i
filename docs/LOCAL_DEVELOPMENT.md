@@ -194,6 +194,9 @@ Keep `MAX_FFMPEG_CONCURRENCY=1` on typical dev laptops.
 | Playwright login_required | Re-run profile login; confirm `PLAYWRIGHT_CHANNEL=chrome` |
 | Drive upload fails | Drive OAuth scripts above; see `infra/google-drive/SETUP.md` |
 | Job stuck `locked` | Migration `0015` reclaims expired locks on next claim |
+| Dashboard shows Processing but no new activity | Check n8n: pollers must be **Active**. `pnpm stack:up` now re-activates them; if WF-01/02 fail, run `pnpm n8n:setup` |
+| Queue frozen / claim always skipped | A crash-stuck `uploading` job with no lock used to block claims — fixed; WF-08 also drains pending `ready_to_upload` |
+| Jobs stay queued / ready_to_upload with daily limit message | Expected when an account hit `DAILY_UPLOAD_LIMIT_PER_ACCOUNT` (default 5) in the last rolling 24h — resumes as older uploads age out |
 | Verification never runs | Activate WF-08; or wait for WF-02 Wait → WF-03 |
 
 ## Deferred: VPS production

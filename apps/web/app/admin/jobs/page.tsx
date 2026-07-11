@@ -31,8 +31,6 @@ function parseFilters(searchParams: Record<string, string | string[] | undefined
       typeof searchParams.instagramUploadStatus === 'string'
         ? searchParams.instagramUploadStatus
         : undefined,
-    dateFrom: typeof searchParams.dateFrom === 'string' ? searchParams.dateFrom : undefined,
-    dateTo: typeof searchParams.dateTo === 'string' ? searchParams.dateTo : undefined,
   }
 }
 
@@ -52,12 +50,14 @@ export default async function AdminJobsPage({
   ])
 
   return (
-    <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-semibold tracking-tight">Jobs</h1>
-        <p className="text-sm text-muted-foreground">
-          All submitted jobs with filters and pagination. Auto-refreshes every 45 seconds.
-        </p>
+    <div className="space-y-4 animate-enter">
+      <div className="flex flex-wrap items-end justify-between gap-2">
+        <div>
+          <h1 className="font-display text-2xl font-semibold tracking-tight">Jobs</h1>
+          <p className="mt-0.5 text-xs text-muted-foreground">
+            Pipeline queue · refreshes every 45s
+          </p>
+        </div>
       </div>
 
       <Suspense fallback={<LoadingState label="Loading filters…" />}>

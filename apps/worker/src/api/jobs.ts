@@ -66,7 +66,12 @@ export async function jobRoutes(app: FastifyInstance): Promise<void> {
   app.post('/jobs/:id/upload', async (request, reply) => {
     const { id } = request.params as { id: string }
     const finalStatus = await runUpload(id)
-    return reply.send({ success: true, jobId: id, finalStatus })
+    return reply.send({
+      success: true,
+      jobId: id,
+      finalStatus,
+      deferred: finalStatus === 'ready_to_upload',
+    })
   })
 
   app.post('/jobs/:id/verify', async (request, reply) => {

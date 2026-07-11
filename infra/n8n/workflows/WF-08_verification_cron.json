@@ -47,7 +47,7 @@
     {
       "parameters": {
         "method": "GET",
-        "url": "={{ $env.SUPABASE_URL }}/rest/v1/jobs?status=eq.ready_to_upload&or=(youtube_upload_status.eq.retry_scheduled,instagram_upload_status.eq.retry_scheduled)&select=id&order=updated_at.asc&limit=1",
+        "url": "={{ $env.SUPABASE_URL }}/rest/v1/jobs?status=in.(ready_to_upload,uploading)&or=(youtube_upload_status.eq.retry_scheduled,instagram_upload_status.eq.retry_scheduled)&failure_code=is.null&select=id&order=updated_at.asc&limit=1",
         "sendHeaders": true,
         "headerParameters": {
           "parameters": [
@@ -68,6 +68,32 @@
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
       "position": [480, 520],
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "={{ $env.SUPABASE_URL }}/rest/v1/jobs?status=eq.ready_to_upload&youtube_upload_status=eq.pending&instagram_upload_status=eq.pending&failure_code=is.null&select=id&order=updated_at.asc&limit=1",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "apikey",
+              "value": "={{ $env.SUPABASE_SERVICE_ROLE_KEY }}"
+            },
+            {
+              "name": "Authorization",
+              "value": "=Bearer {{ $env.SUPABASE_SERVICE_ROLE_KEY }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "a8000008-0008-4000-8000-000000000020",
+      "name": "Query Pending Uploads",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [480, 740],
       "onError": "continueErrorOutput"
     },
     {
@@ -282,6 +308,76 @@
       "type": "n8n-nodes-base.noOp",
       "typeVersion": 1,
       "position": [960, 680]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "a8000008-0008-4000-8000-000000000021",
+              "leftValue": "={{ Array.isArray($json) ? $json.length : ($json.id ? 1 : 0) }}",
+              "rightValue": 0,
+              "operator": {
+                "type": "number",
+                "operation": "gt"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "a8000008-0008-4000-8000-000000000022",
+      "name": "Any Pending Uploads?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [720, 740]
+    },
+    {
+      "parameters": {
+        "jsCode": "const raw = items[0]?.json;\nconst rows = Array.isArray(raw) ? raw : raw?.id ? [raw] : [];\nif (!rows.length) return [];\nreturn rows.map((row) => ({ json: { jobId: row.id } }));"
+      },
+      "id": "a8000008-0008-4000-8000-000000000023",
+      "name": "Split Pending Upload IDs",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [960, 740]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $env.WORKER_BASE_URL }}/jobs/{{ $json.jobId }}/upload",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "options": {
+          "timeout": 900000
+        }
+      },
+      "id": "a8000008-0008-4000-8000-000000000024",
+      "name": "Upload Pending Job",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1200, 740],
+      "credentials": {
+        "httpHeaderAuth": {
+          "name": "WorkerToken"
+        }
+      },
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {},
+      "id": "a8000008-0008-4000-8000-000000000025",
+      "name": "No Pending Uploads",
+      "type": "n8n-nodes-base.noOp",
+      "typeVersion": 1,
+      "position": [960, 900]
     }
   ],
   "connections": {
@@ -295,6 +391,11 @@
           },
           {
             "node": "Query Scheduled Retries",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Query Pending Uploads",
             "type": "main",
             "index": 0
           }
@@ -317,6 +418,17 @@
         [
           {
             "node": "Any Scheduled Retries?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Query Pending Uploads": {
+      "main": [
+        [
+          {
+            "node": "Any Pending Uploads?",
             "type": "main",
             "index": 0
           }
@@ -359,6 +471,24 @@
         ]
       ]
     },
+    "Any Pending Uploads?": {
+      "main": [
+        [
+          {
+            "node": "Split Pending Upload IDs",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "No Pending Uploads",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
     "Split Job IDs": {
       "main": [
         [
@@ -375,6 +505,17 @@
         [
           {
             "node": "Retry Scheduled Upload",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Split Pending Upload IDs": {
+      "main": [
+        [
+          {
+            "node": "Upload Pending Job",
             "type": "main",
             "index": 0
           }

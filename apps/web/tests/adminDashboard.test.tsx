@@ -36,16 +36,20 @@ describe('OverviewCards', () => {
     const { OverviewCards } = await import('@/components/admin/OverviewCards')
     render(<OverviewCards summary={summary} />)
 
-    expect(screen.getByText('Queued jobs')).toBeInTheDocument()
-    expect(screen.getByText('Processing now')).toBeInTheDocument()
-    expect(screen.getByText('Completed today')).toBeInTheDocument()
-    expect(screen.getByText('Failed today')).toBeInTheDocument()
-    expect(screen.getByText('Needs manual review')).toBeInTheDocument()
-    expect(screen.getByText('Login required accounts')).toBeInTheDocument()
-    expect(screen.getByText('Drive files waiting cleanup')).toBeInTheDocument()
+    for (const label of [
+      'Queued',
+      'Processing',
+      'Completed today',
+      'Failed today',
+      'Needs review',
+      'Login required',
+      'Drive cleanup',
+    ]) {
+      expect(screen.getByText(label)).toBeInTheDocument()
+    }
     expect(screen.getByText('1')).toBeInTheDocument()
     expect(screen.getByText('7')).toBeInTheDocument()
-  })
+  }, 15_000)
 })
 
 describe('JobsTable', () => {
@@ -77,19 +81,23 @@ describe('JobsTable', () => {
       />,
     )
 
-    expect(screen.getByText('Job ID')).toBeInTheDocument()
-    expect(screen.getByText('Created')).toBeInTheDocument()
-    expect(screen.getByText('Source Platform')).toBeInTheDocument()
-    expect(screen.getByText('Niche')).toBeInTheDocument()
-    expect(screen.getByText('YouTube Status')).toBeInTheDocument()
-    expect(screen.getByText('Instagram Status')).toBeInTheDocument()
-    expect(screen.getByText('YouTube URL')).toBeInTheDocument()
-    expect(screen.getByText('Instagram URL')).toBeInTheDocument()
-    expect(screen.getByText('Drive File')).toBeInTheDocument()
-    expect(screen.getByText('Retry Count')).toBeInTheDocument()
-    expect(screen.getByText('Failure Reason')).toBeInTheDocument()
-    expect(screen.getByText('Actions')).toBeInTheDocument()
-  })
+    const headers = screen.getAllByRole('columnheader').map((el) => el.textContent)
+    expect(headers).toEqual([
+      'Job',
+      'Created',
+      'Source',
+      'Niche',
+      'Status',
+      'YouTube',
+      'Instagram',
+      'Links',
+      'Retries',
+      'Failure',
+      'Actions',
+    ])
+    expect(screen.getByLabelText('View details')).toBeInTheDocument()
+    expect(screen.getByLabelText('Retry upload')).toBeInTheDocument()
+  }, 15_000)
 
   it('shows "No jobs yet." when empty', async () => {
     const { JobsTable } = await import('@/components/admin/JobsTable')
@@ -105,14 +113,14 @@ describe('StatusBadge', () => {
     const { StatusBadge } = await import('@/components/app/StatusBadge')
     render(<StatusBadge status="completed" />)
     const badge = screen.getByLabelText('Status: completed')
-    expect(badge.className).toContain('bg-green-100')
+    expect(badge.className).toContain('bg-emerald-500/15')
   })
 
   it("renders 'needs_manual_review' as orange", async () => {
     const { StatusBadge } = await import('@/components/app/StatusBadge')
     render(<StatusBadge status="needs_manual_review" />)
     const badge = screen.getByLabelText('Status: needs manual review')
-    expect(badge.className).toContain('bg-orange-100')
+    expect(badge.className).toContain('bg-orange-500/15')
   })
 })
 

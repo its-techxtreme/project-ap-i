@@ -5,6 +5,7 @@ import { supabaseAdmin } from '../db/supabaseAdmin'
 import { logger } from '../logging/logger'
 
 import { resolveNicheAccounts } from './accountResolver'
+import { isDailyUploadLimitError } from '../jobs/dailyUploadLimit'
 import { isRealPlatformMediaId } from './platformMediaIds'
 import { isTransientUploadFailure } from './transientUploadErrors'
 import type { PlatformUploader, UploadJobInput, UploadResult } from './types'
@@ -168,6 +169,11 @@ export class UploadCoordinator {
       }
     }
 
+    const hitDailyLimit =
+      !effective.success &&
+      !effective.loginRequired &&
+      isDailyUploadLimitError(effective.errorMessage)
+
     const attemptStatus = effective.success
       ? 'uploaded'
       : effective.loginRequired
@@ -180,7 +186,9 @@ export class UploadCoordinator {
         status: attemptStatus,
         platform_media_id: effective.platformMediaId ?? null,
         platform_url: effective.platformUrl ?? null,
-        error_code: effective.errorCode ?? null,
+        error_code: hitDailyLimit
+          ? ERROR_CODES.DAILY_UPLOAD_LIMIT_REACHED
+          : (effective.errorCode ?? null),
         error_message: effective.errorMessage ?? null,
         login_required: effective.loginRequired ?? false,
         finished_at: new Date().toISOString(),
@@ -192,7 +200,9 @@ export class UploadCoordinator {
       ? 'uploaded'
       : effective.loginRequired
         ? 'login_required'
-        : 'failed'
+        : hitDailyLimit
+          ? 'pending'
+          : 'failed'
 
     await supabaseAdmin
       .from('jobs')
@@ -215,6 +225,25 @@ export class UploadCoordinator {
           platformMediaId: effective.platformMediaId ?? null,
           attemptNumber,
         },
+      )
+    } else if (hitDailyLimit) {
+      await writeJobEvent(
+        job.id,
+        'upload',
+        'daily_upload_limit_deferred',
+        effective.errorMessage ?? `${platform} daily upload limit reached`,
+        'warning',
+        {
+          platform,
+          errorCode: ERROR_CODES.DAILY_UPLOAD_LIMIT_REACHED,
+          attemptNumber,
+        },
+      )
+      throw new ProjectApiError(
+        ERROR_CODES.DAILY_UPLOAD_LIMIT_REACHED,
+        effective.errorMessage ??
+          `${platform} daily upload limit reached — parking job until tomorrow`,
+        { stage: 'upload', retryable: true },
       )
     } else {
       await writeJobEvent(
