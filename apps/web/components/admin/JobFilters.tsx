@@ -91,7 +91,7 @@ export function JobFilters({ niches }: { niches: NicheOption[] }) {
   }
 
   return (
-    <div className="overflow-hidden rounded-xl border border-border/70 bg-card/60 shadow-[inset_0_1px_0_0_hsl(var(--primary)/0.08)]">
+    <div className="panel-surface overflow-hidden rounded-xl border border-border">
       <div className="flex flex-wrap items-end gap-x-2.5 gap-y-2 px-3 py-2.5">
         <div className="mb-0.5 flex size-8 shrink-0 items-center justify-center rounded-md border border-border/60 bg-background/50 text-primary">
           <Filter className="size-3.5" aria-hidden />

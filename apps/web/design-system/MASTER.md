@@ -42,9 +42,12 @@
 
 Admin Jobs filters omit date range (no Created from / Created to). Compact toolbar + status chips only.
 
+Light and dark are full dual themes (not inverted text on dark chrome). Chrome, panels, row hover, notices, glass login, and status badges all use theme tokens / `dark:` pairs.
+
 ## Layout rules
 - Public: one composition — brand hero + single form card. No dashboard chrome.
-- Admin: dense tables, clear status badges, env badge, sidebar nav.
+- Admin: dense tables, clear status badges, env badge, sidebar nav. Full light + dark themes.
+- Login: theme-aware glass panel (frosted light card / dark glass).
 - Radius: 0.75rem. Avoid pill clusters and multi-layer shadows.
 - Icons: Lucide only. No emoji as UI icons.
 - Motion: form enter, CTA pending, success swap; respect `prefers-reduced-motion`.

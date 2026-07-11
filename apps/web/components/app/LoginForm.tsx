@@ -73,7 +73,7 @@ export function LoginForm() {
           aria-hidden
         />
         <div
-          className="pointer-events-none absolute left-1/2 top-1/2 size-[20rem] -translate-x-1/2 -translate-y-1/2 rounded-full border border-white/5"
+          className="pointer-events-none absolute left-1/2 top-1/2 size-[20rem] -translate-x-1/2 -translate-y-1/2 rounded-full border border-border/40"
           aria-hidden
         />
 

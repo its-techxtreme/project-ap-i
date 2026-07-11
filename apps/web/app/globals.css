@@ -4,30 +4,42 @@
 
 @layer base {
   :root {
-    /* Light — public default */
-    --background: 210 14% 96%;
-    --foreground: 220 45% 8%;
+    /* Light — public + admin light mode */
+    --background: 210 16% 97%;
+    --foreground: 220 40% 10%;
     --card: 0 0% 100%;
-    --card-foreground: 220 45% 8%;
+    --card-foreground: 220 40% 10%;
     --popover: 0 0% 100%;
-    --popover-foreground: 220 45% 8%;
+    --popover-foreground: 220 40% 10%;
     --primary: 175 78% 26%;
     --primary-foreground: 0 0% 100%;
-    --secondary: 210 20% 94%;
-    --secondary-foreground: 220 45% 8%;
-    --muted: 210 16% 92%;
-    --muted-foreground: 218 14% 41%;
-    --accent: 166 76% 90%;
-    --accent-foreground: 175 78% 20%;
-    --destructive: 0 72% 51%;
+    --secondary: 210 18% 94%;
+    --secondary-foreground: 220 40% 12%;
+    --muted: 210 16% 93%;
+    --muted-foreground: 218 14% 38%;
+    --accent: 166 55% 92%;
+    --accent-foreground: 175 78% 18%;
+    --destructive: 0 72% 48%;
     --destructive-foreground: 0 0% 100%;
-    --border: 216 20% 88%;
-    --input: 216 20% 88%;
+    --border: 216 18% 86%;
+    --input: 216 18% 86%;
     --ring: 175 78% 26%;
     --radius: 0.75rem;
-    --atmosphere-from: 175 40% 94%;
-    --atmosphere-to: 210 20% 96%;
+    --atmosphere-from: 175 42% 95%;
+    --atmosphere-to: 210 22% 97%;
     --surface-elevated: 0 0% 100%;
+    --chrome: 0 0% 100%;
+    --row-hover: 210 20% 95%;
+    --panel: 0 0% 100%;
+    --notice-fg: 32 80% 28%;
+    --notice-bg: 43 96% 95%;
+    --notice-border: 38 80% 72%;
+    --glass-fill: 0 0% 100% / 0.72;
+    --glass-border: 175 40% 40% / 0.22;
+    --glass-highlight: 0 0% 100% / 0.85;
+    --login-orb: 175 60% 40% / 0.14;
+    --login-grid-line: 216 18% 78% / 0.55;
+    --login-stage-base: 210 16% 97%;
   }
 
   .dark {
@@ -54,6 +66,18 @@
     --atmosphere-from: 220 30% 5%;
     --atmosphere-to: 210 22% 4%;
     --surface-elevated: 220 22% 8%;
+    --chrome: 220 28% 3.5%;
+    --row-hover: 220 22% 9%;
+    --panel: 220 24% 6%;
+    --notice-fg: 43 90% 78%;
+    --notice-bg: 40 50% 12%;
+    --notice-border: 38 70% 35%;
+    --glass-fill: 220 28% 8% / 0.32;
+    --glass-border: 172 66% 50% / 0.3;
+    --glass-highlight: 0 0% 100% / 0.16;
+    --login-orb: 172 66% 50% / 0.2;
+    --login-grid-line: 215 18% 14% / 0.55;
+    --login-stage-base: 220 28% 3%;
   }
 
   * {
@@ -90,6 +114,29 @@
   .animate-success {
     animation: success-in 380ms cubic-bezier(0.22, 1, 0.36, 1) both;
   }
+
+  .bg-chrome {
+    background-color: hsl(var(--chrome) / 0.92);
+  }
+
+  .bg-row-hover:hover {
+    background-color: hsl(var(--row-hover));
+  }
+
+  .panel-surface {
+    background-color: hsl(var(--panel) / 0.85);
+    box-shadow: inset 0 1px 0 0 hsl(var(--primary) / 0.08);
+  }
+
+  .notice-warn {
+    border-color: hsl(var(--notice-border));
+    background-color: hsl(var(--notice-bg));
+    color: hsl(var(--notice-fg));
+  }
+
+  .soft-chip {
+    @apply inline-flex items-center rounded border border-border bg-muted/60 px-1.5 py-0.5 text-[11px] text-foreground;
+  }
 }
 
 /* Glass / login atmosphere — outside @layer so filters are not stripped */
@@ -97,35 +144,41 @@
   background:
     linear-gradient(
       160deg,
-      hsl(0 0% 100% / 0.1) 0%,
-      hsl(0 0% 100% / 0.02) 45%,
-      hsl(172 66% 50% / 0.05) 100%
+      hsl(var(--glass-highlight)) 0%,
+      transparent 45%,
+      hsl(var(--primary) / 0.04) 100%
     ),
-    hsl(220 28% 8% / 0.32);
-  border: 1px solid hsl(172 66% 50% / 0.3);
+    hsl(var(--glass-fill));
+  border: 1px solid hsl(var(--glass-border));
   box-shadow:
-    inset 0 1px 0 0 hsl(0 0% 100% / 0.16),
+    inset 0 1px 0 0 hsl(var(--glass-highlight)),
+    0 24px 48px -28px hsl(0 0% 0% / 0.18);
+  -webkit-backdrop-filter: blur(28px) saturate(1.4);
+  backdrop-filter: blur(28px) saturate(1.4);
+}
+
+.dark .glass-panel {
+  box-shadow:
+    inset 0 1px 0 0 hsl(var(--glass-highlight)),
     inset 0 -1px 0 0 hsl(0 0% 0% / 0.28),
     0 0 0 1px hsl(0 0% 0% / 0.4),
     0 28px 64px -24px hsl(0 0% 0% / 0.8);
-  -webkit-backdrop-filter: blur(28px) saturate(1.5);
-  backdrop-filter: blur(28px) saturate(1.5);
 }
 
 .login-grid {
   background-image:
-    linear-gradient(hsl(215 18% 14% / 0.5) 1px, transparent 1px),
-    linear-gradient(90deg, hsl(215 18% 14% / 0.5) 1px, transparent 1px);
+    linear-gradient(hsl(var(--login-grid-line)) 1px, transparent 1px),
+    linear-gradient(90deg, hsl(var(--login-grid-line)) 1px, transparent 1px);
   background-size: 44px 44px;
   mask-image: radial-gradient(ellipse 75% 65% at 50% 42%, black 15%, transparent 78%);
 }
 
 .login-stage {
-  background-color: hsl(220 28% 3%);
+  background-color: hsl(var(--login-stage-base));
   background-image:
-    radial-gradient(ellipse 55% 45% at 18% 12%, hsl(172 66% 50% / 0.22), transparent 55%),
-    radial-gradient(ellipse 45% 40% at 88% 78%, hsl(172 66% 50% / 0.12), transparent 50%),
-    radial-gradient(ellipse 80% 60% at 50% 100%, hsl(220 28% 6% / 0.9), transparent 55%);
+    radial-gradient(ellipse 55% 45% at 18% 12%, hsl(var(--login-orb)), transparent 55%),
+    radial-gradient(ellipse 45% 40% at 88% 78%, hsl(var(--primary) / 0.08), transparent 50%),
+    radial-gradient(ellipse 80% 60% at 50% 100%, hsl(var(--atmosphere-to) / 0.9), transparent 55%);
 }
 
 @keyframes enter {

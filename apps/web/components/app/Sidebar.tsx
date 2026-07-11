@@ -29,7 +29,7 @@ export function Sidebar() {
   const pathname = usePathname()
 
   return (
-    <aside className="hidden w-56 shrink-0 border-r border-border/80 bg-[#05070b]/80 md:block">
+    <aside className="bg-chrome hidden w-56 shrink-0 border-r border-border/80 md:block">
       <div className="flex items-center gap-2 border-b border-border/60 px-4 py-3.5">
         <span className="h-5 w-1 rounded-full bg-primary" aria-hidden />
         <span className="font-display text-sm font-semibold tracking-tight">Project AP-I</span>

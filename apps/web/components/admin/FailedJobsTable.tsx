@@ -60,11 +60,7 @@ function ActionIcon({
 }
 
 function SoftChip({ children }: { children: ReactNode }) {
-  return (
-    <span className="inline-flex items-center rounded border border-border/70 bg-background/60 px-1.5 py-0.5 text-[11px] text-foreground/90">
-      {children}
-    </span>
-  )
+  return <span className="soft-chip">{children}</span>
 }
 
 export function FailedJobsTable({ jobs }: { jobs: FailedJobRow[] }) {
@@ -143,7 +139,7 @@ export function FailedJobsTable({ jobs }: { jobs: FailedJobRow[] }) {
       <AdminAutoRefresh paused={dialogOpen} />
 
       {selected.size > 0 ? (
-        <div className="mb-3 flex flex-wrap items-center gap-2 rounded-xl border border-border/70 bg-card/50 px-3 py-2.5 shadow-[inset_0_1px_0_0_hsl(var(--primary)/0.08)]">
+        <div className="panel-surface mb-3 flex flex-wrap items-center gap-2 rounded-xl border border-border px-3 py-2.5">
           <span className="text-xs font-medium text-foreground">{selected.size} selected</span>
           <Button
             size="sm"
@@ -168,15 +164,15 @@ export function FailedJobsTable({ jobs }: { jobs: FailedJobRow[] }) {
       ) : null}
 
       {actionMessage ? (
-        <p className="mb-3 rounded-md border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-sm text-amber-200">
+        <p className="notice-warn mb-3 rounded-md border px-3 py-2 text-sm">
           {actionMessage}
         </p>
       ) : null}
 
-      <div className="overflow-hidden rounded-xl border border-border/70 bg-card/50 shadow-[inset_0_1px_0_0_hsl(var(--primary)/0.1)]">
+      <div className="panel-surface overflow-hidden rounded-xl border border-border">
         <div className="overflow-x-auto">
           <table className="w-full min-w-[880px] text-left text-sm">
-            <thead className="border-b border-border/80 bg-background/50 text-[10px] uppercase tracking-[0.08em] text-muted-foreground">
+            <thead className="border-b border-border bg-muted/40 text-[10px] uppercase tracking-[0.08em] text-muted-foreground">
               <tr>
                 <th className="px-2.5 py-2.5">
                   <Checkbox
@@ -200,7 +196,7 @@ export function FailedJobsTable({ jobs }: { jobs: FailedJobRow[] }) {
               {jobs.map((job) => (
                 <tr
                   key={job.id}
-                  className="border-b border-border/50 last:border-b-0 transition-colors hover:bg-[#121820]/80"
+                  className="bg-row-hover border-b border-border/60 last:border-b-0 transition-colors"
                 >
                   <td className="px-2.5 py-2">
                     <Checkbox

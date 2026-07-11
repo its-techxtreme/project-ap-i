@@ -14,37 +14,37 @@ const cards: {
     key: 'processing',
     label: 'Processing',
     href: '/admin/jobs?status=processing,uploading',
-    valueClass: 'text-sky-400',
+    valueClass: 'text-sky-700 dark:text-sky-400',
   },
   {
     key: 'completedToday',
     label: 'Completed today',
     href: '/admin/jobs?status=completed',
-    valueClass: 'text-emerald-400',
+    valueClass: 'text-emerald-700 dark:text-emerald-400',
   },
   {
     key: 'failedToday',
     label: 'Failed today',
     href: '/admin/jobs?status=failed',
-    valueClass: 'text-red-400',
+    valueClass: 'text-red-700 dark:text-red-400',
   },
   {
     key: 'needsManualReview',
     label: 'Needs review',
     href: '/admin/failed',
-    valueClass: 'text-orange-300',
+    valueClass: 'text-orange-700 dark:text-orange-300',
   },
   {
     key: 'loginRequiredAccounts',
     label: 'Login required',
     href: '/admin/accounts',
-    valueClass: 'text-red-400',
+    valueClass: 'text-red-700 dark:text-red-400',
   },
   {
     key: 'driveWaitingCleanup',
     label: 'Drive cleanup',
     href: '/admin/failed',
-    valueClass: 'text-amber-300',
+    valueClass: 'text-amber-700 dark:text-amber-300',
   },
 ]
 
@@ -64,7 +64,7 @@ export function OverviewCards({ summary }: { summary: JobSummary }) {
         )
 
         const className =
-          'rounded-lg border border-border bg-card/40 px-3 py-2.5 transition-colors hover:bg-muted/30'
+          'rounded-lg border border-border bg-card px-3 py-2.5 shadow-sm transition-colors hover:bg-muted/40'
 
         if (card.href) {
           return (
