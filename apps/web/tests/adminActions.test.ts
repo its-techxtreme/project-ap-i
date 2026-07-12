@@ -16,6 +16,7 @@ const supabaseAdminSingleMock = vi.fn()
 const adminCommandsInsertMock = vi.fn()
 const adminCommandsSelectMock = vi.fn()
 const adminCommandsSingleMock = vi.fn()
+const platformAccountsSingleMock = vi.fn()
 
 const requireAdminMock = vi.fn<() => Promise<void>>()
 const getAdminUsernameMock = vi.fn<() => Promise<string | null>>()
@@ -44,6 +45,18 @@ vi.mock('@/lib/supabase/admin', () => ({
           }),
         }
       }
+      if (table === 'platform_accounts') {
+        return {
+          select: vi.fn().mockReturnValue({
+            eq: vi.fn().mockReturnValue({
+              single: platformAccountsSingleMock,
+            }),
+          }),
+          update: vi.fn().mockReturnValue({
+            eq: vi.fn().mockResolvedValue({ error: null }),
+          }),
+        }
+      }
       if (table === 'audit_logs') {
         return {
           insert: supabaseAdminInsertMock,
@@ -56,6 +69,11 @@ vi.mock('@/lib/supabase/admin', () => ({
               single: adminCommandsSingleMock,
             }),
           }),
+        }
+      }
+      if (table === 'job_events') {
+        return {
+          insert: vi.fn().mockResolvedValue({ error: null }),
         }
       }
       throw new Error(`Unexpected table: ${table}`)
@@ -78,6 +96,7 @@ beforeEach(() => {
   adminCommandsInsertMock.mockReset()
   adminCommandsSelectMock.mockReset()
   adminCommandsSingleMock.mockReset()
+  platformAccountsSingleMock.mockReset()
 
   supabaseAdminEqMock.mockReturnValue({
     single: supabaseAdminSingleMock,
@@ -92,6 +111,15 @@ beforeEach(() => {
       drive_folder_state: 'processed_ready',
       youtube_retry_count: 1,
       instagram_retry_count: 1,
+    },
+    error: null,
+  })
+
+  platformAccountsSingleMock.mockResolvedValue({
+    data: {
+      id: 'acc-1',
+      status: 'login_required',
+      login_required: true,
     },
     error: null,
   })
@@ -301,5 +329,64 @@ describe('adminActions', () => {
 
     expect(result.success).toBe(false)
     expect(result.error).toContain('already queued')
+  })
+
+  it('bulkRetryJobUploads() aggregates per-job results', async () => {
+    requireAdminMock.mockResolvedValue(undefined)
+
+    const { bulkRetryJobUploads } = await import('@/app/actions/adminActions')
+    const result = await bulkRetryJobUploads(['job-test-1', 'job-test-1'])
+
+    expect(result.success).toBe(true)
+    if (result.success) {
+      expect(result.succeeded).toBe(1)
+      expect(result.failed).toBe(0)
+      expect(result.message).toContain('queued for retry')
+    }
+  })
+
+  it('bulkMarkJobsIgnored() returns error when nothing selected', async () => {
+    requireAdminMock.mockResolvedValueOnce(undefined)
+
+    const { bulkMarkJobsIgnored } = await import('@/app/actions/adminActions')
+    const result = await bulkMarkJobsIgnored([])
+
+    expect(result.success).toBe(false)
+    if (!result.success) {
+      expect(result.error).toBe('No jobs selected')
+    }
+  })
+
+  it('markAccountLoginRecovered() clears login_required and audits', async () => {
+    requireAdminMock.mockResolvedValue(undefined)
+
+    const { markAccountLoginRecovered } = await import('@/app/actions/adminActions')
+    const result = await markAccountLoginRecovered('acc-1')
+
+    expect(result.success).toBe(true)
+    expect(supabaseAdminInsertMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        actor_type: 'admin',
+        action: 'account_login_recovered',
+        target_type: 'platform_account',
+        target_id: 'acc-1',
+      }),
+    )
+  })
+
+  it('resumePlatformAccount() blocks while login is still required', async () => {
+    requireAdminMock.mockResolvedValue(undefined)
+    platformAccountsSingleMock.mockResolvedValueOnce({
+      data: { id: 'acc-1', status: 'login_required', login_required: true },
+      error: null,
+    })
+
+    const { resumePlatformAccount } = await import('@/app/actions/adminActions')
+    const result = await resumePlatformAccount('acc-1')
+
+    expect(result.success).toBe(false)
+    if (!result.success) {
+      expect(result.error).toContain('requires login')
+    }
   })
 })

@@ -2,7 +2,13 @@
 
 import { useState } from 'react'
 import { AlertTriangle } from 'lucide-react'
+import { useRouter } from 'next/navigation'
 
+import {
+  markAccountLoginRecovered,
+  pausePlatformAccount,
+  resumePlatformAccount,
+} from '@/app/actions/adminActions'
 import { StatusBadge } from '@/components/app/StatusBadge'
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
 import { Button } from '@/components/ui/button'
@@ -10,13 +16,35 @@ import type { PlatformAccountRow } from '@/lib/data/adminQueries'
 import { truncateText } from '@/lib/format/relativeTime'
 
 export function AccountsTable({ accounts }: { accounts: PlatformAccountRow[] }) {
+  const router = useRouter()
   const [actionMessage, setActionMessage] = useState<string | null>(null)
+  const [busyId, setBusyId] = useState<string | null>(null)
   const hasLoginRequired = accounts.some(
     (account) => account.login_required || account.status === 'login_required',
   )
 
-  function stubAction(label: string) {
-    setActionMessage(`${label} not yet implemented. Coming in Phase 11.`)
+  async function runAccountAction(
+    accountId: string,
+    action: 'recovered' | 'pause' | 'resume',
+  ) {
+    setBusyId(accountId)
+    try {
+      const result =
+        action === 'recovered'
+          ? await markAccountLoginRecovered(accountId)
+          : action === 'pause'
+            ? await pausePlatformAccount(accountId)
+            : await resumePlatformAccount(accountId)
+
+      if (!result.success) {
+        setActionMessage(result.error ?? 'Action failed.')
+        return
+      }
+      setActionMessage(result.message)
+      router.refresh()
+    } finally {
+      setBusyId(null)
+    }
   }
 
   return (
@@ -49,72 +77,78 @@ export function AccountsTable({ accounts }: { accounts: PlatformAccountRow[] }) 
               </tr>
             </thead>
             <tbody>
-              {accounts.map((account) => (
-                <tr
-                  key={account.id}
-                  className="bg-row-hover border-b border-border/60 last:border-b-0 transition-colors"
-                >
-                  <td className="px-2.5 py-2 text-xs">{account.niche_name}</td>
-                  <td className="px-2.5 py-2 text-xs capitalize">{account.platform}</td>
-                  <td className="px-2.5 py-2 text-xs">{account.account_label}</td>
-                  <td className="px-2.5 py-2">
-                    <StatusBadge status={account.status} />
-                  </td>
-                  <td className="px-2.5 py-2">
-                    {account.login_required ? (
-                      <span
-                        className="inline-flex items-center gap-1 text-xs text-red-700 dark:text-red-400"
-                        aria-label="Login required"
-                      >
-                        <AlertTriangle className="size-3.5" aria-hidden />
-                        Required
-                      </span>
-                    ) : (
-                      <span className="text-xs text-muted-foreground">—</span>
-                    )}
-                  </td>
-                  <td className="px-2.5 py-2 text-xs text-muted-foreground">
-                    {account.last_successful_upload_label ?? 'Never'}
-                  </td>
-                  <td className="px-2.5 py-2 text-xs tabular-nums">{account.failure_count}</td>
-                  <td
-                    className="px-2.5 py-2 text-xs text-muted-foreground"
-                    title={account.browser_profile_path ?? undefined}
+              {accounts.map((account) => {
+                const busy = busyId === account.id
+                return (
+                  <tr
+                    key={account.id}
+                    className="bg-row-hover border-b border-border/60 last:border-b-0 transition-colors"
                   >
-                    {account.browser_profile_path
-                      ? truncateText(account.browser_profile_path, 24)
-                      : '—'}
-                  </td>
-                  <td className="px-2.5 py-2">
-                    <div className="flex flex-wrap gap-1">
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        className="h-8 text-xs"
-                        onClick={() => stubAction('Mark Login Recovered')}
-                      >
-                        Mark Login Recovered (stub)
-                      </Button>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        className="h-8 text-xs"
-                        onClick={() => stubAction('Pause')}
-                      >
-                        Pause (stub)
-                      </Button>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        className="h-8 text-xs"
-                        onClick={() => stubAction('Resume')}
-                      >
-                        Resume (stub)
-                      </Button>
-                    </div>
-                  </td>
-                </tr>
-              ))}
+                    <td className="px-2.5 py-2 text-xs">{account.niche_name}</td>
+                    <td className="px-2.5 py-2 text-xs capitalize">{account.platform}</td>
+                    <td className="px-2.5 py-2 text-xs">{account.account_label}</td>
+                    <td className="px-2.5 py-2">
+                      <StatusBadge status={account.status} />
+                    </td>
+                    <td className="px-2.5 py-2">
+                      {account.login_required ? (
+                        <span
+                          className="inline-flex items-center gap-1 text-xs text-red-700 dark:text-red-400"
+                          aria-label="Login required"
+                        >
+                          <AlertTriangle className="size-3.5" aria-hidden />
+                          Required
+                        </span>
+                      ) : (
+                        <span className="text-xs text-muted-foreground">—</span>
+                      )}
+                    </td>
+                    <td className="px-2.5 py-2 text-xs text-muted-foreground">
+                      {account.last_successful_upload_label ?? 'Never'}
+                    </td>
+                    <td className="px-2.5 py-2 text-xs tabular-nums">{account.failure_count}</td>
+                    <td
+                      className="px-2.5 py-2 text-xs text-muted-foreground"
+                      title={account.browser_profile_path ?? undefined}
+                    >
+                      {account.browser_profile_path
+                        ? truncateText(account.browser_profile_path, 24)
+                        : '—'}
+                    </td>
+                    <td className="px-2.5 py-2">
+                      <div className="flex flex-wrap gap-1">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="h-8 text-xs"
+                          disabled={busy || busyId !== null}
+                          onClick={() => void runAccountAction(account.id, 'recovered')}
+                        >
+                          Mark Login Recovered
+                        </Button>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="h-8 text-xs"
+                          disabled={busy || busyId !== null || account.status === 'paused'}
+                          onClick={() => void runAccountAction(account.id, 'pause')}
+                        >
+                          Pause
+                        </Button>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="h-8 text-xs"
+                          disabled={busy || busyId !== null || account.status === 'active'}
+                          onClick={() => void runAccountAction(account.id, 'resume')}
+                        >
+                          Resume
+                        </Button>
+                      </div>
+                    </td>
+                  </tr>
+                )
+              })}
             </tbody>
           </table>
         </div>

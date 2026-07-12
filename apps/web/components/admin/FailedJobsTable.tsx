@@ -2,8 +2,16 @@
 
 import { useState, type ReactNode } from 'react'
 import { Ban, ExternalLink, RotateCcw, Trash2 } from 'lucide-react'
+import { useRouter } from 'next/navigation'
 
-import { deleteDriveFile, markJobIgnored, retryJobUpload } from '@/app/actions/adminActions'
+import {
+  bulkDeleteDriveFiles,
+  bulkMarkJobsIgnored,
+  bulkRetryJobUploads,
+  deleteDriveFile,
+  markJobIgnored,
+  retryJobUpload,
+} from '@/app/actions/adminActions'
 import { StatusBadge } from '@/components/app/StatusBadge'
 import { Button } from '@/components/ui/button'
 import { Checkbox } from '@/components/ui/checkbox'
@@ -64,13 +72,16 @@ function SoftChip({ children }: { children: ReactNode }) {
 }
 
 export function FailedJobsTable({ jobs }: { jobs: FailedJobRow[] }) {
+  const router = useRouter()
   const [selected, setSelected] = useState<Set<string>>(new Set())
   const [dialogOpen, setDialogOpen] = useState(false)
   const [dialogMode, setDialogMode] = useState<'delete' | 'bulk-delete'>('delete')
   const [pendingJobId, setPendingJobId] = useState<string | null>(null)
   const [actionMessage, setActionMessage] = useState<string | null>(null)
+  const [busy, setBusy] = useState(false)
 
   const allSelected = jobs.length > 0 && selected.size === jobs.length
+  const selectedIds = [...selected]
 
   function toggleAll(checked: boolean) {
     setSelected(checked ? new Set(jobs.map((job) => job.id)) : new Set())
@@ -85,20 +96,62 @@ export function FailedJobsTable({ jobs }: { jobs: FailedJobRow[] }) {
     })
   }
 
-  async function runStubAction(action: 'retry' | 'ignore', jobId: string) {
-    const result =
-      action === 'retry' ? await retryJobUpload(jobId) : await markJobIgnored(jobId)
-    if (!result.success) {
-      setActionMessage(result.error ?? `${action} failed.`)
-      return
+  async function runRowAction(action: 'retry' | 'ignore', jobId: string) {
+    setBusy(true)
+    try {
+      const result =
+        action === 'retry' ? await retryJobUpload(jobId) : await markJobIgnored(jobId)
+      if (!result.success) {
+        setActionMessage(result.error ?? `${action} failed.`)
+        return
+      }
+      if (action === 'retry' && 'message' in result && typeof result.message === 'string') {
+        setActionMessage(result.message)
+      } else {
+        setActionMessage(
+          action === 'retry'
+            ? 'Retry queued. Runs when local worker/n8n is up.'
+            : 'Job marked ignored.',
+        )
+      }
+      router.refresh()
+    } finally {
+      setBusy(false)
     }
-    if (action === 'retry' && 'message' in result && typeof result.message === 'string') {
+  }
+
+  async function runBulkRetry() {
+    if (selectedIds.length === 0 || busy) return
+    setBusy(true)
+    try {
+      const result = await bulkRetryJobUploads(selectedIds)
+      if (!result.success) {
+        setActionMessage(result.error)
+        return
+      }
       setActionMessage(result.message)
-      return
+      setSelected(new Set())
+      router.refresh()
+    } finally {
+      setBusy(false)
     }
-    setActionMessage(
-      action === 'retry' ? 'Retry queued. Runs when local worker/n8n is up.' : 'Job marked ignored.',
-    )
+  }
+
+  async function runBulkIgnore() {
+    if (selectedIds.length === 0 || busy) return
+    setBusy(true)
+    try {
+      const result = await bulkMarkJobsIgnored(selectedIds)
+      if (!result.success) {
+        setActionMessage(result.error)
+        return
+      }
+      setActionMessage(result.message)
+      setSelected(new Set())
+      router.refresh()
+    } finally {
+      setBusy(false)
+    }
   }
 
   function openDeleteDialog(jobId?: string) {
@@ -112,18 +165,31 @@ export function FailedJobsTable({ jobs }: { jobs: FailedJobRow[] }) {
   }
 
   async function confirmDelete() {
-    if (dialogMode === 'delete' && pendingJobId) {
-      const result = await deleteDriveFile(pendingJobId)
-      setActionMessage(
-        result.success
-          ? (result.message ?? 'Drive delete queued. Runs when local worker/n8n is up.')
-          : (result.error ?? 'Delete failed.'),
-      )
-    } else if (dialogMode === 'bulk-delete') {
-      setActionMessage('Bulk delete not yet implemented. Coming in Phase 11.')
+    setBusy(true)
+    try {
+      if (dialogMode === 'delete' && pendingJobId) {
+        const result = await deleteDriveFile(pendingJobId)
+        setActionMessage(
+          result.success
+            ? (result.message ?? 'Drive delete queued. Runs when local worker/n8n is up.')
+            : (result.error ?? 'Delete failed.'),
+        )
+        if (result.success) router.refresh()
+      } else if (dialogMode === 'bulk-delete') {
+        const result = await bulkDeleteDriveFiles(selectedIds)
+        if (!result.success) {
+          setActionMessage(result.error)
+        } else {
+          setActionMessage(result.message)
+          setSelected(new Set())
+          router.refresh()
+        }
+      }
+    } finally {
+      setBusy(false)
+      setDialogOpen(false)
+      setPendingJobId(null)
     }
-    setDialogOpen(false)
-    setPendingJobId(null)
   }
 
   if (jobs.length === 0) {
@@ -136,7 +202,7 @@ export function FailedJobsTable({ jobs }: { jobs: FailedJobRow[] }) {
 
   return (
     <>
-      <AdminAutoRefresh paused={dialogOpen} />
+      <AdminAutoRefresh paused={dialogOpen || busy} />
 
       {selected.size > 0 ? (
         <div className="panel-surface mb-3 flex flex-wrap items-center gap-2 rounded-xl border border-border px-3 py-2.5">
@@ -145,28 +211,34 @@ export function FailedJobsTable({ jobs }: { jobs: FailedJobRow[] }) {
             size="sm"
             variant="outline"
             className="h-8 text-xs"
-            onClick={() => setActionMessage('Bulk retry not yet implemented. Coming in Phase 11.')}
+            disabled={busy}
+            onClick={() => void runBulkRetry()}
           >
-            Retry Selected (stub)
-          </Button>
-          <Button size="sm" variant="outline" className="h-8 text-xs" onClick={() => openDeleteDialog()}>
-            Delete Selected Drive Files (stub)
+            Retry Selected
           </Button>
           <Button
             size="sm"
             variant="outline"
             className="h-8 text-xs"
-            onClick={() => setActionMessage('Bulk ignore not yet implemented. Coming in Phase 11.')}
+            disabled={busy}
+            onClick={() => openDeleteDialog()}
           >
-            Mark Selected Ignored (stub)
+            Delete Selected Drive Files
+          </Button>
+          <Button
+            size="sm"
+            variant="outline"
+            className="h-8 text-xs"
+            disabled={busy}
+            onClick={() => void runBulkIgnore()}
+          >
+            Mark Selected Ignored
           </Button>
         </div>
       ) : null}
 
       {actionMessage ? (
-        <p className="notice-warn mb-3 rounded-md border px-3 py-2 text-sm">
-          {actionMessage}
-        </p>
+        <p className="notice-warn mb-3 rounded-md border px-3 py-2 text-sm">{actionMessage}</p>
       ) : null}
 
       <div className="panel-surface overflow-hidden rounded-xl border border-border">
@@ -243,7 +315,10 @@ export function FailedJobsTable({ jobs }: { jobs: FailedJobRow[] }) {
                   <td className="px-2.5 py-2 text-xs tabular-nums">{job.retry_count}</td>
                   <td className="px-2.5 py-2">
                     <div className="flex items-center gap-0.5">
-                      <ActionIcon label="Retry upload" onClick={() => runStubAction('retry', job.id)}>
+                      <ActionIcon
+                        label="Retry upload"
+                        onClick={() => void runRowAction('retry', job.id)}
+                      >
                         <RotateCcw className="size-3.5" />
                       </ActionIcon>
                       <ActionIcon
@@ -253,7 +328,10 @@ export function FailedJobsTable({ jobs }: { jobs: FailedJobRow[] }) {
                       >
                         <Trash2 className="size-3.5" />
                       </ActionIcon>
-                      <ActionIcon label="Mark ignored" onClick={() => runStubAction('ignore', job.id)}>
+                      <ActionIcon
+                        label="Mark ignored"
+                        onClick={() => void runRowAction('ignore', job.id)}
+                      >
                         <Ban className="size-3.5" />
                       </ActionIcon>
                       {job.source_url ? (
@@ -274,13 +352,13 @@ export function FailedJobsTable({ jobs }: { jobs: FailedJobRow[] }) {
       <div className="sr-only">
         {jobs.map((job) => (
           <div key={`sr-${job.id}`}>
-            <button type="button" onClick={() => runStubAction('retry', job.id)}>
+            <button type="button" onClick={() => void runRowAction('retry', job.id)}>
               Retry Upload
             </button>
             <button type="button" onClick={() => openDeleteDialog(job.id)}>
               Delete Drive File
             </button>
-            <button type="button" onClick={() => runStubAction('ignore', job.id)}>
+            <button type="button" onClick={() => void runRowAction('ignore', job.id)}>
               Mark Ignored
             </button>
           </div>
@@ -292,7 +370,7 @@ export function FailedJobsTable({ jobs }: { jobs: FailedJobRow[] }) {
         title="Delete staged Drive file?"
         description="This will delete the selected staged video file(s) from Google Drive. The job record and logs will remain in Supabase. Continue?"
         confirmLabel="Delete Drive file"
-        onConfirm={confirmDelete}
+        onConfirm={() => void confirmDelete()}
         onCancel={() => {
           setDialogOpen(false)
           setPendingJobId(null)

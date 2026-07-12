@@ -17,6 +17,42 @@ vi.mock('@/app/actions/adminActions', () => ({
   retryJobUpload: vi.fn().mockResolvedValue({ success: false, error: 'stub' }),
   deleteDriveFile: vi.fn().mockResolvedValue({ success: false, error: 'stub' }),
   markJobIgnored: vi.fn().mockResolvedValue({ success: false, error: 'stub' }),
+  bulkRetryJobUploads: vi.fn().mockResolvedValue({
+    success: true,
+    succeeded: 1,
+    failed: 0,
+    errors: [],
+    message: '1 job(s) queued for retry.',
+  }),
+  bulkDeleteDriveFiles: vi.fn().mockResolvedValue({
+    success: true,
+    succeeded: 1,
+    failed: 0,
+    errors: [],
+    message: '1 job(s) queued for Drive delete.',
+  }),
+  bulkMarkJobsIgnored: vi.fn().mockResolvedValue({
+    success: true,
+    succeeded: 1,
+    failed: 0,
+    errors: [],
+    message: '1 job(s) marked ignored.',
+  }),
+  markAccountLoginRecovered: vi.fn().mockResolvedValue({
+    success: true,
+    accountId: 'acc-1',
+    message: 'Account marked login recovered (active).',
+  }),
+  pausePlatformAccount: vi.fn().mockResolvedValue({
+    success: true,
+    accountId: 'acc-1',
+    message: 'Account paused.',
+  }),
+  resumePlatformAccount: vi.fn().mockResolvedValue({
+    success: true,
+    accountId: 'acc-1',
+    message: 'Account resumed (active).',
+  }),
 }))
 
 const summary: JobSummary = {
@@ -204,11 +240,14 @@ describe('FailedJobsTable', () => {
       />,
     )
 
-    expect(screen.queryByText('Retry Selected (stub)')).not.toBeInTheDocument()
+    expect(screen.queryByText('Retry Selected')).not.toBeInTheDocument()
     await screen.findByRole('checkbox', { name: /Select job aaaaaaaa/i }).then((checkbox) => {
       fireEvent.click(checkbox)
     })
-    expect(screen.getByText('Retry Selected (stub)')).toBeInTheDocument()
+    expect(screen.getByText('Retry Selected')).toBeInTheDocument()
+    expect(screen.getByText('Delete Selected Drive Files')).toBeInTheDocument()
+    expect(screen.getByText('Mark Selected Ignored')).toBeInTheDocument()
+    expect(screen.queryByText(/Coming in Phase 11/i)).not.toBeInTheDocument()
   })
 })
 
@@ -238,5 +277,9 @@ describe('AccountsTable', () => {
     )
 
     expect(screen.getByText('One or more accounts require manual login.')).toBeInTheDocument()
+    expect(screen.getByText('Mark Login Recovered')).toBeInTheDocument()
+    expect(screen.getByText('Pause')).toBeInTheDocument()
+    expect(screen.getByText('Resume')).toBeInTheDocument()
+    expect(screen.queryByText(/\(stub\)/i)).not.toBeInTheDocument()
   })
 })

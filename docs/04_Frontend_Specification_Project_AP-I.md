@@ -416,13 +416,15 @@ Retry count
 Actions
 ```
 
-Bulk actions:
+Bulk actions (wired to the same server actions as per-row controls):
 
 ```text
 Retry selected upload
 Delete selected Drive files
 Mark selected ignored
 ```
+
+Each selected job is processed individually; the toolbar reports succeeded/failed counts. Retry and Drive delete enqueue `admin_commands` for the local worker/n8n stack. Mark ignored is DB-only.
 
 Deletion confirmation copy:
 
@@ -449,11 +451,11 @@ Actions
 Actions:
 
 ```text
-Mark login recovered
-Pause account
-Resume account
-Test session
-View recent failures
+Mark login recovered (sets status=active, login_required=false)
+Pause account (status=paused)
+Resume account (status=active; blocked while login_required or disabled)
+Test session (optional / future)
+View recent failures (optional / future)
 ```
 
 Account statuses:

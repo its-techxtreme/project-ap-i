@@ -240,3 +240,168 @@ export async function markJobIgnored(jobId: string) {
 
   return { success: true, jobId }
 }
+
+type BulkItemResult = { success: boolean; error?: string; message?: string }
+
+export type BulkActionResult = {
+  success: true
+  succeeded: number
+  failed: number
+  errors: string[]
+  message: string
+}
+
+async function runBulkJobAction(
+  jobIds: string[],
+  action: (jobId: string) => Promise<BulkItemResult>,
+  verbPast: string,
+): Promise<BulkActionResult | { success: false; error: string }> {
+  await requireAdmin()
+
+  const uniqueIds = [...new Set(jobIds.filter(Boolean))]
+  if (uniqueIds.length === 0) {
+    return { success: false, error: 'No jobs selected' }
+  }
+
+  let succeeded = 0
+  let failed = 0
+  const errors: string[] = []
+
+  for (const jobId of uniqueIds) {
+    const result = await action(jobId)
+    if (result.success) {
+      succeeded += 1
+    } else {
+      failed += 1
+      errors.push(`${jobId.slice(0, 8)}: ${result.error ?? 'failed'}`)
+    }
+  }
+
+  const message =
+    failed === 0
+      ? `${succeeded} job(s) ${verbPast}.`
+      : `${succeeded} succeeded, ${failed} failed. ${errors.slice(0, 3).join('; ')}${errors.length > 3 ? '…' : ''}`
+
+  return { success: true, succeeded, failed, errors, message }
+}
+
+/** Bulk retry upload — queues one admin_command per eligible job. */
+export async function bulkRetryJobUploads(jobIds: string[]) {
+  return runBulkJobAction(jobIds, retryJobUpload, 'queued for retry')
+}
+
+/** Bulk Drive delete — queues one admin_command per eligible job. */
+export async function bulkDeleteDriveFiles(jobIds: string[]) {
+  return runBulkJobAction(jobIds, deleteDriveFile, 'queued for Drive delete')
+}
+
+/** Bulk mark ignored — DB-only. */
+export async function bulkMarkJobsIgnored(jobIds: string[]) {
+  return runBulkJobAction(jobIds, markJobIgnored, 'marked ignored')
+}
+
+type AccountActionResult =
+  | { success: true; accountId: string; message: string }
+  | { success: false; error: string }
+
+async function updatePlatformAccountStatus(
+  accountId: string,
+  next: { status: string; login_required: boolean },
+  auditAction: string,
+  message: string,
+): Promise<AccountActionResult> {
+  await requireAdmin()
+
+  const { data: account, error: fetchError } = await supabaseAdmin
+    .from('platform_accounts')
+    .select('id, status, login_required')
+    .eq('id', accountId)
+    .single()
+
+  if (fetchError || !account) {
+    return { success: false, error: 'Account not found' }
+  }
+
+  const { error: updateError } = await supabaseAdmin
+    .from('platform_accounts')
+    .update({
+      status: next.status,
+      login_required: next.login_required,
+      updated_at: new Date().toISOString(),
+    })
+    .eq('id', accountId)
+
+  if (updateError) {
+    return { success: false, error: updateError.message }
+  }
+
+  const username = await getAdminUsername()
+  await supabaseAdmin.from('audit_logs').insert({
+    actor_type: 'admin',
+    action: auditAction,
+    target_type: 'platform_account',
+    target_id: accountId,
+    metadata: {
+      username,
+      status_before: account.status,
+      login_required_before: account.login_required,
+      status_after: next.status,
+      login_required_after: next.login_required,
+    },
+  })
+
+  return { success: true, accountId, message }
+}
+
+/** Clear login_required and set account active after manual browser login. */
+export async function markAccountLoginRecovered(accountId: string): Promise<AccountActionResult> {
+  return updatePlatformAccountStatus(
+    accountId,
+    { status: 'active', login_required: false },
+    'account_login_recovered',
+    'Account marked login recovered (active).',
+  )
+}
+
+/** Pause account so worker skips it for new uploads. */
+export async function pausePlatformAccount(accountId: string): Promise<AccountActionResult> {
+  return updatePlatformAccountStatus(
+    accountId,
+    { status: 'paused', login_required: false },
+    'account_paused',
+    'Account paused.',
+  )
+}
+
+/** Resume a paused (or previously failing) account to active. */
+export async function resumePlatformAccount(accountId: string): Promise<AccountActionResult> {
+  await requireAdmin()
+
+  const { data: account, error: fetchError } = await supabaseAdmin
+    .from('platform_accounts')
+    .select('id, status, login_required')
+    .eq('id', accountId)
+    .single()
+
+  if (fetchError || !account) {
+    return { success: false, error: 'Account not found' }
+  }
+
+  if (account.status === 'login_required' || account.login_required) {
+    return {
+      success: false,
+      error: 'Account still requires login. Use Mark Login Recovered after fixing the session.',
+    }
+  }
+
+  if (account.status === 'disabled') {
+    return { success: false, error: 'Disabled accounts cannot be resumed from the dashboard.' }
+  }
+
+  return updatePlatformAccountStatus(
+    accountId,
+    { status: 'active', login_required: false },
+    'account_resumed',
+    'Account resumed (active).',
+  )
+}
