@@ -69,7 +69,23 @@ submitter
 admin
 ```
 
-Role lives in `profiles.role` and is checked server-side.
+Roles:
+
+```text
+submitter (public submit — no login)
+admin (full dashboard + mutations)
+demo (dashboard view-only)
+```
+
+Demo account (env):
+
+```text
+DEMO_USERNAME
+DEMO_PASSWORD_HASH   # scrypt via scripts/hash-admin-password.mjs — never plaintext on Vercel
+```
+
+Demo sessions include `role: "demo"` in the signed cookie. Server actions call `requireAdminWrite()` and reject demo. UI hides destructive controls.
+
 
 ### Public submission (anonymous)
 

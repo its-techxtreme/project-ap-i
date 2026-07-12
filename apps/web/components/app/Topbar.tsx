@@ -15,7 +15,13 @@ function envLabel(): string {
   return process.env.NODE_ENV === 'production' ? 'production' : 'development'
 }
 
-export function Topbar({ email }: { email?: string | null }) {
+export function Topbar({
+  email,
+  role,
+}: {
+  email?: string | null
+  role?: 'admin' | 'demo'
+}) {
   const env = envLabel()
   const label = email
 
@@ -34,6 +40,14 @@ export function Topbar({ email }: { email?: string | null }) {
         >
           {env}
         </Badge>
+        {role === 'demo' ? (
+          <Badge
+            variant="outline"
+            className="border-amber-500/30 bg-amber-500/10 font-normal text-amber-800 dark:text-amber-300"
+          >
+            Demo
+          </Badge>
+        ) : null}
       </div>
       <div className="flex items-center gap-2 sm:gap-3">
         <Button

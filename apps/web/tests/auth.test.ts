@@ -62,9 +62,15 @@ describe('getUserRole', () => {
   })
 
   it('returns admin when admin session cookie is valid', async () => {
-    getAdminSessionMock.mockResolvedValue({ username: 'test-admin' })
+    getAdminSessionMock.mockResolvedValue({ username: 'test-admin', role: 'admin' })
     const { getUserRole } = await import('@/lib/auth/getUserRole')
     await expect(getUserRole()).resolves.toBe('admin')
+  })
+
+  it('returns demo when demo session cookie is valid', async () => {
+    getAdminSessionMock.mockResolvedValue({ username: 'ProjectAPIDemo', role: 'demo' })
+    const { getUserRole } = await import('@/lib/auth/getUserRole')
+    await expect(getUserRole()).resolves.toBe('demo')
   })
 
   it('returns null when no admin session and no supabase user', async () => {
@@ -156,10 +162,23 @@ describe('requireAdmin', () => {
   })
 
   it('does not redirect when admin session exists', async () => {
-    getAdminSessionMock.mockResolvedValue({ username: 'test-admin' })
+    getAdminSessionMock.mockResolvedValue({ username: 'test-admin', role: 'admin' })
     const { requireAdmin } = await import('@/lib/auth/requireAdmin')
     await expect(requireAdmin()).resolves.toBeUndefined()
     expect(redirectMock).not.toHaveBeenCalled()
+  })
+
+  it('does not redirect when demo session exists (read-only viewer)', async () => {
+    getAdminSessionMock.mockResolvedValue({ username: 'ProjectAPIDemo', role: 'demo' })
+    const { requireAdmin } = await import('@/lib/auth/requireAdmin')
+    await expect(requireAdmin()).resolves.toBeUndefined()
+  })
+
+  it('requireAdminWrite denies demo role without redirect', async () => {
+    getAdminSessionMock.mockResolvedValue({ username: 'ProjectAPIDemo', role: 'demo' })
+    const { requireAdminWrite } = await import('@/lib/auth/requireAdmin')
+    const result = await requireAdminWrite()
+    expect(result.denied).toBe(true)
   })
 })
 

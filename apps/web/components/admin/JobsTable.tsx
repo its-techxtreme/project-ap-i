@@ -6,6 +6,7 @@ import { Ban, ExternalLink, Eye, RotateCcw, Trash2 } from 'lucide-react'
 import { useRouter } from 'next/navigation'
 
 import { cancelJob, deleteJobRecord, retryJobUpload } from '@/app/actions/adminActions'
+import { useAdminCapabilities } from '@/components/admin/AdminCapabilities'
 import { StatusBadge } from '@/components/app/StatusBadge'
 import type { JobListRow } from '@/lib/data/adminQueries'
 import { shortId, truncateText } from '@/lib/format/relativeTime'
@@ -70,6 +71,7 @@ function SoftChip({ children }: { children: ReactNode }) {
 
 export function JobsTable({ jobs }: { jobs: JobListRow[] }) {
   const router = useRouter()
+  const { canWrite } = useAdminCapabilities()
   const [dialogOpen, setDialogOpen] = useState(false)
   const [dialogMode, setDialogMode] = useState<'delete' | 'cancel'>('delete')
   const [pendingJobId, setPendingJobId] = useState<string | null>(null)
@@ -77,6 +79,10 @@ export function JobsTable({ jobs }: { jobs: JobListRow[] }) {
   const [busy, setBusy] = useState(false)
 
   async function handleRetry(jobId: string) {
+    if (!canWrite) {
+      setActionMessage('Demo account is read-only.')
+      return
+    }
     setBusy(true)
     try {
       const result = await retryJobUpload(jobId)
@@ -246,23 +252,27 @@ export function JobsTable({ jobs }: { jobs: JobListRow[] }) {
                       <ActionIcon label="Open source URL" href={job.source_url} external>
                         <ExternalLink className="size-3.5" />
                       </ActionIcon>
-                      <ActionIcon label="Retry upload" onClick={() => void handleRetry(job.id)}>
-                        <RotateCcw className="size-3.5" />
-                      </ActionIcon>
-                      <ActionIcon
-                        label="Cancel job"
-                        tone="danger"
-                        onClick={() => openCancelDialog(job.id)}
-                      >
-                        <Ban className="size-3.5" />
-                      </ActionIcon>
-                      <ActionIcon
-                        label="Delete job"
-                        tone="danger"
-                        onClick={() => openDeleteDialog(job.id)}
-                      >
-                        <Trash2 className="size-3.5" />
-                      </ActionIcon>
+                      {canWrite ? (
+                        <>
+                          <ActionIcon label="Retry upload" onClick={() => void handleRetry(job.id)}>
+                            <RotateCcw className="size-3.5" />
+                          </ActionIcon>
+                          <ActionIcon
+                            label="Cancel job"
+                            tone="danger"
+                            onClick={() => openCancelDialog(job.id)}
+                          >
+                            <Ban className="size-3.5" />
+                          </ActionIcon>
+                          <ActionIcon
+                            label="Delete job"
+                            tone="danger"
+                            onClick={() => openDeleteDialog(job.id)}
+                          >
+                            <Trash2 className="size-3.5" />
+                          </ActionIcon>
+                        </>
+                      ) : null}
                     </div>
                   </td>
                 </tr>

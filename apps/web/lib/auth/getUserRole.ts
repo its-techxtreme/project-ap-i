@@ -1,13 +1,16 @@
 import { getAdminSession } from './getAdminSession'
 import { createClient } from '@/lib/supabase/server'
 
+export type AppRole = 'submitter' | 'admin' | 'demo'
+
 /**
  * Returns the effective role for the current request.
- * Env-based admin username sessions are the only admin path.
+ * Env-based dashboard sessions are the admin/demo path.
  */
-export async function getUserRole(): Promise<'submitter' | 'admin' | null> {
-  const admin = await getAdminSession()
-  if (admin) return 'admin'
+export async function getUserRole(): Promise<AppRole | null> {
+  const session = await getAdminSession()
+  if (session?.role === 'admin') return 'admin'
+  if (session?.role === 'demo') return 'demo'
 
   // Optional Supabase Auth for non-admin profiles (legacy). Admins must use username login.
   try {
@@ -25,7 +28,8 @@ export async function getUserRole(): Promise<'submitter' | 'admin' | null> {
 
     if (error || !data) return null
     if (data.role === 'admin') return null
-    return data.role as 'submitter' | 'admin'
+    if (data.role === 'submitter') return 'submitter'
+    return null
   } catch {
     return null
   }
@@ -34,4 +38,9 @@ export async function getUserRole(): Promise<'submitter' | 'admin' | null> {
 export async function getAdminUsername(): Promise<string | null> {
   const session = await getAdminSession()
   return session?.username ?? null
+}
+
+export async function getDashboardRole(): Promise<'admin' | 'demo' | null> {
+  const session = await getAdminSession()
+  return session?.role ?? null
 }

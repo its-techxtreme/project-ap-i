@@ -20,11 +20,13 @@ const platformAccountsSingleMock = vi.fn()
 const jobsDeleteMock = vi.fn()
 const jobsDeleteEqMock = vi.fn()
 
-const requireAdminMock = vi.fn<() => Promise<void>>()
+const requireAdminWriteMock =
+  vi.fn<() => Promise<{ denied: false } | { denied: true; error: string }>>()
 const getAdminUsernameMock = vi.fn<() => Promise<string | null>>()
 
 vi.mock('@/lib/auth/requireAdmin', () => ({
-  requireAdmin: requireAdminMock,
+  requireAdmin: vi.fn(),
+  requireAdminWrite: () => requireAdminWriteMock(),
 }))
 
 vi.mock('@/lib/auth/getUserRole', () => ({
@@ -144,22 +146,33 @@ beforeEach(() => {
 })
 
 describe('adminActions', () => {
-  it('retryJobUpload() requires admin role', async () => {
-    requireAdminMock.mockRejectedValueOnce(new Error('REDIRECT:/?error=forbidden'))
+  it('retryJobUpload() requires admin write role', async () => {
+    requireAdminWriteMock.mockResolvedValueOnce({
+      denied: true,
+      error: 'Demo account is read-only. Sign in as admin to run this action.',
+    })
 
     const { retryJobUpload } = await import('@/app/actions/adminActions')
-    await expect(retryJobUpload('job-test-1')).rejects.toThrow()
+    const result = await retryJobUpload('job-test-1')
+    expect(result).toEqual({
+      success: false,
+      error: 'Demo account is read-only. Sign in as admin to run this action.',
+    })
   })
 
-  it('deleteDriveFile() requires admin role', async () => {
-    requireAdminMock.mockRejectedValueOnce(new Error('REDIRECT:/?error=forbidden'))
+  it('deleteDriveFile() requires admin write role', async () => {
+    requireAdminWriteMock.mockResolvedValueOnce({
+      denied: true,
+      error: 'Demo account is read-only. Sign in as admin to run this action.',
+    })
 
     const { deleteDriveFile } = await import('@/app/actions/adminActions')
-    await expect(deleteDriveFile('job-test-1')).rejects.toThrow()
+    const result = await deleteDriveFile('job-test-1')
+    expect(result.success).toBe(false)
   })
 
   it('retryJobUpload() enqueues admin_commands and does not call worker HTTP', async () => {
-    requireAdminMock.mockResolvedValueOnce(undefined)
+    requireAdminWriteMock.mockResolvedValueOnce({ denied: false })
 
     const { retryJobUpload } = await import('@/app/actions/adminActions')
     const result = await retryJobUpload('job-test-1')
@@ -186,7 +199,7 @@ describe('adminActions', () => {
   })
 
   it('deleteDriveFile() writes audit log and enqueues command', async () => {
-    requireAdminMock.mockResolvedValueOnce(undefined)
+    requireAdminWriteMock.mockResolvedValueOnce({ denied: false })
 
     const { deleteDriveFile } = await import('@/app/actions/adminActions')
     await deleteDriveFile('job-test-1')
@@ -210,7 +223,7 @@ describe('adminActions', () => {
   })
 
   it('markJobIgnored() sets job status to ignored', async () => {
-    requireAdminMock.mockResolvedValueOnce(undefined)
+    requireAdminWriteMock.mockResolvedValueOnce({ denied: false })
 
     const { markJobIgnored } = await import('@/app/actions/adminActions')
     const result = await markJobIgnored('job-test-1')
@@ -219,7 +232,7 @@ describe('adminActions', () => {
   })
 
   it('markJobIgnored() writes audit log', async () => {
-    requireAdminMock.mockResolvedValueOnce(undefined)
+    requireAdminWriteMock.mockResolvedValueOnce({ denied: false })
 
     const { markJobIgnored } = await import('@/app/actions/adminActions')
     await markJobIgnored('job-test-1')
@@ -235,7 +248,7 @@ describe('adminActions', () => {
   })
 
   it('retryJobUpload() returns error if job not found', async () => {
-    requireAdminMock.mockResolvedValueOnce(undefined)
+    requireAdminWriteMock.mockResolvedValueOnce({ denied: false })
 
     supabaseAdminSingleMock.mockResolvedValueOnce({
       data: null,
@@ -250,7 +263,7 @@ describe('adminActions', () => {
   })
 
   it('retryJobUpload() returns error if drive file missing', async () => {
-    requireAdminMock.mockResolvedValueOnce(undefined)
+    requireAdminWriteMock.mockResolvedValueOnce({ denied: false })
 
     supabaseAdminSingleMock.mockResolvedValueOnce({
       data: {
@@ -272,7 +285,7 @@ describe('adminActions', () => {
   })
 
   it('deleteDriveFile() returns error if job not found', async () => {
-    requireAdminMock.mockResolvedValueOnce(undefined)
+    requireAdminWriteMock.mockResolvedValueOnce({ denied: false })
 
     supabaseAdminSingleMock.mockResolvedValueOnce({
       data: null,
@@ -287,7 +300,7 @@ describe('adminActions', () => {
   })
 
   it('deleteDriveFile() returns error if no drive file', async () => {
-    requireAdminMock.mockResolvedValueOnce(undefined)
+    requireAdminWriteMock.mockResolvedValueOnce({ denied: false })
 
     supabaseAdminSingleMock.mockResolvedValueOnce({
       data: {
@@ -308,7 +321,7 @@ describe('adminActions', () => {
   })
 
   it('deleteDriveFile() returns error if status not deletable', async () => {
-    requireAdminMock.mockResolvedValueOnce(undefined)
+    requireAdminWriteMock.mockResolvedValueOnce({ denied: false })
 
     supabaseAdminSingleMock.mockResolvedValueOnce({
       data: {
@@ -329,7 +342,7 @@ describe('adminActions', () => {
   })
 
   it('retryJobUpload() returns friendly error when command already pending', async () => {
-    requireAdminMock.mockResolvedValueOnce(undefined)
+    requireAdminWriteMock.mockResolvedValueOnce({ denied: false })
     adminCommandsSingleMock.mockResolvedValueOnce({
       data: null,
       error: { code: '23505', message: 'duplicate key' },
@@ -343,7 +356,7 @@ describe('adminActions', () => {
   })
 
   it('bulkRetryJobUploads() aggregates per-job results', async () => {
-    requireAdminMock.mockResolvedValue(undefined)
+    requireAdminWriteMock.mockResolvedValue({ denied: false })
 
     const { bulkRetryJobUploads } = await import('@/app/actions/adminActions')
     const result = await bulkRetryJobUploads(['job-test-1', 'job-test-1'])
@@ -357,7 +370,7 @@ describe('adminActions', () => {
   })
 
   it('bulkMarkJobsIgnored() returns error when nothing selected', async () => {
-    requireAdminMock.mockResolvedValueOnce(undefined)
+    requireAdminWriteMock.mockResolvedValueOnce({ denied: false })
 
     const { bulkMarkJobsIgnored } = await import('@/app/actions/adminActions')
     const result = await bulkMarkJobsIgnored([])
@@ -369,7 +382,7 @@ describe('adminActions', () => {
   })
 
   it('markAccountLoginRecovered() clears login_required and audits', async () => {
-    requireAdminMock.mockResolvedValue(undefined)
+    requireAdminWriteMock.mockResolvedValue({ denied: false })
 
     const { markAccountLoginRecovered } = await import('@/app/actions/adminActions')
     const result = await markAccountLoginRecovered('acc-1')
@@ -386,7 +399,7 @@ describe('adminActions', () => {
   })
 
   it('resumePlatformAccount() blocks while login is still required', async () => {
-    requireAdminMock.mockResolvedValue(undefined)
+    requireAdminWriteMock.mockResolvedValue({ denied: false })
     platformAccountsSingleMock.mockResolvedValueOnce({
       data: { id: 'acc-1', status: 'login_required', login_required: true },
       error: null,
@@ -402,7 +415,7 @@ describe('adminActions', () => {
   })
 
   it('deleteJobRecord() hard-deletes the job and writes audit log', async () => {
-    requireAdminMock.mockResolvedValue(undefined)
+    requireAdminWriteMock.mockResolvedValue({ denied: false })
 
     const { deleteJobRecord } = await import('@/app/actions/adminActions')
     const result = await deleteJobRecord('job-test-1')
@@ -420,7 +433,7 @@ describe('adminActions', () => {
   })
 
   it('deleteJobRecord() blocks active in-flight statuses', async () => {
-    requireAdminMock.mockResolvedValueOnce(undefined)
+    requireAdminWriteMock.mockResolvedValueOnce({ denied: false })
     supabaseAdminSingleMock.mockResolvedValueOnce({
       data: {
         id: 'job-test-1',

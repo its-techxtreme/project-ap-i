@@ -12,6 +12,7 @@ import {
   markJobIgnored,
   retryJobUpload,
 } from '@/app/actions/adminActions'
+import { useAdminCapabilities } from '@/components/admin/AdminCapabilities'
 import { StatusBadge } from '@/components/app/StatusBadge'
 import { Button } from '@/components/ui/button'
 import { Checkbox } from '@/components/ui/checkbox'
@@ -73,6 +74,7 @@ function SoftChip({ children }: { children: ReactNode }) {
 
 export function FailedJobsTable({ jobs }: { jobs: FailedJobRow[] }) {
   const router = useRouter()
+  const { canWrite } = useAdminCapabilities()
   const [selected, setSelected] = useState<Set<string>>(new Set())
   const [dialogOpen, setDialogOpen] = useState(false)
   const [dialogMode, setDialogMode] = useState<'delete' | 'bulk-delete'>('delete')
@@ -204,7 +206,7 @@ export function FailedJobsTable({ jobs }: { jobs: FailedJobRow[] }) {
     <>
       <AdminAutoRefresh paused={dialogOpen || busy} />
 
-      {selected.size > 0 ? (
+      {selected.size > 0 && canWrite ? (
         <div className="panel-surface mb-3 flex flex-wrap items-center gap-2 rounded-xl border border-border px-3 py-2.5">
           <span className="text-xs font-medium text-foreground">{selected.size} selected</span>
           <Button
@@ -235,6 +237,10 @@ export function FailedJobsTable({ jobs }: { jobs: FailedJobRow[] }) {
             Mark Selected Ignored
           </Button>
         </div>
+      ) : selected.size > 0 ? (
+        <p className="notice-warn mb-3 rounded-md border px-3 py-2 text-sm">
+          Demo account is read-only — bulk actions are disabled.
+        </p>
       ) : null}
 
       {actionMessage ? (
@@ -315,25 +321,29 @@ export function FailedJobsTable({ jobs }: { jobs: FailedJobRow[] }) {
                   <td className="px-2.5 py-2 text-xs tabular-nums">{job.retry_count}</td>
                   <td className="px-2.5 py-2">
                     <div className="flex items-center gap-0.5">
-                      <ActionIcon
-                        label="Retry upload"
-                        onClick={() => void runRowAction('retry', job.id)}
-                      >
-                        <RotateCcw className="size-3.5" />
-                      </ActionIcon>
-                      <ActionIcon
-                        label="Delete Drive file"
-                        tone="danger"
-                        onClick={() => openDeleteDialog(job.id)}
-                      >
-                        <Trash2 className="size-3.5" />
-                      </ActionIcon>
-                      <ActionIcon
-                        label="Mark ignored"
-                        onClick={() => void runRowAction('ignore', job.id)}
-                      >
-                        <Ban className="size-3.5" />
-                      </ActionIcon>
+                      {canWrite ? (
+                        <>
+                          <ActionIcon
+                            label="Retry upload"
+                            onClick={() => void runRowAction('retry', job.id)}
+                          >
+                            <RotateCcw className="size-3.5" />
+                          </ActionIcon>
+                          <ActionIcon
+                            label="Delete Drive file"
+                            tone="danger"
+                            onClick={() => openDeleteDialog(job.id)}
+                          >
+                            <Trash2 className="size-3.5" />
+                          </ActionIcon>
+                          <ActionIcon
+                            label="Mark ignored"
+                            onClick={() => void runRowAction('ignore', job.id)}
+                          >
+                            <Ban className="size-3.5" />
+                          </ActionIcon>
+                        </>
+                      ) : null}
                       {job.source_url ? (
                         <ActionIcon label="Open source URL" href={job.source_url} external>
                           <ExternalLink className="size-3.5" />

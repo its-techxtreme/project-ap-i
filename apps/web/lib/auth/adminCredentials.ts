@@ -2,6 +2,7 @@ import { createHash } from 'node:crypto'
 
 import { supabaseAdmin } from '@/lib/supabase/admin'
 
+import type { DashboardRole } from './adminSession'
 import { safeEqualString, verifyPassword } from './password'
 
 export const LOGIN_WINDOW_MS = 15 * 60 * 1000
@@ -19,6 +20,13 @@ export function hashIp(ip: string): string {
 export function getAdminCredentials(): { username: string; passwordHash: string } | null {
   const username = process.env.ADMIN_USERNAME?.trim()
   const passwordHash = process.env.ADMIN_PASSWORD_HASH?.trim()
+  if (!username || !passwordHash) return null
+  return { username, passwordHash }
+}
+
+export function getDemoCredentials(): { username: string; passwordHash: string } | null {
+  const username = process.env.DEMO_USERNAME?.trim()
+  const passwordHash = process.env.DEMO_PASSWORD_HASH?.trim()
   if (!username || !passwordHash) return null
   return { username, passwordHash }
 }
@@ -76,20 +84,45 @@ export async function recordLoginAttempt(opts: {
   })
 }
 
+type VerifyOk = { ok: true; username: string; role: DashboardRole }
+type VerifyFail = { ok: false }
+
 /**
- * Verifies username/password against env credentials.
+ * Verifies username/password against admin or demo env credentials.
  * Always runs password verification work when a hash is configured (timing hardening).
  */
+export function verifyDashboardCredentials(username: string, password: string): VerifyOk | VerifyFail {
+  const admin = getAdminCredentials()
+  const demo = getDemoCredentials()
+  if (!admin && !demo) return { ok: false }
+
+  const inputNorm = normalizeUsername(username)
+
+  // Timing hardening: always verify against whichever hashes exist.
+  const adminUserOk = admin
+    ? safeEqualString(inputNorm, normalizeUsername(admin.username))
+    : false
+  const adminPassOk = admin ? verifyPassword(password, admin.passwordHash) : false
+
+  const demoUserOk = demo ? safeEqualString(inputNorm, normalizeUsername(demo.username)) : false
+  const demoPassOk = demo ? verifyPassword(password, demo.passwordHash) : false
+
+  // Prefer admin if both somehow match (misconfigured identical users).
+  if (admin && adminUserOk && adminPassOk) {
+    return { ok: true, username: admin.username, role: 'admin' }
+  }
+  if (demo && demoUserOk && demoPassOk) {
+    return { ok: true, username: demo.username, role: 'demo' }
+  }
+  return { ok: false }
+}
+
+/** @deprecated Use verifyDashboardCredentials */
 export function verifyAdminCredentials(
   username: string,
   password: string,
 ): { ok: true; username: string } | { ok: false } {
-  const creds = getAdminCredentials()
-  if (!creds) return { ok: false }
-
-  const usernameOk = safeEqualString(normalizeUsername(username), normalizeUsername(creds.username))
-  const passwordOk = verifyPassword(password, creds.passwordHash)
-
-  if (!usernameOk || !passwordOk) return { ok: false }
-  return { ok: true, username: creds.username }
+  const result = verifyDashboardCredentials(username, password)
+  if (!result.ok || result.role !== 'admin') return { ok: false }
+  return { ok: true, username: result.username }
 }

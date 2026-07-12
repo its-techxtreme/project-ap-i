@@ -19,7 +19,7 @@ vi.mock('next/headers', () => ({
 
 const isLoginLockedMock = vi.fn()
 const recordLoginAttemptMock = vi.fn()
-const verifyAdminCredentialsMock = vi.fn()
+const verifyDashboardCredentialsMock = vi.fn()
 
 vi.mock('@/lib/auth/adminCredentials', async () => {
   const actual = await vi.importActual<typeof import('@/lib/auth/adminCredentials')>(
@@ -29,7 +29,8 @@ vi.mock('@/lib/auth/adminCredentials', async () => {
     ...actual,
     isLoginLocked: (...args: unknown[]) => isLoginLockedMock(...args),
     recordLoginAttempt: (...args: unknown[]) => recordLoginAttemptMock(...args),
-    verifyAdminCredentials: (...args: unknown[]) => verifyAdminCredentialsMock(...args),
+    verifyDashboardCredentials: (...args: unknown[]) => verifyDashboardCredentialsMock(...args),
+    verifyAdminCredentials: (...args: unknown[]) => verifyDashboardCredentialsMock(...args),
   }
 })
 
@@ -67,7 +68,7 @@ describe('adminLogin', () => {
   })
 
   it('rejects invalid credentials and records failure', async () => {
-    verifyAdminCredentialsMock.mockReturnValueOnce({ ok: false })
+    verifyDashboardCredentialsMock.mockReturnValueOnce({ ok: false })
     const { adminLogin } = await import('@/app/actions/adminLogin')
     const result = await adminLogin('test-admin', 'wrong')
     expect(result).toEqual({ success: false, error: 'Invalid username or password.' })
@@ -77,7 +78,11 @@ describe('adminLogin', () => {
   })
 
   it('sets session cookie and redirects on success', async () => {
-    verifyAdminCredentialsMock.mockReturnValueOnce({ ok: true, username: 'test-admin' })
+    verifyDashboardCredentialsMock.mockReturnValueOnce({
+      ok: true,
+      username: 'test-admin',
+      role: 'admin',
+    })
     const { adminLogin } = await import('@/app/actions/adminLogin')
     await expect(adminLogin('test-admin', 'ok', '/admin/jobs')).rejects.toThrow(
       'REDIRECT:/admin/jobs',

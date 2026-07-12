@@ -9,7 +9,7 @@ import {
   isLoginLocked,
   normalizeUsername,
   recordLoginAttempt,
-  verifyAdminCredentials,
+  verifyDashboardCredentials,
 } from '@/lib/auth/adminCredentials'
 import {
   ADMIN_SESSION_COOKIE,
@@ -59,7 +59,7 @@ export async function adminLogin(
     }
   }
 
-  const verified = verifyAdminCredentials(username, password)
+  const verified = verifyDashboardCredentials(username, password)
   if (!verified.ok) {
     await recordLoginAttempt({ ipHash, usernameNorm, success: false })
     await supabaseAdmin.from('audit_logs').insert({
@@ -73,15 +73,15 @@ export async function adminLogin(
 
   await recordLoginAttempt({ ipHash, usernameNorm, success: true })
 
-  const token = await createAdminSessionToken(verified.username)
+  const token = await createAdminSessionToken(verified.username, verified.role)
   const cookieStore = await cookies()
   cookieStore.set(ADMIN_SESSION_COOKIE, token, adminSessionCookieOptions())
 
   await supabaseAdmin.from('audit_logs').insert({
-    actor_type: 'admin',
-    action: 'admin_login',
+    actor_type: verified.role === 'demo' ? 'anonymous' : 'admin',
+    action: verified.role === 'demo' ? 'demo_login' : 'admin_login',
     target_type: 'admin',
-    metadata: { username: verified.username, ip_hash: ipHash },
+    metadata: { username: verified.username, role: verified.role, ip_hash: ipHash },
   })
 
   const dest = nextPath && nextPath.startsWith('/admin') ? nextPath : '/admin'

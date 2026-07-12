@@ -50,7 +50,7 @@ describe('admin session tokens', () => {
 
   it('rejects expired tokens', async () => {
     const past = Date.now() - 20 * 60 * 60 * 1000
-    const token = await createAdminSessionToken('test-admin', past)
+    const token = await createAdminSessionToken('test-admin', 'admin', past)
     expect(await verifyAdminSessionToken(token)).toBeNull()
   })
 })

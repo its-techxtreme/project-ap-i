@@ -9,6 +9,7 @@ import {
   pausePlatformAccount,
   resumePlatformAccount,
 } from '@/app/actions/adminActions'
+import { useAdminCapabilities } from '@/components/admin/AdminCapabilities'
 import { StatusBadge } from '@/components/app/StatusBadge'
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
 import { Button } from '@/components/ui/button'
@@ -17,6 +18,7 @@ import { truncateText } from '@/lib/format/relativeTime'
 
 export function AccountsTable({ accounts }: { accounts: PlatformAccountRow[] }) {
   const router = useRouter()
+  const { canWrite } = useAdminCapabilities()
   const [actionMessage, setActionMessage] = useState<string | null>(null)
   const [busyId, setBusyId] = useState<string | null>(null)
   const hasLoginRequired = accounts.some(
@@ -116,35 +118,39 @@ export function AccountsTable({ accounts }: { accounts: PlatformAccountRow[] }) 
                         : '—'}
                     </td>
                     <td className="px-2.5 py-2">
-                      <div className="flex flex-wrap gap-1">
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          className="h-8 text-xs"
-                          disabled={busy || busyId !== null}
-                          onClick={() => void runAccountAction(account.id, 'recovered')}
-                        >
-                          Mark Login Recovered
-                        </Button>
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          className="h-8 text-xs"
-                          disabled={busy || busyId !== null || account.status === 'paused'}
-                          onClick={() => void runAccountAction(account.id, 'pause')}
-                        >
-                          Pause
-                        </Button>
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          className="h-8 text-xs"
-                          disabled={busy || busyId !== null || account.status === 'active'}
-                          onClick={() => void runAccountAction(account.id, 'resume')}
-                        >
-                          Resume
-                        </Button>
-                      </div>
+                      {canWrite ? (
+                        <div className="flex flex-wrap gap-1">
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            className="h-8 text-xs"
+                            disabled={busy || busyId !== null}
+                            onClick={() => void runAccountAction(account.id, 'recovered')}
+                          >
+                            Mark Login Recovered
+                          </Button>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            className="h-8 text-xs"
+                            disabled={busy || busyId !== null || account.status === 'paused'}
+                            onClick={() => void runAccountAction(account.id, 'pause')}
+                          >
+                            Pause
+                          </Button>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            className="h-8 text-xs"
+                            disabled={busy || busyId !== null || account.status === 'active'}
+                            onClick={() => void runAccountAction(account.id, 'resume')}
+                          >
+                            Resume
+                          </Button>
+                        </div>
+                      ) : (
+                        <span className="text-xs text-muted-foreground">Read-only</span>
+                      )}
                     </td>
                   </tr>
                 )

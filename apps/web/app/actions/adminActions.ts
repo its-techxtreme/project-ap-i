@@ -1,6 +1,6 @@
 'use server'
 
-import { requireAdmin } from '@/lib/auth/requireAdmin'
+import { requireAdminWrite } from '@/lib/auth/requireAdmin'
 import { getAdminUsername } from '@/lib/auth/getUserRole'
 import { supabaseAdmin } from '@/lib/supabase/admin'
 
@@ -43,7 +43,8 @@ async function enqueueAdminCommand(
 
 /** Queue upload retry for local worker/n8n (does not call worker from Vercel). */
 export async function retryJobUpload(jobId: string) {
-  await requireAdmin()
+  const writeGate = await requireAdminWrite()
+  if (writeGate.denied) return { success: false, error: writeGate.error }
 
   const { data: job, error: jobError } = await supabaseAdmin
     .from('jobs')
@@ -95,7 +96,8 @@ export async function retryJobUpload(jobId: string) {
 
 /** Queue Drive delete for local worker/n8n (does not call worker from Vercel). */
 export async function deleteDriveFile(jobId: string) {
-  await requireAdmin()
+  const writeGate = await requireAdminWrite()
+  if (writeGate.denied) return { success: false, error: writeGate.error }
 
   const { data: job, error: jobError } = await supabaseAdmin
     .from('jobs')
@@ -147,7 +149,8 @@ export async function deleteDriveFile(jobId: string) {
 
 /** Mark job cancelled (DB-only; stops auto retry/claim). */
 export async function cancelJob(jobId: string) {
-  await requireAdmin()
+  const writeGate = await requireAdminWrite()
+  if (writeGate.denied) return { success: false, error: writeGate.error }
 
   const { data: job, error: jobError } = await supabaseAdmin
     .from('jobs')
@@ -222,7 +225,8 @@ export async function cancelJob(jobId: string) {
  * remove those first from Failed Review when a Drive link still exists.
  */
 export async function deleteJobRecord(jobId: string) {
-  await requireAdmin()
+  const writeGate = await requireAdminWrite()
+  if (writeGate.denied) return { success: false, error: writeGate.error }
 
   const { data: job, error: jobError } = await supabaseAdmin
     .from('jobs')
@@ -277,7 +281,8 @@ export async function deleteJobRecord(jobId: string) {
 
 /** Mark job ignored (DB-only; no worker required). */
 export async function markJobIgnored(jobId: string) {
-  await requireAdmin()
+  const writeGate = await requireAdminWrite()
+  if (writeGate.denied) return { success: false, error: writeGate.error }
 
   const { error: updateError } = await supabaseAdmin
     .from('jobs')
@@ -315,7 +320,8 @@ async function runBulkJobAction(
   action: (jobId: string) => Promise<BulkItemResult>,
   verbPast: string,
 ): Promise<BulkActionResult | { success: false; error: string }> {
-  await requireAdmin()
+  const writeGate = await requireAdminWrite()
+  if (writeGate.denied) return { success: false, error: writeGate.error }
 
   const uniqueIds = [...new Set(jobIds.filter(Boolean))]
   if (uniqueIds.length === 0) {
@@ -369,7 +375,8 @@ async function updatePlatformAccountStatus(
   auditAction: string,
   message: string,
 ): Promise<AccountActionResult> {
-  await requireAdmin()
+  const writeGate = await requireAdminWrite()
+  if (writeGate.denied) return { success: false, error: writeGate.error }
 
   const { data: account, error: fetchError } = await supabaseAdmin
     .from('platform_accounts')
@@ -434,7 +441,8 @@ export async function pausePlatformAccount(accountId: string): Promise<AccountAc
 
 /** Resume a paused (or previously failing) account to active. */
 export async function resumePlatformAccount(accountId: string): Promise<AccountActionResult> {
-  await requireAdmin()
+  const writeGate = await requireAdminWrite()
+  if (writeGate.denied) return { success: false, error: writeGate.error }
 
   const { data: account, error: fetchError } = await supabaseAdmin
     .from('platform_accounts')

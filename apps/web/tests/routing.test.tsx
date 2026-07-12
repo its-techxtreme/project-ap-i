@@ -19,6 +19,7 @@ vi.mock('@/lib/auth/requireAdmin', () => ({
 
 vi.mock('@/lib/auth/getUserRole', () => ({
   getAdminUsername: vi.fn().mockResolvedValue('test-admin'),
+  getDashboardRole: vi.fn().mockResolvedValue('admin'),
   getUserRole: vi.fn().mockResolvedValue('admin'),
 }))
 

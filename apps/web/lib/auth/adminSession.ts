@@ -5,8 +5,12 @@
 export const ADMIN_SESSION_COOKIE = 'api_admin_session'
 export const SESSION_TTL_SECONDS = 60 * 60 * 12 // 12 hours
 
+export type DashboardRole = 'admin' | 'demo'
+
 export interface AdminSessionPayload {
   username: string
+  /** Missing on legacy tokens — treated as admin only if username matches ADMIN_USERNAME. */
+  role?: DashboardRole
   iat: number
   exp: number
 }
@@ -25,7 +29,6 @@ function b64urlFromBytes(bytes: ArrayBuffer | Uint8Array): string {
   const arr = bytes instanceof Uint8Array ? bytes : new Uint8Array(bytes)
   let binary = ''
   for (let i = 0; i < arr.length; i++) binary += String.fromCharCode(arr[i]!)
-  // btoa is available in Edge + browsers; Buffer in Node.
   if (typeof btoa === 'function') {
     return btoa(binary).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/g, '')
   }
@@ -75,9 +78,14 @@ function timingSafeEqualBytes(a: Uint8Array, b: Uint8Array): boolean {
   return diff === 0
 }
 
-export async function createAdminSessionToken(username: string, now = Date.now()): Promise<string> {
+export async function createAdminSessionToken(
+  username: string,
+  role: DashboardRole = 'admin',
+  now = Date.now(),
+): Promise<string> {
   const payload: AdminSessionPayload = {
     username,
+    role,
     iat: Math.floor(now / 1000),
     exp: Math.floor(now / 1000) + SESSION_TTL_SECONDS,
   }
@@ -118,6 +126,9 @@ export async function verifyAdminSessionToken(
     }
     if (payload.exp * 1000 <= Date.now()) return null
     if (!payload.username.trim()) return null
+    if (payload.role !== undefined && payload.role !== 'admin' && payload.role !== 'demo') {
+      return null
+    }
     return payload
   } catch {
     return null

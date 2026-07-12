@@ -4,6 +4,8 @@ Short-form content intake → process → publish.
 
 Submitters paste a YouTube or Instagram link, pick a niche (**Memes**, **Anime**, or **Sports**), and confirm rights. The system downloads the video, applies a niche watermark, stages it on Google Drive, generates captions from the **original source text** (AI rephrase + tags), then uploads to the matching YouTube and Instagram accounts.
 
+**Live demo:** https://project-ap-i.vercel.app — public submit form; dashboard has a **read-only demo** login (see `DEMO_USERNAME` / `DEMO_PASSWORD_HASH` in `.env.example`).
+
 Real platform uploads are **off by default**. Enable them only on a local machine with Chrome profiles you control.
 
 ---
