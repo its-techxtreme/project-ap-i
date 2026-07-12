@@ -389,6 +389,19 @@ Instagram caption: New short update. #shorts #reels
 
 Each YouTube and Instagram `platform_accounts` row may publish at most **5** successful uploads per **rolling 24-hour window** (`DAILY_UPLOAD_LIMIT_PER_ACCOUNT`, default `5`).
 
+### YouTube duplicate-upload guard
+
+Root cause of niche-account spam loops: Playwright clicked YouTube Publish but failed to capture the share URL, the failure was treated as **transient**, and WF-08/verify scheduled full re-uploads while Instagram stayed `uploaded`.
+
+Guards now in place:
+- `no video url was captured` is **not** transient (no in-process re-publish).
+- `UploadCoordinator` skips Playwright when a successful `upload_attempts` row already has a real platform URL.
+- `platformsNeedingUpload()` never forces a platform that is already `uploaded`/`verified`.
+- `runUpload` does not fall back to uploading both platforms when both already succeeded.
+- Verify parks publish-without-URL cases to `needs_manual_review` instead of auto-retry.
+
+Admin can **cancel** jobs from the dashboard (`status=cancelled`) to stop claim/retry.
+
 - Counted from distinct successful `upload_attempts` (`status=uploaded`) with `finished_at` in the last 24 hours, plus in-flight `uploading` jobs for that account.
 - When a niche’s needed account is at the cap:
   - New jobs stay **`queued`** (claim is released).

@@ -145,6 +145,77 @@ export async function deleteDriveFile(jobId: string) {
   }
 }
 
+/** Mark job cancelled (DB-only; stops auto retry/claim). */
+export async function cancelJob(jobId: string) {
+  await requireAdmin()
+
+  const { data: job, error: jobError } = await supabaseAdmin
+    .from('jobs')
+    .select('id, status')
+    .eq('id', jobId)
+    .single()
+
+  if (jobError || !job) {
+    return { success: false, error: 'Job not found' }
+  }
+
+  const cancellable = [
+    'queued',
+    'locked',
+    'validating',
+    'downloading',
+    'downloaded',
+    'processing',
+    'processed',
+    'staging_to_drive',
+    'ready_to_upload',
+    'uploading',
+    'awaiting_verification',
+    'failed',
+    'needs_manual_review',
+  ]
+  if (!cancellable.includes(job.status)) {
+    return { success: false, error: `Job status ${job.status} cannot be cancelled` }
+  }
+
+  const { error: updateError } = await supabaseAdmin
+    .from('jobs')
+    .update({
+      status: 'cancelled',
+      failure_code: null,
+      failure_reason: 'Cancelled by admin',
+      locked_by: null,
+      locked_at: null,
+      lock_expires_at: null,
+      updated_at: new Date().toISOString(),
+    })
+    .eq('id', jobId)
+
+  if (updateError) {
+    return { success: false, error: updateError.message }
+  }
+
+  const username = await getAdminUsername()
+  await supabaseAdmin.from('audit_logs').insert({
+    actor_type: 'admin',
+    action: 'job_cancelled',
+    target_type: 'job',
+    target_id: jobId,
+    metadata: { username, status_before: job.status },
+  })
+
+  await supabaseAdmin.from('job_events').insert({
+    job_id: jobId,
+    stage: 'admin',
+    event_type: 'job_cancelled',
+    message: `Cancelled by admin (was ${job.status})`,
+    severity: 'info',
+    metadata: { username, status_before: job.status },
+  })
+
+  return { success: true, jobId }
+}
+
 /** Mark job ignored (DB-only; no worker required). */
 export async function markJobIgnored(jobId: string) {
   await requireAdmin()

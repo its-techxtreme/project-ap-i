@@ -13,6 +13,7 @@ const statusColors: Record<string, string> = {
   needs_manual_review: 'bg-orange-500/15 text-orange-800 dark:text-orange-300',
   login_required: 'bg-red-500/15 text-red-700 dark:text-red-400',
   ignored: 'bg-muted text-muted-foreground/70',
+  cancelled: 'bg-muted text-muted-foreground',
   pending: 'bg-muted text-muted-foreground',
   uploaded: 'bg-sky-500/15 text-sky-700 dark:text-sky-400',
   verified: 'bg-emerald-500/15 text-emerald-700 dark:text-emerald-400',

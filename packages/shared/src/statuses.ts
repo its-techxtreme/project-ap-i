@@ -18,6 +18,7 @@ export const JOB_STATUSES = [
   'failed',
   'needs_manual_review',
   'ignored',
+  'cancelled',
 ] as const
 
 export type JobStatus = (typeof JOB_STATUSES)[number]

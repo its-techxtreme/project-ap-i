@@ -76,6 +76,7 @@ describe('JobsTable', () => {
             retry_count: 0,
             failure_reason: null,
             source_url: 'https://www.youtube.com/shorts/abc',
+            queue_position: 1,
           },
         ]}
       />,
@@ -83,6 +84,7 @@ describe('JobsTable', () => {
 
     const headers = screen.getAllByRole('columnheader').map((el) => el.textContent)
     expect(headers).toEqual([
+      'Queue',
       'Job',
       'Created',
       'Source',
@@ -97,6 +99,7 @@ describe('JobsTable', () => {
     ])
     expect(screen.getByLabelText('View details')).toBeInTheDocument()
     expect(screen.getByLabelText('Retry upload')).toBeInTheDocument()
+    expect(screen.getByLabelText('Cancel job')).toBeInTheDocument()
   }, 15_000)
 
   it('shows "No jobs yet." when empty', async () => {
@@ -195,6 +198,7 @@ describe('FailedJobsTable', () => {
             failure_reason: 'Upload failed',
             failure_code: 'YOUTUBE_UPLOAD_FAILED',
             source_url: 'https://www.youtube.com/shorts/abc',
+            queue_position: null,
           },
         ]}
       />,

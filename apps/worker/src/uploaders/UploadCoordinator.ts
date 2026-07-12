@@ -6,6 +6,7 @@ import { logger } from '../logging/logger'
 
 import { resolveNicheAccounts } from './accountResolver'
 import { isDailyUploadLimitError } from '../jobs/dailyUploadLimit'
+import { findSuccessfulUploadAttempt } from '../jobs/uploadIdempotency'
 import { isRealPlatformMediaId } from './platformMediaIds'
 import { isTransientUploadFailure } from './transientUploadErrors'
 import type { PlatformUploader, UploadJobInput, UploadResult } from './types'
@@ -78,6 +79,31 @@ export class UploadCoordinator {
     const { job, platform, account, uploader, metadata } = params
     const attemptNumber =
       platform === 'youtube' ? job.youtubeRetryCount + 1 : job.instagramRetryCount + 1
+
+    // Idempotency: never re-publish if a real platform URL was already recorded.
+    const existing = await findSuccessfulUploadAttempt(job.id, platform)
+    if (existing) {
+      const statusField = platform === 'youtube' ? 'youtube_upload_status' : 'instagram_upload_status'
+      await supabaseAdmin
+        .from('jobs')
+        .update({ [statusField]: 'uploaded' })
+        .eq('id', job.id)
+      await writeJobEvent(
+        job.id,
+        'upload',
+        `${platform}_upload_skipped_idempotent`,
+        `${platform} already has recorded upload ${existing.platformUrl} — skipping Playwright`,
+        'info',
+        { platform, platformUrl: existing.platformUrl, attemptId: existing.attemptId },
+      )
+      logger.info({
+        msg: 'Skipping platform upload — successful attempt already recorded',
+        jobId: job.id,
+        platform,
+        platformUrl: existing.platformUrl,
+      })
+      return
+    }
 
     await writeJobEvent(
       job.id,

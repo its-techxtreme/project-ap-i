@@ -18,6 +18,7 @@ const STATUS_OPTIONS = [
   { value: 'completed', label: 'Completed' },
   { value: 'failed', label: 'Failed' },
   { value: 'needs_manual_review', label: 'Review' },
+  { value: 'cancelled', label: 'Cancelled' },
 ] as const
 
 const UPLOAD_STATUS_OPTIONS = [

@@ -28,7 +28,6 @@ export function isTransientUploadFailure(result: {
     msg.includes('did not expose a file input') ||
     msg.includes('create dialog') ||
     msg.includes('share-confirmation toast') ||
-    msg.includes('share confirmation') ||
-    msg.includes('no video url was captured')
+    msg.includes('share confirmation')
   )
 }

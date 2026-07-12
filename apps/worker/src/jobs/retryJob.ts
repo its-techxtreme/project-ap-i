@@ -64,6 +64,13 @@ async function retryJobInner(jobId: string, platform?: 'youtube' | 'instagram'):
     )
   }
 
+  if (job.status === 'cancelled' || job.status === 'ignored' || job.status === 'completed') {
+    throw new ProjectApiError(
+      ERROR_CODES.JOB_NOT_FOUND,
+      `Job status ${job.status} is not retryable`,
+    )
+  }
+
   if (isWithinDailyLimitDeferral(job)) {
     logger.info({
       msg: 'Retry skipped — job parked for daily upload limit window',

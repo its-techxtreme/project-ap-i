@@ -2,9 +2,9 @@
 
 import Link from 'next/link'
 import { useState, type ReactNode } from 'react'
-import { ExternalLink, Eye, RotateCcw, Trash2 } from 'lucide-react'
+import { Ban, ExternalLink, Eye, RotateCcw, Trash2 } from 'lucide-react'
 
-import { deleteDriveFile, retryJobUpload } from '@/app/actions/adminActions'
+import { cancelJob, deleteDriveFile, retryJobUpload } from '@/app/actions/adminActions'
 import { StatusBadge } from '@/components/app/StatusBadge'
 import type { JobListRow } from '@/lib/data/adminQueries'
 import { shortId, truncateText } from '@/lib/format/relativeTime'
@@ -69,6 +69,7 @@ function SoftChip({ children }: { children: ReactNode }) {
 
 export function JobsTable({ jobs }: { jobs: JobListRow[] }) {
   const [dialogOpen, setDialogOpen] = useState(false)
+  const [dialogMode, setDialogMode] = useState<'delete' | 'cancel'>('delete')
   const [pendingDeleteId, setPendingDeleteId] = useState<string | null>(null)
   const [actionMessage, setActionMessage] = useState<string | null>(null)
 
@@ -79,13 +80,25 @@ export function JobsTable({ jobs }: { jobs: JobListRow[] }) {
 
   function openDeleteDialog(jobId: string) {
     setPendingDeleteId(jobId)
+    setDialogMode('delete')
     setDialogOpen(true)
   }
 
-  async function confirmDelete() {
+  function openCancelDialog(jobId: string) {
+    setPendingDeleteId(jobId)
+    setDialogMode('cancel')
+    setDialogOpen(true)
+  }
+
+  async function confirmDialog() {
     if (!pendingDeleteId) return
-    const result = await deleteDriveFile(pendingDeleteId)
-    setActionMessage(result.error ?? 'Delete requested.')
+    if (dialogMode === 'cancel') {
+      const result = await cancelJob(pendingDeleteId)
+      setActionMessage(result.error ?? 'Job cancelled.')
+    } else {
+      const result = await deleteDriveFile(pendingDeleteId)
+      setActionMessage(result.error ?? 'Delete requested.')
+    }
     setDialogOpen(false)
     setPendingDeleteId(null)
   }
@@ -111,6 +124,7 @@ export function JobsTable({ jobs }: { jobs: JobListRow[] }) {
           <table className="w-full min-w-[880px] text-left text-sm">
             <thead className="border-b border-border bg-muted/40 text-[10px] uppercase tracking-[0.08em] text-muted-foreground">
               <tr>
+                <th className="px-2.5 py-2.5 font-medium">Queue</th>
                 <th className="px-2.5 py-2.5 font-medium">Job</th>
                 <th className="px-2.5 py-2.5 font-medium">Created</th>
                 <th className="px-2.5 py-2.5 font-medium">Source</th>
@@ -130,6 +144,9 @@ export function JobsTable({ jobs }: { jobs: JobListRow[] }) {
                   key={job.id}
                   className="bg-row-hover border-b border-border/60 last:border-b-0 transition-colors"
                 >
+                  <td className="px-2.5 py-2 text-xs tabular-nums text-muted-foreground">
+                    {job.queue_position != null ? `#${job.queue_position}` : '—'}
+                  </td>
                   <td className="px-2.5 py-2 font-mono text-xs text-foreground/90">
                     {shortId(job.id)}
                   </td>
@@ -212,6 +229,13 @@ export function JobsTable({ jobs }: { jobs: JobListRow[] }) {
                         <RotateCcw className="size-3.5" />
                       </ActionIcon>
                       <ActionIcon
+                        label="Cancel job"
+                        tone="danger"
+                        onClick={() => openCancelDialog(job.id)}
+                      >
+                        <Ban className="size-3.5" />
+                      </ActionIcon>
+                      <ActionIcon
                         label="Delete Drive file"
                         tone="danger"
                         onClick={() => openDeleteDialog(job.id)}
@@ -237,10 +261,14 @@ export function JobsTable({ jobs }: { jobs: JobListRow[] }) {
 
       <ConfirmDialog
         open={dialogOpen}
-        title="Delete staged Drive file?"
-        description="This will delete the selected staged video file(s) from Google Drive. The job record and logs will remain in Supabase. Continue?"
-        confirmLabel="Delete Drive file"
-        onConfirm={confirmDelete}
+        title={dialogMode === 'cancel' ? 'Cancel this job?' : 'Delete staged Drive file?'}
+        description={
+          dialogMode === 'cancel'
+            ? 'This stops automatic processing and retries for the job. Existing platform posts are not deleted. Continue?'
+            : 'This will delete the selected staged video file(s) from Google Drive. The job record and logs will remain in Supabase. Continue?'
+        }
+        confirmLabel={dialogMode === 'cancel' ? 'Cancel job' : 'Delete Drive file'}
+        onConfirm={confirmDialog}
         onCancel={() => {
           setDialogOpen(false)
           setPendingDeleteId(null)

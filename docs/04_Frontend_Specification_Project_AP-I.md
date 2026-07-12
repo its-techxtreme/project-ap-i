@@ -336,6 +336,9 @@ YouTube upload status
 Instagram upload status
 ```
 
+Jobs table shows a FIFO **Queue** number (`#1`, `#2`, …) for `queued` / `ready_to_upload` jobs.
+Admin actions include cancel (sets `cancelled`, stops retries).
+
 Note: Jobs filters do not include created-date range (Created from / Created to). Date filters remain on Logs only.
 
 Actions:

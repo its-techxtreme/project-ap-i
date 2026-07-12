@@ -95,16 +95,21 @@ export function platformsNeedingUpload(
   instagramStatus: UploadStatus,
   requested?: Platform,
 ): Platform[] {
-  if (requested === 'youtube') return ['youtube']
-  if (requested === 'instagram') return ['instagram']
-
-  const needs: Platform[] = []
   const retryable = new Set(['failed', 'retry_scheduled', 'uploading', 'pending'])
+  const needs = (status: UploadStatus) => retryable.has(status ?? 'pending')
 
-  if (retryable.has(youtubeStatus ?? 'pending')) needs.push('youtube')
-  if (retryable.has(instagramStatus ?? 'pending')) needs.push('instagram')
+  if (requested === 'youtube') {
+    return needs(youtubeStatus) ? ['youtube'] : []
+  }
+  if (requested === 'instagram') {
+    return needs(instagramStatus) ? ['instagram'] : []
+  }
+
+  const out: Platform[] = []
+  if (needs(youtubeStatus)) out.push('youtube')
+  if (needs(instagramStatus)) out.push('instagram')
 
   // Never fall back to re-uploading successful platforms — that caused duplicate posts
   // when WF-08 drained stale retry-upload requests after a job already succeeded.
-  return needs
+  return out
 }

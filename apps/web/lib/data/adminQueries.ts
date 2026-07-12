@@ -96,6 +96,8 @@ export type JobListRow = {
   retry_count: number
   failure_reason: string | null
   source_url: string
+  /** 1-based FIFO position among waiting jobs (queued / ready_to_upload), else null. */
+  queue_position: number | null
 }
 
 export type JobEventRow = {
@@ -253,6 +255,22 @@ export async function getJobs(
   const rows = data ?? []
   const urlMap = await loadPlatformUrlsByJobId(rows.map((row) => row.id))
 
+  const waitingIds = new Set(
+    rows.filter((r) => r.status === 'queued' || r.status === 'ready_to_upload').map((r) => r.id),
+  )
+  const queuePositionById = new Map<string, number>()
+  if (waitingIds.size > 0) {
+    const { data: waiting } = await supabaseAdmin
+      .from('jobs')
+      .select('id')
+      .in('status', ['queued', 'ready_to_upload'])
+      .order('created_at', { ascending: true })
+    let pos = 1
+    for (const row of waiting ?? []) {
+      queuePositionById.set(row.id, pos++)
+    }
+  }
+
   const jobs: JobListRow[] = rows.map((row) => {
     const niche = row.niches as { name: string } | { name: string }[] | null
     const nicheName = Array.isArray(niche) ? niche[0]?.name : niche?.name
@@ -274,6 +292,7 @@ export async function getJobs(
       retry_count: row.retry_count,
       failure_reason: row.failure_reason,
       source_url: row.source_url,
+      queue_position: queuePositionById.get(row.id) ?? null,
     }
   })
 
@@ -375,6 +394,7 @@ export async function getFailedJobs(): Promise<FailedJobRow[]> {
       failure_reason: row.failure_reason,
       failure_code: row.failure_code,
       source_url: row.source_url,
+      queue_position: null,
     }
   })
 }

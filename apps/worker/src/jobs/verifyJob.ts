@@ -5,6 +5,10 @@ import { supabaseAdmin } from '../db/supabaseAdmin'
 import { createDriveStorage } from '../storage'
 import { logger } from '../logging/logger'
 import { isRealPlatformMediaId } from '../uploaders/platformMediaIds'
+import {
+  findSuccessfulUploadAttempt,
+  hasPublishWithoutUrlFailure,
+} from './uploadIdempotency'
 
 const MAX_RETRY_COUNT = 2
 
@@ -205,8 +209,69 @@ export async function verifyJob(jobId: string): Promise<void> {
   }
 
   if (anyFailed) {
-    const youtubeFailed = youtubeStatus === 'failed'
-    const instagramFailed = instagramStatus === 'failed'
+    // Heal drifted status when a successful attempt already exists.
+    const ytSuccess = await findSuccessfulUploadAttempt(jobId, 'youtube')
+    const igSuccess = await findSuccessfulUploadAttempt(jobId, 'instagram')
+    if (ytSuccess || igSuccess) {
+      const healed: Record<string, unknown> = {}
+      if (ytSuccess && youtubeStatus !== 'uploaded' && youtubeStatus !== 'verified') {
+        healed.youtube_upload_status = 'uploaded'
+      }
+      if (igSuccess && instagramStatus !== 'uploaded' && instagramStatus !== 'verified') {
+        healed.instagram_upload_status = 'uploaded'
+      }
+      if (Object.keys(healed).length > 0) {
+        await updateJobStatus(job.id, job.status, healed)
+        await writeJobEvent(
+          job.id,
+          'verify',
+          'upload_status_healed',
+          'Restored uploaded status from recorded platform URLs',
+          'info',
+          {
+            youtubeUrl: ytSuccess?.platformUrl ?? null,
+            instagramUrl: igSuccess?.platformUrl ?? null,
+          },
+        )
+      }
+      const ytOk =
+        Boolean(ytSuccess) || youtubeStatus === 'uploaded' || youtubeStatus === 'verified'
+      const igOk =
+        Boolean(igSuccess) || instagramStatus === 'uploaded' || instagramStatus === 'verified'
+      if (ytOk && igOk) {
+        // Re-enter bothUploaded path next verify tick
+        await updateJobStatus(jobId, 'awaiting_verification', {
+          youtube_upload_status: 'uploaded',
+          instagram_upload_status: 'uploaded',
+          verification_due_at: new Date().toISOString(),
+          failure_code: null,
+          failure_reason: null,
+        })
+        return
+      }
+    }
+
+    const youtubeFailed = youtubeStatus === 'failed' && !ytSuccess
+    const instagramFailed = instagramStatus === 'failed' && !igSuccess
+
+    // Publish-clicked-without-URL must not auto re-upload (causes duplicate YT posts).
+    if (youtubeFailed && (await hasPublishWithoutUrlFailure(jobId, 'youtube'))) {
+      await updateJobStatus(job.id, 'needs_manual_review', {
+        failure_code: ERROR_CODES.YOUTUBE_UPLOAD_FAILED,
+        failure_reason:
+          'YouTube publish likely succeeded but no video URL was captured — review Studio before retrying (auto re-upload disabled to prevent duplicates)',
+        youtube_upload_status: 'failed',
+      })
+      await writeJobEvent(
+        job.id,
+        'verify',
+        'youtube_publish_uncertain',
+        'YouTube publish without captured URL — parked for manual review',
+        'warning',
+      )
+      return
+    }
+
     const youtubeResult = platformOutcome(youtubeFailed, youtubeRetryCount)
     const instagramResult = platformOutcome(instagramFailed, instagramRetryCount)
 

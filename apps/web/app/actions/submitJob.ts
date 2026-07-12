@@ -66,7 +66,7 @@ export async function submitJobAction(formData: unknown): Promise<SubmitJobResul
     .select('id, status')
     .eq('normalized_source_url', urlCheck.normalizedUrl)
     .eq('niche_id', nicheId)
-    .not('status', 'in', '("completed","ignored","failed")')
+    .not('status', 'in', '("completed","ignored","failed","cancelled")')
     .limit(1)
     .maybeSingle()
 

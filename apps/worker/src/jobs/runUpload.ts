@@ -108,7 +108,13 @@ async function runUploadInner(jobId: string): Promise<string> {
   if (ytNeeds) platformsToUpload.push('youtube')
   if (igNeeds) platformsToUpload.push('instagram')
   if (platformsToUpload.length === 0) {
-    platformsToUpload.push('youtube', 'instagram')
+    logger.info({ msg: 'Upload skipped — both platforms already uploaded/verified', jobId })
+    const finalStatus = await finalizeUploadStatus(
+      jobId,
+      job.youtube_upload_status,
+      job.instagram_upload_status,
+    )
+    return finalStatus
   }
 
   try {
