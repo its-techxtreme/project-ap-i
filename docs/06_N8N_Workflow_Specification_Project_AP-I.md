@@ -117,7 +117,7 @@ If worker returns processed/upload started/completed:
 
 ```text
 - Save n8n execution ID in job event if needed.
-- Schedule verification workflow for 30 minutes later.
+- Schedule verification workflow for 5 minutes later.
 ```
 
 ### Failure branch
@@ -384,7 +384,7 @@ For host safety, n8n must enforce:
 Maximum claimed processing jobs: 1
 Maximum pending upload orchestration calls: 1
 New job poll frequency: every 2 to 5 minutes
-Verification delay: approximately 30 minutes after upload attempt
+Verification delay: approximately 5 minutes after upload attempt
 ```
 
 If eight links arrive in one day, the system must queue them and process sequentially rather than parallelizing FFmpeg work.

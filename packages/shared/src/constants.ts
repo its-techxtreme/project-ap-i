@@ -41,7 +41,7 @@ export const DEFAULTS = {
   MAX_DOWNLOAD_CONCURRENCY: 2,
   MAX_UPLOAD_CONCURRENCY_PER_PLATFORM: 1,
   JOB_LOCK_MINUTES: 45,
-  VERIFY_DELAY_MINUTES: 30,
+  VERIFY_DELAY_MINUTES: 5,
   MAX_SOURCE_DURATION_SECONDS: 180,
   MAX_SOURCE_FILE_SIZE_MB: 500,
   /** Successful uploads per platform account per rolling 24h before deferring. */

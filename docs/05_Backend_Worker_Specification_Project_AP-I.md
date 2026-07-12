@@ -475,7 +475,7 @@ Verification also rejects synthetic `ig-` / `yt-` placeholders and requires real
 
 ## Verification module
 
-Verification runs around 30 minutes after upload.
+Verification runs around 5 minutes after upload.
 
 Inputs:
 

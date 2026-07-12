@@ -85,7 +85,7 @@
             {
               "id": "a2000002-0002-4000-8000-000000000011",
               "name": "verificationDueAt",
-              "value": "={{ $now.plus({ minutes: Number($env.VERIFY_DELAY_MINUTES || 30) }).toISO() }}",
+              "value": "={{ $now.plus({ minutes: Number($env.VERIFY_DELAY_MINUTES || 5) }).toISO() }}",
               "type": "string"
             }
           ]
@@ -103,7 +103,7 @@
     },
     {
       "parameters": {
-        "amount": "={{ Number($env.VERIFY_DELAY_MINUTES || 30) }}",
+        "amount": "={{ Number($env.VERIFY_DELAY_MINUTES || 5) }}",
         "unit": "minutes"
       },
       "id": "a2000002-0002-4000-8000-000000000005",

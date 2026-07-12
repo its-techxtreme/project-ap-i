@@ -45,6 +45,17 @@ const locatorMock = vi.fn(() => ({
 }))
 
 vi.mock('../src/uploaders/playwrightContext', () => ({
+  withAuthenticatedContext: async (
+    _profilePath: string,
+    fn: (context: { newPage: typeof newPageMock; close: typeof closeMock }) => Promise<unknown>,
+  ) => {
+    const context = await launchContextMock()
+    try {
+      return await fn(context)
+    } finally {
+      await context.close()
+    }
+  },
   launchAuthenticatedContext: (...args: unknown[]) => launchContextMock(...args),
 }))
 

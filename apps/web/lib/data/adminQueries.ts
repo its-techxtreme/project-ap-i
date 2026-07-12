@@ -181,6 +181,8 @@ export async function getJobSummary(): Promise<JobSummary> {
       .select('id', { count: 'exact', head: true })
       .not('drive_file_id', 'is', null)
       .is('drive_deleted_at', null)
+      // Match Failed Review: actionable leftovers only (not cancelled archives).
+      .in('status', ['failed', 'needs_manual_review'])
       .or('drive_folder_state.is.null,drive_folder_state.neq.deleted'),
   ])
 

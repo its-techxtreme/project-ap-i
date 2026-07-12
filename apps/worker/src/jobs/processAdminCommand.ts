@@ -9,6 +9,7 @@ import { logger } from '../logging/logger'
 import { createDriveStorage } from '../storage'
 
 import { deleteJobDriveFile } from './driveDelete'
+import { recoverStaleUploadingJobs } from './recoverStaleUploads'
 import { retryJob } from './retryJob'
 
 export interface ProcessAdminCommandResult {
@@ -61,6 +62,12 @@ async function executeCommand(cmd: DbAdminCommandRow): Promise<void> {
 
 /** Claims at most one pending admin command and executes it against the local worker. */
 export async function processNextAdminCommand(workerId: string): Promise<ProcessAdminCommandResult> {
+  try {
+    await recoverStaleUploadingJobs(workerId)
+  } catch (err) {
+    logger.warn({ msg: 'Stale upload recovery failed before admin command', workerId, err: String(err) })
+  }
+
   const cmd = await claimNextAdminCommand(workerId)
   if (!cmd) {
     return { processed: false }

@@ -56,6 +56,8 @@ export async function finalizeUploadStatus(
     await updateJobStatus(jobId, MOCK_UPLOAD_FINAL_STATUS, {
       uploaded_at: new Date().toISOString(),
       verification_due_at: new Date(Date.now() + config.VERIFY_DELAY_MINUTES * 60_000).toISOString(),
+      failure_code: null,
+      failure_reason: null,
     })
     return MOCK_UPLOAD_FINAL_STATUS
   }
@@ -75,6 +77,8 @@ export async function finalizeUploadStatus(
     await updateJobStatus(jobId, MOCK_UPLOAD_FINAL_STATUS, {
       uploaded_at: new Date().toISOString(),
       verification_due_at: new Date(Date.now() + partialRetryMinutes * 60_000).toISOString(),
+      failure_code: resolveUploadFailureCode(youtubeStatus, instagramStatus),
+      failure_reason: 'Partial platform upload failure — retry scheduled via verification',
     })
     return MOCK_UPLOAD_FINAL_STATUS
   }

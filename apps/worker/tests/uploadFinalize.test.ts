@@ -9,7 +9,7 @@ vi.mock('../src/db/jobsRepo', () => ({
 }))
 
 vi.mock('../src/config', () => ({
-  config: { VERIFY_DELAY_MINUTES: 30 },
+  config: { VERIFY_DELAY_MINUTES: 5 },
 }))
 
 import { finalizeUploadStatus, platformsNeedingUpload } from '../src/jobs/uploadFinalize'

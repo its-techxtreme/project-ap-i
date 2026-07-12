@@ -5,6 +5,7 @@ import { logger } from '../logging/logger'
 
 import { getUploadQueueStatus } from './ConcurrencyGuard'
 import { checkNicheDailyUploadLimits, dailyLimitDeferMessage } from './dailyUploadLimit'
+import { recoverStaleUploadingJobs } from './recoverStaleUploads'
 
 /**
  * Claim next queued job, with backpressure while a Playwright upload is active.
@@ -12,6 +13,17 @@ import { checkNicheDailyUploadLimits, dailyLimitDeferMessage } from './dailyUplo
  * Also skips niches whose YouTube/Instagram accounts already hit the daily upload cap.
  */
 export async function claimJob(workerId: string): Promise<DbJobRow | null> {
+  // Heal crash zombies before backpressure checks so one hung IG upload cannot
+  // freeze the queue forever after the worker restarts.
+  try {
+    const recovered = await recoverStaleUploadingJobs(workerId)
+    if (recovered > 0) {
+      logger.info({ msg: 'Recovered stale uploading jobs before claim', workerId, recovered })
+    }
+  } catch (err) {
+    logger.warn({ msg: 'Stale upload recovery failed before claim', workerId, err: String(err) })
+  }
+
   const uploadQueue = getUploadQueueStatus()
   if (uploadQueue.active > 0 || uploadQueue.pending > 0) {
     logger.info({

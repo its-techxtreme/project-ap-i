@@ -22,6 +22,7 @@ const EXPECTED_MIGRATIONS = [
   '0015_reclaim_stale_locks.sql',
   '0016_daily_upload_limit_claim_skip.sql',
   '0017_daily_upload_limit_rolling_24h.sql',
+  '0018_fix_claim_null_failure_code.sql',
 ]
 
 const RLS_TABLES = [
@@ -117,6 +118,11 @@ describe('db schema — migration files (static)', () => {
     const sql = readMigration('0017_daily_upload_limit_rolling_24h.sql')
     expect(sql).toMatch(/DAILY_UPLOAD_LIMIT_REACHED/)
     expect(sql).toMatch(/interval '24 hours'/)
+  })
+
+  it('claim_next_job NULL-safe daily deferral skip (0018)', () => {
+    const sql = readMigration('0018_fix_claim_null_failure_code.sql')
+    expect(sql).toMatch(/is not distinct from 'DAILY_UPLOAD_LIMIT_REACHED'/)
   })
 
   it('claim_next_job is restricted to service_role in function grants migration', () => {

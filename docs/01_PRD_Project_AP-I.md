@@ -51,7 +51,7 @@ Project AP-I solves this by turning every submitted link into a tracked job with
 5. Process each video using a fixed MVP edit preset: 1.1x speed, basic filter, and bottom-right translucent watermark.
 6. Generate YouTube title, YouTube description, and Instagram caption using a configured AI model provider.
 7. Upload each processed video to both platforms.
-8. Verify upload success around 30 minutes after upload.
+8. Verify upload success around 5 minutes after upload.
 9. Delete successfully uploaded staged files from Google Drive.
 10. Keep twice-failed files in Drive until manual cleanup.
 11. Provide an admin dashboard for status, failures, retry, and deletion.
@@ -152,7 +152,7 @@ Worker must authenticate with a server-side secret and must not use browser-expo
 13. AI metadata generation creates the YouTube title, YouTube description, and Instagram caption.
 14. Upload worker posts to the niche-mapped YouTube and Instagram accounts through Playwright MVP.
 15. Supabase records upload attempt IDs, timestamps, results, and failure reasons.
-16. Verification workflow checks both uploads after roughly 30 minutes.
+16. Verification workflow checks both uploads after roughly 5 minutes.
 17. If both uploads succeeded, the worker deletes the edited staged Drive file and marks the job `completed`.
 18. If upload fails twice, the job becomes `needs_manual_review`, and the Drive file remains available.
 19. Admin reviews failed jobs and can retry or delete files.
@@ -298,7 +298,7 @@ Every processed job shall upload to both the mapped YouTube account and the mapp
 
 ### FR-9: Verification
 
-The system shall verify upload success around 30 minutes after upload.
+The system shall verify upload success around 5 minutes after upload.
 
 Verification can use:
 

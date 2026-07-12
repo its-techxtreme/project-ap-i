@@ -94,7 +94,7 @@ export async function countAccountUploadsToday(
 
   const { data: inflight, error: inflightError } = await supabaseAdmin
     .from('jobs')
-    .select('id')
+    .select('id, lock_expires_at, updated_at')
     .eq(accountColumn, accountId)
     .eq('status', 'uploading')
     .eq(statusColumn, 'uploading')
@@ -108,9 +108,20 @@ export async function countAccountUploadsToday(
     })
   }
 
+  const nowIso = new Date().toISOString()
+  const staleCutoff = new Date(Date.now() - config.UPLOAD_STALE_THRESHOLD_MS).toISOString()
+
   for (const row of inflight ?? []) {
     const id = (row as { id?: string }).id
-    if (typeof id === 'string' && id.length > 0) successJobIds.add(id)
+    if (typeof id !== 'string' || id.length === 0) continue
+    const lockExpiresAt = (row as { lock_expires_at?: string | null }).lock_expires_at
+    const updatedAt = (row as { updated_at?: string | null }).updated_at
+    const lockActive = typeof lockExpiresAt === 'string' && lockExpiresAt > nowIso
+    const recentlyUpdated = typeof updatedAt === 'string' && updatedAt > staleCutoff
+    // Ignore crash zombies so they cannot permanently consume daily quota.
+    if (lockActive || recentlyUpdated) {
+      successJobIds.add(id)
+    }
   }
 
   return successJobIds.size

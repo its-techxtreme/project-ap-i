@@ -60,8 +60,11 @@ tokens/
 .DS_Store
 Thumbs.db
 
-# Editor
+# Editor / local AI tooling — do not publish agent prompts or editor rules
 .idea/
+.cursor/
+.cursorrules
+prompts/
 *.swp
 *.swo
 

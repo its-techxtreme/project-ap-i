@@ -1,5 +1,6 @@
 import { ERROR_CODES, ProjectApiError } from '@project-api/shared'
 
+import { config } from '../config'
 import { updateJobStatus, writeJobEvent } from '../db/jobsRepo'
 import { supabaseAdmin } from '../db/supabaseAdmin'
 import { logger } from '../logging/logger'
@@ -15,6 +16,33 @@ const TRANSIENT_UPLOAD_ATTEMPTS = 3
 
 function sleep(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms))
+}
+
+async function withUploadTimeout(
+  upload: Promise<UploadResult>,
+  platform: 'youtube' | 'instagram',
+  timeoutMs: number,
+): Promise<UploadResult> {
+  let timer: ReturnType<typeof setTimeout> | undefined
+  try {
+    return await Promise.race([
+      upload,
+      new Promise<UploadResult>((_, reject) => {
+        timer = setTimeout(() => {
+          reject(new Error(`${platform} upload timed out after ${timeoutMs}ms`))
+        }, timeoutMs)
+      }),
+    ])
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err)
+    return {
+      success: false,
+      errorCode: platform === 'youtube' ? 'YOUTUBE_UPLOAD_FAILED' : 'INSTAGRAM_UPLOAD_FAILED',
+      errorMessage: message,
+    }
+  } finally {
+    if (timer) clearTimeout(timer)
+  }
 }
 
 export class UploadCoordinator {
@@ -145,16 +173,20 @@ export class UploadCoordinator {
     }
 
     for (let transientTry = 0; transientTry < TRANSIENT_UPLOAD_ATTEMPTS; transientTry++) {
-      result = await uploader.upload({
-        jobId: job.id,
-        nicheSlug: job.nicheSlug,
-        driveFileId: job.driveFileId,
-        driveViewUrl: job.driveViewUrl,
-        localFilePath: job.localFilePath,
+      result = await withUploadTimeout(
+        uploader.upload({
+          jobId: job.id,
+          nicheSlug: job.nicheSlug,
+          driveFileId: job.driveFileId,
+          driveViewUrl: job.driveViewUrl,
+          localFilePath: job.localFilePath,
+          platform,
+          account,
+          metadata,
+        }),
         platform,
-        account,
-        metadata,
-      })
+        config.UPLOAD_PLATFORM_TIMEOUT_MS,
+      )
 
       if (result.success || result.loginRequired || !isTransientUploadFailure(result)) {
         break

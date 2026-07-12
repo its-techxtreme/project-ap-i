@@ -33,6 +33,7 @@ describe('statuses', () => {
       'failed',
       'needs_manual_review',
       'ignored',
+      'cancelled',
     ])
   })
 

@@ -3,6 +3,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 vi.mock('../src/config', () => ({
   config: {
     DAILY_UPLOAD_LIMIT_PER_ACCOUNT: 5,
+    UPLOAD_STALE_THRESHOLD_MS: 1_500_000,
   },
 }))
 

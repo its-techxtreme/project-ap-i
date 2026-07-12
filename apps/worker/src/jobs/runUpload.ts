@@ -1,6 +1,7 @@
 import { ERROR_CODES, ProjectApiError } from '@project-api/shared'
 
 import { getJobById, getNicheSlugById, updateJobStatus, writeJobEvent } from '../db/jobsRepo'
+import { supabaseAdmin } from '../db/supabaseAdmin'
 import { createUploadCoordinator } from '../uploaders'
 import { logger } from '../logging/logger'
 
@@ -143,6 +144,18 @@ async function runUploadInner(jobId: string): Promise<string> {
       await parkForDailyLimit(jobId, latest, ytNeeds, igNeeds, err.message)
       return 'ready_to_upload'
     }
+    // Unexpected failure mid-upload: settle inflight platforms so the queue unblocks.
+    const latest = await getJobById(jobId)
+    if (latest?.status === 'uploading') {
+      const msg = err instanceof Error ? err.message : String(err)
+      logger.error({ msg: 'Upload crashed mid-flight — finalizing partial state', jobId, error: msg })
+      await settleCrashedUpload(jobId, latest, msg)
+      return finalizeUploadStatus(
+        jobId,
+        (await getJobById(jobId))?.youtube_upload_status,
+        (await getJobById(jobId))?.instagram_upload_status,
+      )
+    }
     throw err
   } finally {
     await cleanup()
@@ -154,6 +167,51 @@ async function runUploadInner(jobId: string): Promise<string> {
     updatedJob?.youtube_upload_status,
     updatedJob?.instagram_upload_status,
   )
+}
+
+async function settleCrashedUpload(
+  jobId: string,
+  job: {
+    youtube_upload_status: string
+    instagram_upload_status: string
+  },
+  message: string,
+): Promise<void> {
+  const patch: Record<string, unknown> = {
+    locked_by: null,
+    locked_at: null,
+    lock_expires_at: null,
+  }
+  if (job.youtube_upload_status === 'uploading') {
+    patch.youtube_upload_status = 'failed'
+    await supabaseAdmin
+      .from('upload_attempts')
+      .update({
+        status: 'failed',
+        error_code: 'YOUTUBE_UPLOAD_FAILED',
+        error_message: message,
+        finished_at: new Date().toISOString(),
+      })
+      .eq('job_id', jobId)
+      .eq('platform', 'youtube')
+      .eq('status', 'started')
+  }
+  if (job.instagram_upload_status === 'uploading') {
+    patch.instagram_upload_status = 'failed'
+    await supabaseAdmin
+      .from('upload_attempts')
+      .update({
+        status: 'failed',
+        error_code: 'INSTAGRAM_UPLOAD_FAILED',
+        error_message: message,
+        finished_at: new Date().toISOString(),
+      })
+      .eq('job_id', jobId)
+      .eq('platform', 'instagram')
+      .eq('status', 'started')
+  }
+  await updateJobStatus(jobId, 'uploading', patch)
+  await writeJobEvent(jobId, 'upload', 'upload_crash_settled', message, 'error')
 }
 
 async function parkForDailyLimit(

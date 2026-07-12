@@ -52,6 +52,31 @@ async function saveDebugScreenshot(page: import('playwright').Page, jobId: strin
   }
 }
 
+/** Extract published video URL from Studio share dialog (anchor, input, or page text). */
+async function captureYoutubeShareUrl(page: import('playwright').Page): Promise<string | undefined> {
+  const link = page
+    .locator('a[href*="youtu.be/"], a[href*="youtube.com/watch"], a[href*="youtube.com/shorts/"]')
+    .first()
+  if (await link.isVisible({ timeout: 8_000 }).catch(() => false)) {
+    const href = (await link.getAttribute('href')) ?? undefined
+    if (href) return href
+  }
+
+  const input = page
+    .locator(
+      'input[value*="youtu.be/"], input[value*="youtube.com/watch"], input[value*="youtube.com/shorts/"], ytcp-video-share-dialog input, #share-url',
+    )
+    .first()
+  if (await input.isVisible({ timeout: 3_000 }).catch(() => false)) {
+    const value = (await input.inputValue().catch(() => '')) || (await input.getAttribute('value')) || ''
+    if (/youtu\.be\/|youtube\.com\/(watch|shorts)/i.test(value)) return value.trim()
+  }
+
+  const bodyText = await page.locator('body').innerText({ timeout: 3_000 }).catch(() => '')
+  const match = bodyText.match(/https?:\/\/(?:youtu\.be\/[\w-]+|www\.youtube\.com\/(?:watch\?v=[\w-]+|shorts\/[\w-]+))/)
+  return match?.[0]
+}
+
 export class YoutubePlaywrightUploader implements PlatformUploader {
   private readonly sessionChecker = new SessionHealthChecker()
 
@@ -310,12 +335,8 @@ export class YoutubePlaywrightUploader implements PlatformUploader {
 
       await humanReadingPause()
 
-      // Optional: capture share URL if dialog shows it
-      let platformUrl: string | undefined
-      const link = page.locator('a[href*="youtu.be/"], a[href*="youtube.com/watch"], a[href*="youtube.com/shorts/"]').first()
-      if (await link.isVisible({ timeout: 15_000 }).catch(() => false)) {
-        platformUrl = (await link.getAttribute('href')) ?? undefined
-      }
+      // Capture share URL from publish dialog (anchor, input field, or page text).
+      let platformUrl = await captureYoutubeShareUrl(page)
 
       const postChallenge = await detectLoginOrChallenge(page)
       if (postChallenge.loginRequired) {
@@ -330,12 +351,7 @@ export class YoutubePlaywrightUploader implements PlatformUploader {
         await saveDebugScreenshot(page, input.jobId, 'share-url-missing')
         // Studio sometimes needs a moment after Publish for the link to appear.
         await humanPause(2000, 4000)
-        const linkRetry = page
-          .locator('a[href*="youtu.be/"], a[href*="youtube.com/watch"], a[href*="youtube.com/shorts/"]')
-          .first()
-        if (await linkRetry.isVisible({ timeout: 20_000 }).catch(() => false)) {
-          platformUrl = (await linkRetry.getAttribute('href')) ?? undefined
-        }
+        platformUrl = await captureYoutubeShareUrl(page)
       }
 
       if (!platformUrl) {

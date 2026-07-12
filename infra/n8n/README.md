@@ -9,7 +9,7 @@ Confirmed: n8n must NOT run FFmpeg directly
 Confirmed: Poll interval is every 2 to 5 minutes (MVP: 2)
 Confirmed: Worker token must be sent in header named X-Worker-Token
 Confirmed: n8n should claim at most 1 job per poll cycle in MVP
-Confirmed: Verification delay is approximately 30 minutes after upload
+Confirmed: Verification delay is approximately 5 minutes after upload
 ```
 
 ## Prerequisites
@@ -91,7 +91,7 @@ pnpm n8n:test:all
 | Workflow | Trigger | Purpose |
 |----------|---------|---------|
 | WF-01 | Every 2 min | Claim one queued job → run WF-02 |
-| WF-02 | Called by WF-01 | Process → upload → wait ~30 min → run WF-03 |
+| WF-02 | Called by WF-01 | Process → upload → wait ~5 min → run WF-03 |
 | WF-03 | Called by WF-02 | Verify upload; retry or flag manual review |
 | WF-04 | Webhook | Optional local manual retry (`/project-ap-i/manual-retry`) |
 | WF-05 | Webhook | Optional local Drive cleanup (`/project-ap-i/drive-cleanup`) |
@@ -129,7 +129,7 @@ Checklist:
 
 1. WF-01 runs on schedule and claims at most one job per cycle
 2. All worker HTTP nodes use `WorkerToken` credential (not inline secrets)
-3. Verification wait is ~30 minutes (`VERIFY_DELAY_MINUTES`)
+3. Verification wait is ~5 minutes (`VERIFY_DELAY_MINUTES`)
 4. Failed executions appear in n8n execution history
 5. Webhook workflows reject requests without `X-Webhook-Token`
 

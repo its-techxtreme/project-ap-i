@@ -40,7 +40,11 @@ const configSchema = z.object({
   MAX_FFMPEG_CONCURRENCY: z.string().default('1').transform(Number),
   MAX_DOWNLOAD_CONCURRENCY: z.string().default('2').transform(Number),
   JOB_LOCK_MINUTES: z.string().default('45').transform(Number),
-  VERIFY_DELAY_MINUTES: z.string().default('30').transform(Number),
+  VERIFY_DELAY_MINUTES: z.string().default('5').transform(Number),
+  /** Mark uploading jobs stale after this many ms without progress (default 25m). */
+  UPLOAD_STALE_THRESHOLD_MS: z.string().default('1500000').transform(Number),
+  /** Hard timeout for a single platform Playwright upload (default 12m). */
+  UPLOAD_PLATFORM_TIMEOUT_MS: z.string().default('720000').transform(Number),
 
   WATERMARK_PATH: z.string().default('/app/assets/watermark.png'),
   /** Directory containing memes.png / anime.png / sports.png (niche watermarks). */

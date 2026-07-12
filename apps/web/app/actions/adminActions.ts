@@ -56,7 +56,14 @@ export async function retryJobUpload(jobId: string) {
     return { success: false, error: 'Job not found' }
   }
 
-  const retryableStatuses = ['failed', 'needs_manual_review', 'awaiting_verification', 'ready_to_upload']
+  const retryableStatuses = [
+    'failed',
+    'needs_manual_review',
+    'awaiting_verification',
+    'ready_to_upload',
+    // Crash zombies: worker may leave status=uploading with one platform done.
+    'uploading',
+  ]
   if (!retryableStatuses.includes(job.status)) {
     return { success: false, error: `Job status ${job.status} is not retryable` }
   }

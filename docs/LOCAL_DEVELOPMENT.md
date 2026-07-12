@@ -129,7 +129,7 @@ REAL_UPLOADS_ENABLED=false
 PLAYWRIGHT_HEADLESS=false
 PLAYWRIGHT_CHANNEL=chrome          # required when REAL_UPLOADS_ENABLED=true
 PLAYWRIGHT_PROFILES_DIR=C:\path\to\repo\playwright-profiles
-VERIFY_DELAY_MINUTES=30            # use 1–2 for local smoke only
+VERIFY_DELAY_MINUTES=5             # post-upload verify wait (use 1–2 for local smoke)
 WATERMARK_PATH=C:\path\to\repo\apps\worker\assets\watermark.png
 # Per-niche logos (default if unset: apps/worker/assets/watermarks/{memes,anime,sports}.png)
 # WATERMARKS_DIR=C:\path\to\repo\apps\worker\assets\watermarks

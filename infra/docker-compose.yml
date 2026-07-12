@@ -43,7 +43,7 @@ services:
       N8N_PORT: 5678
       # Default: native worker on host. Override with N8N_WORKER_BASE_URL for full profile.
       WORKER_BASE_URL: ${N8N_WORKER_BASE_URL:-http://host.docker.internal:3001}
-      VERIFY_DELAY_MINUTES: ${VERIFY_DELAY_MINUTES:-30}
+      VERIFY_DELAY_MINUTES: ${VERIFY_DELAY_MINUTES:-5}
       EXECUTIONS_DATA_SAVE_ON_ERROR: all
       EXECUTIONS_DATA_SAVE_ON_SUCCESS: all
       EXECUTIONS_DATA_PRUNE: 'true'
