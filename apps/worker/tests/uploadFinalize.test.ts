@@ -71,4 +71,9 @@ describe('uploadFinalize', () => {
     expect(platformsNeedingUpload('uploaded', 'uploaded')).toEqual([])
     expect(platformsNeedingUpload('verified', 'verified')).toEqual([])
   })
+
+  it('platformsNeedingUpload includes login_required for post-recovery retry', () => {
+    expect(platformsNeedingUpload('login_required', 'uploaded')).toEqual(['youtube'])
+    expect(platformsNeedingUpload('uploaded', 'login_required')).toEqual(['instagram'])
+  })
 })

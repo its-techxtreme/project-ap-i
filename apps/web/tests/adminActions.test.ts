@@ -17,6 +17,8 @@ const adminCommandsInsertMock = vi.fn()
 const adminCommandsSelectMock = vi.fn()
 const adminCommandsSingleMock = vi.fn()
 const platformAccountsSingleMock = vi.fn()
+const jobsDeleteMock = vi.fn()
+const jobsDeleteEqMock = vi.fn()
 
 const requireAdminMock = vi.fn<() => Promise<void>>()
 const getAdminUsernameMock = vi.fn<() => Promise<string | null>>()
@@ -42,6 +44,9 @@ vi.mock('@/lib/supabase/admin', () => ({
           }),
           update: vi.fn().mockReturnValue({
             eq: vi.fn().mockResolvedValue({ error: null }),
+          }),
+          delete: jobsDeleteMock.mockReturnValue({
+            eq: jobsDeleteEqMock.mockResolvedValue({ error: null }),
           }),
         }
       }
@@ -97,9 +102,15 @@ beforeEach(() => {
   adminCommandsSelectMock.mockReset()
   adminCommandsSingleMock.mockReset()
   platformAccountsSingleMock.mockReset()
+  jobsDeleteMock.mockReset()
+  jobsDeleteEqMock.mockReset()
 
   supabaseAdminEqMock.mockReturnValue({
     single: supabaseAdminSingleMock,
+  })
+
+  jobsDeleteMock.mockReturnValue({
+    eq: jobsDeleteEqMock.mockResolvedValue({ error: null }),
   })
 
   supabaseAdminSingleMock.mockResolvedValue({
@@ -388,5 +399,47 @@ describe('adminActions', () => {
     if (!result.success) {
       expect(result.error).toContain('requires login')
     }
+  })
+
+  it('deleteJobRecord() hard-deletes the job and writes audit log', async () => {
+    requireAdminMock.mockResolvedValue(undefined)
+
+    const { deleteJobRecord } = await import('@/app/actions/adminActions')
+    const result = await deleteJobRecord('job-test-1')
+
+    expect(result.success).toBe(true)
+    expect(jobsDeleteEqMock).toHaveBeenCalledWith('id', 'job-test-1')
+    expect(supabaseAdminInsertMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        actor_type: 'admin',
+        action: 'job_deleted',
+        target_type: 'job',
+        target_id: 'job-test-1',
+      }),
+    )
+  })
+
+  it('deleteJobRecord() blocks active in-flight statuses', async () => {
+    requireAdminMock.mockResolvedValueOnce(undefined)
+    supabaseAdminSingleMock.mockResolvedValueOnce({
+      data: {
+        id: 'job-test-1',
+        status: 'uploading',
+        drive_file_id: 'drive-1',
+        drive_deleted_at: null,
+        source_url: 'https://www.youtube.com/shorts/x',
+        niche_id: 'niche-1',
+      },
+      error: null,
+    })
+
+    const { deleteJobRecord } = await import('@/app/actions/adminActions')
+    const result = await deleteJobRecord('job-test-1')
+
+    expect(result.success).toBe(false)
+    if (!result.success) {
+      expect(result.error).toContain('uploading')
+    }
+    expect(jobsDeleteEqMock).not.toHaveBeenCalled()
   })
 })

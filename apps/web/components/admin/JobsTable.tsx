@@ -3,8 +3,9 @@
 import Link from 'next/link'
 import { useState, type ReactNode } from 'react'
 import { Ban, ExternalLink, Eye, RotateCcw, Trash2 } from 'lucide-react'
+import { useRouter } from 'next/navigation'
 
-import { cancelJob, deleteDriveFile, retryJobUpload } from '@/app/actions/adminActions'
+import { cancelJob, deleteJobRecord, retryJobUpload } from '@/app/actions/adminActions'
 import { StatusBadge } from '@/components/app/StatusBadge'
 import type { JobListRow } from '@/lib/data/adminQueries'
 import { shortId, truncateText } from '@/lib/format/relativeTime'
@@ -68,39 +69,64 @@ function SoftChip({ children }: { children: ReactNode }) {
 }
 
 export function JobsTable({ jobs }: { jobs: JobListRow[] }) {
+  const router = useRouter()
   const [dialogOpen, setDialogOpen] = useState(false)
   const [dialogMode, setDialogMode] = useState<'delete' | 'cancel'>('delete')
-  const [pendingDeleteId, setPendingDeleteId] = useState<string | null>(null)
+  const [pendingJobId, setPendingJobId] = useState<string | null>(null)
   const [actionMessage, setActionMessage] = useState<string | null>(null)
+  const [busy, setBusy] = useState(false)
 
   async function handleRetry(jobId: string) {
-    const result = await retryJobUpload(jobId)
-    setActionMessage(result.error ?? 'Retry requested.')
+    setBusy(true)
+    try {
+      const result = await retryJobUpload(jobId)
+      setActionMessage(
+        result.success
+          ? (result.message ?? 'Retry queued. Runs when local worker/n8n is up.')
+          : (result.error ?? 'Retry failed.'),
+      )
+      if (result.success) router.refresh()
+    } finally {
+      setBusy(false)
+    }
   }
 
   function openDeleteDialog(jobId: string) {
-    setPendingDeleteId(jobId)
+    setPendingJobId(jobId)
     setDialogMode('delete')
     setDialogOpen(true)
   }
 
   function openCancelDialog(jobId: string) {
-    setPendingDeleteId(jobId)
+    setPendingJobId(jobId)
     setDialogMode('cancel')
     setDialogOpen(true)
   }
 
   async function confirmDialog() {
-    if (!pendingDeleteId) return
-    if (dialogMode === 'cancel') {
-      const result = await cancelJob(pendingDeleteId)
-      setActionMessage(result.error ?? 'Job cancelled.')
-    } else {
-      const result = await deleteDriveFile(pendingDeleteId)
-      setActionMessage(result.error ?? 'Delete requested.')
+    if (!pendingJobId) return
+    setBusy(true)
+    try {
+      if (dialogMode === 'cancel') {
+        const result = await cancelJob(pendingJobId)
+        setActionMessage(
+          result.success ? 'Job cancelled.' : (result.error ?? 'Cancel failed.'),
+        )
+        if (result.success) router.refresh()
+      } else {
+        const result = await deleteJobRecord(pendingJobId)
+        setActionMessage(
+          result.success
+            ? (result.message ?? 'Job deleted.')
+            : (result.error ?? 'Delete failed.'),
+        )
+        if (result.success) router.refresh()
+      }
+    } finally {
+      setBusy(false)
+      setDialogOpen(false)
+      setPendingJobId(null)
     }
-    setDialogOpen(false)
-    setPendingDeleteId(null)
   }
 
   if (jobs.length === 0) {
@@ -113,15 +139,14 @@ export function JobsTable({ jobs }: { jobs: JobListRow[] }) {
 
   return (
     <>
-      <AdminAutoRefresh paused={dialogOpen} />
+      <AdminAutoRefresh paused={dialogOpen || busy} />
       {actionMessage ? (
-        <p className="notice-warn mb-3 rounded-md border px-3 py-2 text-sm">
-          {actionMessage}
-        </p>
+        <p className="notice-warn mb-3 rounded-md border px-3 py-2 text-sm">{actionMessage}</p>
       ) : null}
+
       <div className="panel-surface overflow-hidden rounded-xl border border-border">
         <div className="overflow-x-auto">
-          <table className="w-full min-w-[880px] text-left text-sm">
+          <table className="w-full min-w-[980px] text-left text-sm">
             <thead className="border-b border-border bg-muted/40 text-[10px] uppercase tracking-[0.08em] text-muted-foreground">
               <tr>
                 <th className="px-2.5 py-2.5 font-medium">Queue</th>
@@ -144,20 +169,16 @@ export function JobsTable({ jobs }: { jobs: JobListRow[] }) {
                   key={job.id}
                   className="bg-row-hover border-b border-border/60 last:border-b-0 transition-colors"
                 >
-                  <td className="px-2.5 py-2 text-xs tabular-nums text-muted-foreground">
+                  <td className="px-2.5 py-2 font-mono text-xs text-muted-foreground">
                     {job.queue_position != null ? `#${job.queue_position}` : '—'}
                   </td>
                   <td className="px-2.5 py-2 font-mono text-xs text-foreground/90">
                     {shortId(job.id)}
                   </td>
-                  <td className="whitespace-nowrap px-2.5 py-2 text-xs text-muted-foreground">
+                  <td className="px-2.5 py-2 text-xs text-muted-foreground">
                     {job.created_at_label}
                   </td>
-                  <td className="px-2.5 py-2 text-xs">
-                    <SoftChip>
-                      {job.source_platform === 'youtube' ? 'YouTube' : 'Instagram'}
-                    </SoftChip>
-                  </td>
+                  <td className="px-2.5 py-2 text-xs capitalize">{job.source_platform}</td>
                   <td className="px-2.5 py-2 text-xs">
                     <SoftChip>{job.niche_name}</SoftChip>
                   </td>
@@ -170,8 +191,8 @@ export function JobsTable({ jobs }: { jobs: JobListRow[] }) {
                   <td className="px-2.5 py-2">
                     <StatusBadge status={job.instagram_upload_status} />
                   </td>
-                  <td className="px-2.5 py-2">
-                    <div className="flex items-center gap-2 text-xs">
+                  <td className="px-2.5 py-2 text-xs">
+                    <div className="flex flex-wrap gap-2">
                       {job.youtube_url ? (
                         <a
                           href={job.youtube_url}
@@ -225,7 +246,7 @@ export function JobsTable({ jobs }: { jobs: JobListRow[] }) {
                       <ActionIcon label="Open source URL" href={job.source_url} external>
                         <ExternalLink className="size-3.5" />
                       </ActionIcon>
-                      <ActionIcon label="Retry upload" onClick={() => handleRetry(job.id)}>
+                      <ActionIcon label="Retry upload" onClick={() => void handleRetry(job.id)}>
                         <RotateCcw className="size-3.5" />
                       </ActionIcon>
                       <ActionIcon
@@ -236,7 +257,7 @@ export function JobsTable({ jobs }: { jobs: JobListRow[] }) {
                         <Ban className="size-3.5" />
                       </ActionIcon>
                       <ActionIcon
-                        label="Delete Drive file"
+                        label="Delete job"
                         tone="danger"
                         onClick={() => openDeleteDialog(job.id)}
                       >
@@ -261,17 +282,17 @@ export function JobsTable({ jobs }: { jobs: JobListRow[] }) {
 
       <ConfirmDialog
         open={dialogOpen}
-        title={dialogMode === 'cancel' ? 'Cancel this job?' : 'Delete staged Drive file?'}
+        title={dialogMode === 'cancel' ? 'Cancel this job?' : 'Delete this job entry?'}
         description={
           dialogMode === 'cancel'
             ? 'This stops automatic processing and retries for the job. Existing platform posts are not deleted. Continue?'
-            : 'This will delete the selected staged video file(s) from Google Drive. The job record and logs will remain in Supabase. Continue?'
+            : 'This permanently removes the job record and its logs from Supabase. YouTube/Instagram posts are not deleted. Staged Drive files are not auto-deleted — remove those from Failed Review first if needed. Continue?'
         }
-        confirmLabel={dialogMode === 'cancel' ? 'Cancel job' : 'Delete Drive file'}
-        onConfirm={confirmDialog}
+        confirmLabel={dialogMode === 'cancel' ? 'Cancel job' : 'Delete job'}
+        onConfirm={() => void confirmDialog()}
         onCancel={() => {
           setDialogOpen(false)
-          setPendingDeleteId(null)
+          setPendingJobId(null)
         }}
       />
     </>

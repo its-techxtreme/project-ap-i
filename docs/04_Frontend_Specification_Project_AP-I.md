@@ -346,12 +346,13 @@ Actions:
 ```text
 View details
 Retry upload
-Retry full processing
 Open source
 Open Drive file
-Delete Drive file if failed
-Mark ignored
+Cancel job
+Delete job entry (permanent; does not remove platform posts)
 ```
+
+Drive file deletion remains on Failed Review (bulk + per-row).
 
 ## Job details page/drawer
 

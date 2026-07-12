@@ -216,6 +216,65 @@ export async function cancelJob(jobId: string) {
   return { success: true, jobId }
 }
 
+/**
+ * Permanently delete a job row from Supabase (cascades events/attempts/commands).
+ * Does not remove YouTube/Instagram posts. Staged Drive files are not deleted —
+ * remove those first from Failed Review when a Drive link still exists.
+ */
+export async function deleteJobRecord(jobId: string) {
+  await requireAdmin()
+
+  const { data: job, error: jobError } = await supabaseAdmin
+    .from('jobs')
+    .select('id, status, drive_file_id, drive_deleted_at, source_url, niche_id')
+    .eq('id', jobId)
+    .single()
+
+  if (jobError || !job) {
+    return { success: false, error: 'Job not found' }
+  }
+
+  const blocked = ['locked', 'downloading', 'processing', 'uploading', 'staging_to_drive']
+  if (blocked.includes(job.status)) {
+    return {
+      success: false,
+      error: `Job is actively ${job.status}. Cancel it or wait until it finishes, then delete.`,
+    }
+  }
+
+  const username = await getAdminUsername()
+  const hasDrive = Boolean(job.drive_file_id) && !job.drive_deleted_at
+
+  await supabaseAdmin.from('audit_logs').insert({
+    actor_type: 'admin',
+    action: 'job_deleted',
+    target_type: 'job',
+    target_id: jobId,
+    metadata: {
+      username,
+      status_before: job.status,
+      drive_file_id: job.drive_file_id,
+      drive_deleted_at: job.drive_deleted_at,
+      source_url: job.source_url,
+      niche_id: job.niche_id,
+      orphan_drive_possible: hasDrive,
+    },
+  })
+
+  const { error: deleteError } = await supabaseAdmin.from('jobs').delete().eq('id', jobId)
+  if (deleteError) {
+    return { success: false, error: deleteError.message }
+  }
+
+  return {
+    success: true,
+    jobId,
+    message: hasDrive
+      ? 'Job deleted. A staged Drive file may still exist — delete it from Drive if needed.'
+      : 'Job deleted.',
+  }
+}
+
 /** Mark job ignored (DB-only; no worker required). */
 export async function markJobIgnored(jobId: string) {
   await requireAdmin()

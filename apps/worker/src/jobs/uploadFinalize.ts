@@ -95,7 +95,14 @@ export function platformsNeedingUpload(
   instagramStatus: UploadStatus,
   requested?: Platform,
 ): Platform[] {
-  const retryable = new Set(['failed', 'retry_scheduled', 'uploading', 'pending'])
+  // login_required must be retryable after admin recovers the browser session.
+  const retryable = new Set([
+    'failed',
+    'retry_scheduled',
+    'uploading',
+    'pending',
+    'login_required',
+  ])
   const needs = (status: UploadStatus) => retryable.has(status ?? 'pending')
 
   if (requested === 'youtube') {

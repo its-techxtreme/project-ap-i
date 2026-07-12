@@ -16,6 +16,8 @@ vi.mock('@/components/admin/AdminAutoRefresh', () => ({
 vi.mock('@/app/actions/adminActions', () => ({
   retryJobUpload: vi.fn().mockResolvedValue({ success: false, error: 'stub' }),
   deleteDriveFile: vi.fn().mockResolvedValue({ success: false, error: 'stub' }),
+  deleteJobRecord: vi.fn().mockResolvedValue({ success: true, message: 'Job deleted.' }),
+  cancelJob: vi.fn().mockResolvedValue({ success: true, jobId: 'job-1' }),
   markJobIgnored: vi.fn().mockResolvedValue({ success: false, error: 'stub' }),
   bulkRetryJobUploads: vi.fn().mockResolvedValue({
     success: true,
@@ -136,6 +138,7 @@ describe('JobsTable', () => {
     expect(screen.getByLabelText('View details')).toBeInTheDocument()
     expect(screen.getByLabelText('Retry upload')).toBeInTheDocument()
     expect(screen.getByLabelText('Cancel job')).toBeInTheDocument()
+    expect(screen.getByLabelText('Delete job')).toBeInTheDocument()
   }, 15_000)
 
   it('shows "No jobs yet." when empty', async () => {

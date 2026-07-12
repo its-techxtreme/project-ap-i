@@ -15,6 +15,15 @@ describe('platformsNeedingUpload', () => {
     expect(platformsNeedingUpload('pending', 'uploaded', 'instagram')).toEqual([])
     expect(platformsNeedingUpload('failed', 'uploaded', 'youtube')).toEqual(['youtube'])
   })
+
+  it('retries login_required platforms after session recovery', () => {
+    expect(platformsNeedingUpload('login_required', 'uploaded')).toEqual(['youtube'])
+    expect(platformsNeedingUpload('uploaded', 'login_required')).toEqual(['instagram'])
+    expect(platformsNeedingUpload('login_required', 'login_required')).toEqual([
+      'youtube',
+      'instagram',
+    ])
+  })
 })
 
 describe('isTransientUploadFailure', () => {
