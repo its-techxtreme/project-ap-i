@@ -65,6 +65,10 @@ Thumbs.db
 .cursor/
 .cursorrules
 prompts/
+docs/hackclub-ship-copy.md
+docs/10_Cursor_Rules_Project_AP-I.md
+docs/11_Cursor_Detailed_Execution_Plan_Project_AP-I.md
+docs/12_Phase_Based_Delivery_Plan_Project_AP-I.md
 *.swp
 *.swo
 

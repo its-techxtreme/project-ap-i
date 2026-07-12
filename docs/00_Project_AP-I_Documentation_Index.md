@@ -39,7 +39,7 @@ Changes from v1.1:
 
 ## Version 1.1 update summary
 
-This pack updates the original Project AP-I documentation with the finalized niche model and replaces the earlier Cursor implementation plan with a stricter Cursor build system:
+This pack updates the original Project AP-I documentation with the finalized niche model:
 
 1. Finalized niches are `Memes`, `Anime`, and `Sports`.
 2. Every niche maps to exactly one YouTube account and one Instagram account.
@@ -47,8 +47,6 @@ This pack updates the original Project AP-I documentation with the finalized nic
 4. No manual target-account selector is exposed to submitters.
 5. No burned-in subtitles are required; Instagram caption means post text/description only.
 6. Failed twice-uploaded jobs remain in Google Drive until admin cleanup.
-7. New `.cursorrules` file is included for strict implementation and testing behavior.
-8. New Cursor execution plan and phase-based delivery plan are included.
 
 ## Document set
 
@@ -62,19 +60,6 @@ This pack updates the original Project AP-I documentation with the finalized nic
 8. `07_Database_Storage_Design_Project_AP-I` - Supabase schema, seed data, indexes, RLS overview, and Google Drive lifecycle.
 9. `08_Authentication_Security_Project_AP-I` - Auth model, roles, secrets, URL security, RLS, and incident response.
 10. `09_Deployment_Operations_Runbook_Project_AP-I` - Deployment setup, health checks, monitoring, failures, and launch plan.
-11. `10_Cursor_Rules_Project_AP-I` - Human-readable version of the Cursor rules, matching the included `.cursorrules` file.
-12. `11_Cursor_Detailed_Execution_Plan_Project_AP-I` - Cursor-friendly implementation sequence, prompts, commands, checkpoints, and bug-fix loop.
-13. `12_Phase_Based_Delivery_Plan_Project_AP-I` - Highly detailed phased delivery plan with completion tests and usability checks.
-
-## Included non-PDF control file
-
-The pack also includes:
-
-```text
-.cursorrules
-```
-
-This file should be placed at the root of the repository before building with Cursor. It is not only a documentation file; it is a working instruction file for Cursor.
 
 ## Recommended reading order
 
@@ -82,16 +67,13 @@ This file should be placed at the root of the repository before building with Cu
 01 PRD
 02 Architecture
 03 Tech Stack
+LOCAL_DEVELOPMENT
 07 Database
 08 Security
 04 Frontend
 05 Backend Worker
 06 n8n Workflows
 09 Operations
-10 Cursor Rules
-11 Cursor Detailed Execution Plan
-12 Phase-Based Delivery Plan
-.cursorrules
 ```
 
 ## MVP architecture in one paragraph

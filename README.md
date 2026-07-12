@@ -205,7 +205,6 @@ infra/n8n/         Workflow JSON + n8n docs
 infra/google-drive/ Drive OAuth setup
 scripts/           stack:up, env helpers, n8n import
 docs/              Specs and runbooks
-prompts/           Phase execution prompts
 ```
 
 ---
