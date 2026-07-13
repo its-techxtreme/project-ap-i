@@ -13,7 +13,10 @@
       "name": "Drive Cleanup Webhook",
       "type": "n8n-nodes-base.webhook",
       "typeVersion": 2,
-      "position": [240, 300],
+      "position": [
+        240,
+        300
+      ],
       "webhookId": "project-ap-i-drive-cleanup",
       "credentials": {
         "httpHeaderAuth": {
@@ -33,13 +36,16 @@
       "name": "Delete Drive File",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
-      "position": [480, 300],
+      "position": [
+        480,
+        300
+      ],
+      "onError": "continueErrorOutput",
       "credentials": {
         "httpHeaderAuth": {
           "name": "WorkerToken"
         }
-      },
-      "onError": "continueErrorOutput"
+      }
     },
     {
       "parameters": {
@@ -53,7 +59,10 @@
       "name": "Respond Success",
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1.1,
-      "position": [720, 220]
+      "position": [
+        720,
+        220
+      ]
     },
     {
       "parameters": {
@@ -67,7 +76,10 @@
       "name": "Respond Error",
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1.1,
-      "position": [720, 420]
+      "position": [
+        720,
+        420
+      ]
     }
   ],
   "connections": {
@@ -103,16 +115,7 @@
   },
   "settings": {
     "executionOrder": "v1",
-    "saveManualExecutions": false
+    "callerPolicy": "workflowsFromSameOwner"
   },
-  "staticData": null,
-  "meta": {
-    "templateCredsSetupCompleted": false
-  },
-  "pinData": {},
-  "tags": [
-    {
-      "name": "project-ap-i"
-    }
-  ]
+  "staticData": null
 }

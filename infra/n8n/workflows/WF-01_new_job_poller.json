@@ -16,7 +16,10 @@
       "name": "Every 2 Minutes",
       "type": "n8n-nodes-base.scheduleTrigger",
       "typeVersion": 1.2,
-      "position": [240, 300]
+      "position": [
+        240,
+        300
+      ]
     },
     {
       "parameters": {
@@ -37,13 +40,16 @@
       "name": "Claim Next Job",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
-      "position": [480, 300],
+      "position": [
+        480,
+        300
+      ],
+      "onError": "continueErrorOutput",
       "credentials": {
         "httpHeaderAuth": {
           "name": "WorkerToken"
         }
-      },
-      "onError": "continueErrorOutput"
+      }
     },
     {
       "parameters": {
@@ -74,7 +80,10 @@
       "name": "Job Claimed?",
       "type": "n8n-nodes-base.if",
       "typeVersion": 2.2,
-      "position": [720, 300]
+      "position": [
+        720,
+        300
+      ]
     },
     {
       "parameters": {
@@ -94,7 +103,10 @@
       "name": "Prepare Job Payload",
       "type": "n8n-nodes-base.set",
       "typeVersion": 3.4,
-      "position": [960, 220]
+      "position": [
+        960,
+        220
+      ]
     },
     {
       "parameters": {
@@ -116,7 +128,10 @@
       "name": "Run WF-02 Process Job",
       "type": "n8n-nodes-base.executeWorkflow",
       "typeVersion": 1.2,
-      "position": [1200, 220]
+      "position": [
+        1200,
+        220
+      ]
     },
     {
       "parameters": {},
@@ -124,7 +139,10 @@
       "name": "No Queued Jobs",
       "type": "n8n-nodes-base.noOp",
       "typeVersion": 1,
-      "position": [960, 400]
+      "position": [
+        960,
+        400
+      ]
     },
     {
       "parameters": {},
@@ -132,7 +150,10 @@
       "name": "Claim Error",
       "type": "n8n-nodes-base.noOp",
       "typeVersion": 1,
-      "position": [720, 520]
+      "position": [
+        720,
+        520
+      ]
     }
   ],
   "connections": {
@@ -197,17 +218,7 @@
   },
   "settings": {
     "executionOrder": "v1",
-    "saveManualExecutions": false,
     "callerPolicy": "workflowsFromSameOwner"
   },
-  "staticData": null,
-  "meta": {
-    "templateCredsSetupCompleted": false
-  },
-  "pinData": {},
-  "tags": [
-    {
-      "name": "project-ap-i"
-    }
-  ]
+  "staticData": null
 }

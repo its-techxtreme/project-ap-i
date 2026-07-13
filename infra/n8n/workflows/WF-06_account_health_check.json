@@ -16,7 +16,10 @@
       "name": "Every 6 Hours",
       "type": "n8n-nodes-base.scheduleTrigger",
       "typeVersion": 1.2,
-      "position": [240, 300]
+      "position": [
+        240,
+        300
+      ]
     },
     {
       "parameters": {
@@ -41,7 +44,10 @@
       "name": "Query Login Required Accounts",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
-      "position": [480, 220]
+      "position": [
+        480,
+        220
+      ]
     },
     {
       "parameters": {
@@ -66,7 +72,10 @@
       "name": "Query Stale Upload Accounts",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
-      "position": [480, 400]
+      "position": [
+        480,
+        400
+      ]
     },
     {
       "parameters": {
@@ -96,7 +105,10 @@
       "name": "Any Login Required?",
       "type": "n8n-nodes-base.if",
       "typeVersion": 2.2,
-      "position": [720, 220]
+      "position": [
+        720,
+        220
+      ]
     },
     {
       "parameters": {
@@ -126,7 +138,10 @@
       "name": "Any Stale Accounts?",
       "type": "n8n-nodes-base.if",
       "typeVersion": 2.2,
-      "position": [720, 400]
+      "position": [
+        720,
+        400
+      ]
     },
     {
       "parameters": {},
@@ -134,7 +149,10 @@
       "name": "Alert Login Required",
       "type": "n8n-nodes-base.noOp",
       "typeVersion": 1,
-      "position": [960, 160]
+      "position": [
+        960,
+        160
+      ]
     },
     {
       "parameters": {},
@@ -142,7 +160,10 @@
       "name": "Alert Stale Uploads",
       "type": "n8n-nodes-base.noOp",
       "typeVersion": 1,
-      "position": [960, 340]
+      "position": [
+        960,
+        340
+      ]
     },
     {
       "parameters": {},
@@ -150,7 +171,10 @@
       "name": "All Healthy",
       "type": "n8n-nodes-base.noOp",
       "typeVersion": 1,
-      "position": [960, 520]
+      "position": [
+        960,
+        520
+      ]
     }
   ],
   "connections": {
@@ -225,16 +249,7 @@
   },
   "settings": {
     "executionOrder": "v1",
-    "saveManualExecutions": false
+    "callerPolicy": "workflowsFromSameOwner"
   },
-  "staticData": null,
-  "meta": {
-    "templateCredsSetupCompleted": false
-  },
-  "pinData": {},
-  "tags": [
-    {
-      "name": "project-ap-i"
-    }
-  ]
+  "staticData": null
 }

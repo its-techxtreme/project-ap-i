@@ -17,7 +17,10 @@
       "name": "When Executed by Another Workflow",
       "type": "n8n-nodes-base.executeWorkflowTrigger",
       "typeVersion": 1.1,
-      "position": [240, 300]
+      "position": [
+        240,
+        300
+      ]
     },
     {
       "parameters": {
@@ -31,13 +34,16 @@
       "name": "Verify Upload",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
-      "position": [480, 300],
+      "position": [
+        480,
+        300
+      ],
+      "onError": "continueErrorOutput",
       "credentials": {
         "httpHeaderAuth": {
           "name": "WorkerToken"
         }
-      },
-      "onError": "continueErrorOutput"
+      }
     },
     {
       "parameters": {
@@ -68,7 +74,10 @@
       "name": "Completed?",
       "type": "n8n-nodes-base.if",
       "typeVersion": 2.2,
-      "position": [720, 300]
+      "position": [
+        720,
+        300
+      ]
     },
     {
       "parameters": {
@@ -99,7 +108,10 @@
       "name": "Needs Manual Review?",
       "type": "n8n-nodes-base.if",
       "typeVersion": 2.2,
-      "position": [960, 400]
+      "position": [
+        960,
+        400
+      ]
     },
     {
       "parameters": {
@@ -130,7 +142,10 @@
       "name": "Retry Scheduled?",
       "type": "n8n-nodes-base.if",
       "typeVersion": 2.2,
-      "position": [1200, 500]
+      "position": [
+        1200,
+        500
+      ]
     },
     {
       "parameters": {},
@@ -138,7 +153,10 @@
       "name": "Verification Complete",
       "type": "n8n-nodes-base.noOp",
       "typeVersion": 1,
-      "position": [960, 180]
+      "position": [
+        960,
+        180
+      ]
     },
     {
       "parameters": {},
@@ -146,7 +164,10 @@
       "name": "Notify Admin Manual Review",
       "type": "n8n-nodes-base.noOp",
       "typeVersion": 1,
-      "position": [1200, 320]
+      "position": [
+        1200,
+        320
+      ]
     },
     {
       "parameters": {
@@ -157,7 +178,10 @@
       "name": "Wait 5 Minutes",
       "type": "n8n-nodes-base.wait",
       "typeVersion": 1.1,
-      "position": [1440, 420],
+      "position": [
+        1440,
+        420
+      ],
       "webhookId": "wf03-retry-wait"
     },
     {
@@ -178,7 +202,10 @@
       "name": "Prepare Retry Payload",
       "type": "n8n-nodes-base.set",
       "typeVersion": 3.4,
-      "position": [1680, 420]
+      "position": [
+        1680,
+        420
+      ]
     },
     {
       "parameters": {},
@@ -186,7 +213,10 @@
       "name": "Verify Error",
       "type": "n8n-nodes-base.noOp",
       "typeVersion": 1,
-      "position": [720, 520]
+      "position": [
+        720,
+        520
+      ]
     },
     {
       "parameters": {
@@ -200,13 +230,16 @@
       "name": "Retry Upload",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
-      "position": [1920, 420],
+      "position": [
+        1920,
+        420
+      ],
+      "onError": "continueErrorOutput",
       "credentials": {
         "httpHeaderAuth": {
           "name": "WorkerToken"
         }
-      },
-      "onError": "continueErrorOutput"
+      }
     }
   ],
   "connections": {
@@ -330,17 +363,7 @@
   },
   "settings": {
     "executionOrder": "v1",
-    "saveManualExecutions": false,
     "callerPolicy": "workflowsFromSameOwner"
   },
-  "staticData": null,
-  "meta": {
-    "templateCredsSetupCompleted": false
-  },
-  "pinData": {},
-  "tags": [
-    {
-      "name": "project-ap-i"
-    }
-  ]
+  "staticData": null
 }

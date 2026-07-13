@@ -3,12 +3,10 @@
   "nodes": [
     {
       "parameters": {
-        "inputSource": "workflowInputs",
         "workflowInputs": {
           "values": [
             {
-              "name": "jobId",
-              "type": "string"
+              "name": "jobId"
             }
           ]
         }
@@ -19,7 +17,7 @@
       "typeVersion": 1.1,
       "position": [
         240,
-        300
+        304
       ]
     },
     {
@@ -38,14 +36,14 @@
       "typeVersion": 4.2,
       "position": [
         480,
-        300
+        304
       ],
+      "onError": "continueErrorOutput",
       "credentials": {
         "httpHeaderAuth": {
           "name": "WorkerToken"
         }
-      },
-      "onError": "continueErrorOutput"
+      }
     },
     {
       "parameters": {
@@ -63,14 +61,14 @@
       "typeVersion": 4.2,
       "position": [
         720,
-        220
+        224
       ],
+      "onError": "continueErrorOutput",
       "credentials": {
         "httpHeaderAuth": {
           "name": "WorkerToken"
         }
-      },
-      "onError": "continueErrorOutput"
+      }
     },
     {
       "parameters": {
@@ -85,7 +83,7 @@
             {
               "id": "a2000002-0002-4000-8000-000000000011",
               "name": "verificationDueAt",
-              "value": "={{ $now.plus({ minutes: Number($env.VERIFY_DELAY_MINUTES || 5) }).toISO() }}",
+              "value": "={{ $now.plus({ minutes: Number($env.VERIFY_DELAY_MINUTES || 30) }).toISO() }}",
               "type": "string"
             }
           ]
@@ -98,12 +96,12 @@
       "typeVersion": 3.4,
       "position": [
         960,
-        220
+        224
       ]
     },
     {
       "parameters": {
-        "amount": "={{ Number($env.VERIFY_DELAY_MINUTES || 5) }}",
+        "amount": "={{ Number($env.VERIFY_DELAY_MINUTES || 30) }}",
         "unit": "minutes"
       },
       "id": "a2000002-0002-4000-8000-000000000005",
@@ -112,7 +110,7 @@
       "typeVersion": 1.1,
       "position": [
         1200,
-        220
+        224
       ],
       "webhookId": "wf02-verify-wait"
     },
@@ -138,7 +136,7 @@
       "typeVersion": 1.2,
       "position": [
         1440,
-        220
+        224
       ]
     },
     {
@@ -148,8 +146,8 @@
       "type": "n8n-nodes-base.noOp",
       "typeVersion": 1,
       "position": [
-        720,
-        460
+        1088,
+        512
       ]
     }
   ],
@@ -226,17 +224,7 @@
   },
   "settings": {
     "executionOrder": "v1",
-    "saveManualExecutions": false,
     "callerPolicy": "workflowsFromSameOwner"
   },
-  "staticData": null,
-  "meta": {
-    "templateCredsSetupCompleted": false
-  },
-  "pinData": {},
-  "tags": [
-    {
-      "name": "project-ap-i"
-    }
-  ]
+  "staticData": null
 }

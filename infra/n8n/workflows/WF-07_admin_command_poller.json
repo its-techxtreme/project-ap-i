@@ -16,7 +16,10 @@
       "name": "Every 1 Minute",
       "type": "n8n-nodes-base.scheduleTrigger",
       "typeVersion": 1.2,
-      "position": [240, 300]
+      "position": [
+        240,
+        300
+      ]
     },
     {
       "parameters": {
@@ -37,13 +40,16 @@
       "name": "Process Next Admin Command",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
-      "position": [480, 300],
+      "position": [
+        480,
+        300
+      ],
+      "onError": "continueErrorOutput",
       "credentials": {
         "httpHeaderAuth": {
           "name": "WorkerToken"
         }
-      },
-      "onError": "continueErrorOutput"
+      }
     },
     {
       "parameters": {
@@ -74,7 +80,10 @@
       "name": "Command Processed?",
       "type": "n8n-nodes-base.if",
       "typeVersion": 2.2,
-      "position": [720, 300]
+      "position": [
+        720,
+        300
+      ]
     },
     {
       "parameters": {
@@ -94,7 +103,10 @@
       "name": "Log Result",
       "type": "n8n-nodes-base.set",
       "typeVersion": 3.4,
-      "position": [960, 220]
+      "position": [
+        960,
+        220
+      ]
     },
     {
       "parameters": {
@@ -114,7 +126,10 @@
       "name": "No Pending Command",
       "type": "n8n-nodes-base.set",
       "typeVersion": 3.4,
-      "position": [960, 400]
+      "position": [
+        960,
+        400
+      ]
     }
   ],
   "connections": {
@@ -160,12 +175,8 @@
     }
   },
   "settings": {
-    "executionOrder": "v1"
+    "executionOrder": "v1",
+    "callerPolicy": "workflowsFromSameOwner"
   },
-  "staticData": null,
-  "meta": {
-    "templateCredsSetupCompleted": false
-  },
-  "pinData": {},
-  "versionId": "wf07-admin-command-poller-v1"
+  "staticData": null
 }

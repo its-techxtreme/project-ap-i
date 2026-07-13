@@ -33,6 +33,7 @@
     "stack:autostart": "node scripts/stack-autostart.mjs",
     "stack:autostart:install": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/install-stack-autostart.ps1",
     "stack:autostart:uninstall": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/uninstall-stack-autostart.ps1",
+    "n8n:export": "node --env-file=.env scripts/export-n8n-workflows.mjs",
     "n8n:import": "node scripts/import-n8n-workflows.mjs",
     "n8n:setup": "node scripts/setup-n8n-workflows.mjs",
     "n8n:test": "node scripts/test-n8n-workflows.mjs",

@@ -61,6 +61,8 @@ pnpm docker:down
 
 ## Import workflows
 
+Ready-to-import JSON lives in [`workflows/`](./workflows/) (credential names + env expressions only — no secret values). See [`workflows/README.md`](./workflows/README.md).
+
 ### Option A — n8n UI
 
 1. **Workflows → Import from File**
@@ -85,6 +87,14 @@ pnpm n8n:import
 pnpm n8n:setup
 pnpm n8n:test:all
 ```
+
+### Refresh repo exports from a running instance
+
+```bash
+pnpm n8n:export
+```
+
+Writes sanitized JSON back to `infra/n8n/workflows/` (strips credential IDs and instance workflow IDs).
 
 ## Workflow map
 

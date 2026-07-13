@@ -16,7 +16,10 @@
       "name": "Every 2 Minutes",
       "type": "n8n-nodes-base.scheduleTrigger",
       "typeVersion": 1.2,
-      "position": [240, 300]
+      "position": [
+        240,
+        300
+      ]
     },
     {
       "parameters": {
@@ -41,7 +44,10 @@
       "name": "Query Due Verifications",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
-      "position": [480, 300],
+      "position": [
+        480,
+        300
+      ],
       "onError": "continueErrorOutput"
     },
     {
@@ -67,7 +73,10 @@
       "name": "Query Scheduled Retries",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
-      "position": [480, 520],
+      "position": [
+        480,
+        520
+      ],
       "onError": "continueErrorOutput"
     },
     {
@@ -93,7 +102,10 @@
       "name": "Query Pending Uploads",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
-      "position": [480, 740],
+      "position": [
+        480,
+        740
+      ],
       "onError": "continueErrorOutput"
     },
     {
@@ -124,7 +136,10 @@
       "name": "Any Due Jobs?",
       "type": "n8n-nodes-base.if",
       "typeVersion": 2.2,
-      "position": [720, 300]
+      "position": [
+        720,
+        300
+      ]
     },
     {
       "parameters": {
@@ -154,7 +169,10 @@
       "name": "Any Scheduled Retries?",
       "type": "n8n-nodes-base.if",
       "typeVersion": 2.2,
-      "position": [720, 520]
+      "position": [
+        720,
+        520
+      ]
     },
     {
       "parameters": {
@@ -164,7 +182,10 @@
       "name": "Split Job IDs",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [960, 220]
+      "position": [
+        960,
+        220
+      ]
     },
     {
       "parameters": {
@@ -174,7 +195,10 @@
       "name": "Split Retry Job IDs",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [960, 520]
+      "position": [
+        960,
+        520
+      ]
     },
     {
       "parameters": {
@@ -190,13 +214,16 @@
       "name": "Verify Job",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
-      "position": [1200, 220],
+      "position": [
+        1200,
+        220
+      ],
+      "onError": "continueErrorOutput",
       "credentials": {
         "httpHeaderAuth": {
           "name": "WorkerToken"
         }
-      },
-      "onError": "continueErrorOutput"
+      }
     },
     {
       "parameters": {
@@ -227,7 +254,10 @@
       "name": "Retry Scheduled?",
       "type": "n8n-nodes-base.if",
       "typeVersion": 2.2,
-      "position": [1440, 220]
+      "position": [
+        1440,
+        220
+      ]
     },
     {
       "parameters": {
@@ -247,7 +277,10 @@
       "name": "Prepare Verify Retry",
       "type": "n8n-nodes-base.set",
       "typeVersion": 3.4,
-      "position": [1680, 140]
+      "position": [
+        1680,
+        140
+      ]
     },
     {
       "parameters": {
@@ -263,13 +296,16 @@
       "name": "Retry Upload After Verify",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
-      "position": [1920, 140],
+      "position": [
+        1920,
+        140
+      ],
+      "onError": "continueErrorOutput",
       "credentials": {
         "httpHeaderAuth": {
           "name": "WorkerToken"
         }
-      },
-      "onError": "continueErrorOutput"
+      }
     },
     {
       "parameters": {
@@ -285,13 +321,16 @@
       "name": "Retry Scheduled Upload",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
-      "position": [1200, 520],
+      "position": [
+        1200,
+        520
+      ],
+      "onError": "continueErrorOutput",
       "credentials": {
         "httpHeaderAuth": {
           "name": "WorkerToken"
         }
-      },
-      "onError": "continueErrorOutput"
+      }
     },
     {
       "parameters": {},
@@ -299,7 +338,10 @@
       "name": "No Due Jobs",
       "type": "n8n-nodes-base.noOp",
       "typeVersion": 1,
-      "position": [960, 400]
+      "position": [
+        960,
+        400
+      ]
     },
     {
       "parameters": {},
@@ -307,7 +349,10 @@
       "name": "No Scheduled Retries",
       "type": "n8n-nodes-base.noOp",
       "typeVersion": 1,
-      "position": [960, 680]
+      "position": [
+        960,
+        680
+      ]
     },
     {
       "parameters": {
@@ -337,7 +382,10 @@
       "name": "Any Pending Uploads?",
       "type": "n8n-nodes-base.if",
       "typeVersion": 2.2,
-      "position": [720, 740]
+      "position": [
+        720,
+        740
+      ]
     },
     {
       "parameters": {
@@ -347,7 +395,10 @@
       "name": "Split Pending Upload IDs",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [960, 740]
+      "position": [
+        960,
+        740
+      ]
     },
     {
       "parameters": {
@@ -363,13 +414,16 @@
       "name": "Upload Pending Job",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
-      "position": [1200, 740],
+      "position": [
+        1200,
+        740
+      ],
+      "onError": "continueErrorOutput",
       "credentials": {
         "httpHeaderAuth": {
           "name": "WorkerToken"
         }
-      },
-      "onError": "continueErrorOutput"
+      }
     },
     {
       "parameters": {},
@@ -377,7 +431,10 @@
       "name": "No Pending Uploads",
       "type": "n8n-nodes-base.noOp",
       "typeVersion": 1,
-      "position": [960, 900]
+      "position": [
+        960,
+        900
+      ]
     }
   ],
   "connections": {
@@ -559,16 +616,7 @@
   },
   "settings": {
     "executionOrder": "v1",
-    "saveManualExecutions": false
+    "callerPolicy": "workflowsFromSameOwner"
   },
-  "staticData": null,
-  "meta": {
-    "templateCredsSetupCompleted": false
-  },
-  "pinData": {},
-  "tags": [
-    {
-      "name": "project-ap-i"
-    }
-  ]
+  "staticData": null
 }
