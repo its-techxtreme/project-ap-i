@@ -95,6 +95,7 @@ export type JobListRow = {
   drive_view_url: string | null
   retry_count: number
   failure_reason: string | null
+  failure_code: string | null
   source_url: string
   /** 1-based FIFO position among waiting jobs (queued / ready_to_upload), else null. */
   queue_position: number | null
@@ -111,9 +112,7 @@ export type JobEventRow = {
   created_at_label: string
 }
 
-export type FailedJobRow = JobListRow & {
-  failure_code: string | null
-}
+export type FailedJobRow = JobListRow
 
 export type PlatformAccountRow = {
   id: string
@@ -219,7 +218,7 @@ export async function getJobs(
   let query = supabaseAdmin
     .from('jobs')
     .select(
-      'id, created_at, source_platform, niche_id, status, youtube_upload_status, instagram_upload_status, drive_view_url, retry_count, failure_reason, source_url, niches(name)',
+      'id, created_at, source_platform, niche_id, status, youtube_upload_status, instagram_upload_status, drive_view_url, retry_count, youtube_retry_count, instagram_retry_count, failure_reason, failure_code, source_url, niches(name)',
       { count: 'exact' },
     )
 
@@ -291,8 +290,13 @@ export async function getJobs(
       youtube_url: urls.youtube_url,
       instagram_url: urls.instagram_url,
       drive_view_url: row.drive_view_url,
-      retry_count: row.retry_count,
+      retry_count: Math.max(
+        Number(row.retry_count ?? 0),
+        Number(row.youtube_retry_count ?? 0),
+        Number(row.instagram_retry_count ?? 0),
+      ),
       failure_reason: row.failure_reason,
+      failure_code: row.failure_code ?? null,
       source_url: row.source_url,
       queue_position: queuePositionById.get(row.id) ?? null,
     }
@@ -364,7 +368,7 @@ export async function getFailedJobs(): Promise<FailedJobRow[]> {
   const { data, error } = await supabaseAdmin
     .from('jobs')
     .select(
-      'id, created_at, source_platform, niche_id, status, youtube_upload_status, instagram_upload_status, drive_view_url, retry_count, failure_reason, failure_code, source_url, niches(name)',
+      'id, created_at, source_platform, niche_id, status, youtube_upload_status, instagram_upload_status, drive_view_url, retry_count, youtube_retry_count, instagram_retry_count, failure_reason, failure_code, source_url, niches(name)',
     )
     .in('status', ['failed', 'needs_manual_review'])
     .order('updated_at', { ascending: false })
@@ -392,7 +396,11 @@ export async function getFailedJobs(): Promise<FailedJobRow[]> {
       youtube_url: urls.youtube_url,
       instagram_url: urls.instagram_url,
       drive_view_url: row.drive_view_url,
-      retry_count: row.retry_count,
+      retry_count: Math.max(
+        Number(row.retry_count ?? 0),
+        Number(row.youtube_retry_count ?? 0),
+        Number(row.instagram_retry_count ?? 0),
+      ),
       failure_reason: row.failure_reason,
       failure_code: row.failure_code,
       source_url: row.source_url,

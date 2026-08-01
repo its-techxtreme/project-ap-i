@@ -17,6 +17,16 @@ const resolveAccountsMock = vi.fn()
 vi.mock('../src/db/jobsRepo', () => ({
   updateJobStatus: (...args: unknown[]) => updateJobStatusMock(...args),
   writeJobEvent: (...args: unknown[]) => writeJobEventMock(...args),
+  getJobById: vi.fn().mockResolvedValue({ id: 'job-upload-1', status: 'uploading' }),
+}))
+
+vi.mock('../src/jobs/jobAbort', () => ({
+  assertJobNotAborted: vi.fn().mockResolvedValue(undefined),
+  JobAbortedError: class JobAbortedError extends Error {},
+}))
+
+vi.mock('../src/jobs/uploadIdempotency', () => ({
+  findSuccessfulUploadAttempt: vi.fn().mockResolvedValue(null),
 }))
 
 vi.mock('../src/db/supabaseAdmin', () => ({
@@ -27,6 +37,12 @@ vi.mock('../src/db/supabaseAdmin', () => ({
 
 vi.mock('../src/uploaders/accountResolver', () => ({
   resolveNicheAccounts: (...args: unknown[]) => resolveAccountsMock(...args),
+}))
+
+const prepareYoutubeUploadVariantMock = vi.fn()
+
+vi.mock('../src/processors/prepareYoutubeUploadVariant', () => ({
+  prepareYoutubeUploadVariant: (...args: unknown[]) => prepareYoutubeUploadVariantMock(...args),
 }))
 
 const JOB_ID = 'job-upload-1'
@@ -79,6 +95,14 @@ describe('UploadCoordinator', () => {
     fromMock.mockReset()
     uploadMock.mockReset()
     resolveAccountsMock.mockReset()
+    prepareYoutubeUploadVariantMock.mockReset()
+    prepareYoutubeUploadVariantMock.mockImplementation(
+      async (opts: { sourcePath: string }) => ({
+        localFilePath: opts.sourcePath,
+        brandOverlayApplied: false,
+        detectionReason: 'mocked — no c-text path',
+      }),
+    )
 
     resolveAccountsMock.mockResolvedValue({
       youtube: { id: YT_ACCT, accountLabel: 'Memes YT' },
@@ -270,5 +294,34 @@ describe('UploadCoordinator', () => {
         call[0]?.target_instagram_account_id === IG_ACCT,
     )
     expect(targetUpdate).toBeTruthy()
+  })
+
+  it('prepares YouTube-only brand variant when localFilePath is set; IG keeps source', async () => {
+    prepareYoutubeUploadVariantMock.mockResolvedValue({
+      localFilePath: '/tmp/upload-youtube.mp4',
+      brandOverlayApplied: true,
+      detectionReason: 'No hard captions detected',
+    })
+
+    const { UploadCoordinator } = await import('../src/uploaders/UploadCoordinator')
+    const coordinator = new UploadCoordinator(
+      { upload: uploadMock, checkSession: vi.fn() },
+      { upload: uploadMock, checkSession: vi.fn() },
+    )
+
+    await coordinator.uploadBothPlatforms({
+      ...baseJob,
+      localFilePath: '/tmp/upload-source.mp4',
+    })
+
+    expect(prepareYoutubeUploadVariantMock).toHaveBeenCalledWith({
+      jobId: JOB_ID,
+      nicheSlug: 'memes',
+      sourcePath: '/tmp/upload-source.mp4',
+    })
+    expect(uploadMock.mock.calls[0][0].platform).toBe('youtube')
+    expect(uploadMock.mock.calls[0][0].localFilePath).toBe('/tmp/upload-youtube.mp4')
+    expect(uploadMock.mock.calls[1][0].platform).toBe('instagram')
+    expect(uploadMock.mock.calls[1][0].localFilePath).toBe('/tmp/upload-source.mp4')
   })
 })

@@ -5,9 +5,18 @@ import path from 'node:path'
 import { ERROR_CODES, ProjectApiError } from '@project-api/shared'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
-import { buildFfmpegArgs } from '../src/processors/WatermarkPreset'
+import {
+  BACKGROUND_MUSIC_VOLUME,
+  EDIT_SPEED,
+  EDIT_VERTICAL_GEOMETRY,
+  EDIT_VISUAL_FILTER,
+  OUTPUT_HEIGHT,
+  OUTPUT_WIDTH,
+  buildFfmpegArgs,
+} from '../src/processors/EditPreset'
 
 const runCommandMock = vi.fn()
+const probeVideoDimensionsMock = vi.fn()
 
 vi.mock('../src/utils/runCommand', () => ({
   runCommand: (...args: unknown[]) => runCommandMock(...args),
@@ -15,76 +24,98 @@ vi.mock('../src/utils/runCommand', () => ({
 
 vi.mock('../src/processors/probeMedia', () => ({
   sourceHasAudio: vi.fn().mockResolvedValue(true),
+  probeVideoDimensions: (...args: unknown[]) => probeVideoDimensionsMock(...args),
 }))
 
 describe('buildFfmpegArgs', () => {
   const inputPath = '/tmp/jobs/job-1/source.mp4'
   const outputPath = '/tmp/jobs/job-1/job_job-1_edited.mp4'
-  const watermarkPath = '/app/assets/watermark.png'
+  const backgroundMusicPath = '/app/assets/bgm/absolutesound-background-guitar-no-copyright-561871.mp3'
 
-  it('includes input and watermark paths as separate -i args', () => {
-    const args = buildFfmpegArgs({ inputPath, outputPath, watermarkPath })
+  it('includes source and background music as separate -i args', () => {
+    const args = buildFfmpegArgs({ inputPath, outputPath, backgroundMusicPath })
 
     expect(args).toContain('-i')
     const inputIndex = args.indexOf('-i')
     expect(args[inputIndex + 1]).toBe(inputPath)
 
     const secondInputIndex = args.indexOf('-i', inputIndex + 1)
-    expect(args[secondInputIndex + 1]).toBe(watermarkPath)
+    expect(args[secondInputIndex + 1]).toBe(backgroundMusicPath)
   })
 
-  it('includes setpts=PTS/1.1 for video speed', () => {
-    const args = buildFfmpegArgs({ inputPath, outputPath, watermarkPath })
+  it(`includes setpts=PTS/${EDIT_SPEED} for video speed`, () => {
+    const args = buildFfmpegArgs({ inputPath, outputPath, backgroundMusicPath })
     const filterIndex = args.indexOf('-filter_complex')
 
-    expect(args[filterIndex + 1]).toContain('setpts=PTS/1.1')
+    expect(args[filterIndex + 1]).toContain(`setpts=PTS/${EDIT_SPEED}`)
   })
 
-  it('includes atempo=1.1 and optional audio map when source has audio', () => {
-    const args = buildFfmpegArgs({ inputPath, outputPath, watermarkPath, hasAudio: true })
-    const audioFilterIndex = args.indexOf('-af')
+  it('includes the stronger visual eq filter and no watermark overlay', () => {
+    const args = buildFfmpegArgs({ inputPath, outputPath, backgroundMusicPath })
+    const filterComplex = args[args.indexOf('-filter_complex') + 1]
 
-    expect(args[audioFilterIndex + 1]).toBe('atempo=1.1')
-    expect(args).toContain('0:a?')
+    expect(filterComplex).toContain(EDIT_VISUAL_FILTER)
+    expect(filterComplex).not.toContain('overlay=')
+    expect(filterComplex).not.toContain('colorchannelmixer')
   })
 
-  it('omits audio filters when source has no audio', () => {
-    const args = buildFfmpegArgs({ inputPath, outputPath, watermarkPath, hasAudio: false })
+  it(`forces ${OUTPUT_WIDTH}x${OUTPUT_HEIGHT} vertical Shorts/Reels geometry`, () => {
+    const args = buildFfmpegArgs({ inputPath, outputPath, backgroundMusicPath })
+    const filterComplex = args[args.indexOf('-filter_complex') + 1]
 
-    expect(args).not.toContain('-af')
-    expect(args).not.toContain('0:a?')
-    expect(args).not.toContain('-c:a')
+    expect(filterComplex).toContain(EDIT_VERTICAL_GEOMETRY)
+    expect(filterComplex).toContain(`scale=${OUTPUT_WIDTH}:${OUTPUT_HEIGHT}:force_original_aspect_ratio=increase`)
+    expect(filterComplex).toContain(`crop=${OUTPUT_WIDTH}:${OUTPUT_HEIGHT}`)
+    expect(args).toContain('yuv420p')
   })
 
-  it('includes bottom-right overlay position', () => {
-    const args = buildFfmpegArgs({ inputPath, outputPath, watermarkPath })
-    const filterIndex = args.indexOf('-filter_complex')
+  it(`mixes original audio (atempo=${EDIT_SPEED}) with BGM at ${BACKGROUND_MUSIC_VOLUME}`, () => {
+    const args = buildFfmpegArgs({
+      inputPath,
+      outputPath,
+      backgroundMusicPath,
+      hasAudio: true,
+    })
+    const filterComplex = args[args.indexOf('-filter_complex') + 1]
 
-    expect(args[filterIndex + 1]).toContain('overlay=W-w-10:H-h-10')
+    expect(filterComplex).toContain(`atempo=${EDIT_SPEED}`)
+    expect(filterComplex).toContain(`volume=${BACKGROUND_MUSIC_VOLUME}`)
+    expect(filterComplex).toContain('amix=inputs=2')
+    expect(filterComplex).toContain('normalize=0')
+    expect(args).toContain('[a_out]')
   })
 
-  it('includes 70% opacity via colorchannelmixer', () => {
-    const args = buildFfmpegArgs({ inputPath, outputPath, watermarkPath })
-    const filterIndex = args.indexOf('-filter_complex')
+  it('keeps BGM-only audio when source has no soundtrack', () => {
+    const args = buildFfmpegArgs({
+      inputPath,
+      outputPath,
+      backgroundMusicPath,
+      hasAudio: false,
+    })
+    const filterComplex = args[args.indexOf('-filter_complex') + 1]
 
-    expect(args[filterIndex + 1]).toContain('colorchannelmixer=aa=0.7')
-    expect(args[filterIndex + 1]).toContain('scale=56:-1')
+    expect(filterComplex).not.toContain('atempo=')
+    expect(filterComplex).toContain(`volume=${BACKGROUND_MUSIC_VOLUME}`)
+    expect(filterComplex).not.toContain('amix=')
+    expect(args).toContain('-shortest')
   })
 })
 
 describe('FfmpegProcessor', () => {
   let tempDir: string
   let sourcePath: string
-  let watermarkPath: string
+  let backgroundMusicPath: string
 
   beforeEach(async () => {
     runCommandMock.mockReset()
+    probeVideoDimensionsMock.mockReset()
+    probeVideoDimensionsMock.mockResolvedValue({ width: OUTPUT_WIDTH, height: OUTPUT_HEIGHT })
     tempDir = await fs.mkdtemp(path.join(os.tmpdir(), 'ffmpeg-test-'))
     sourcePath = path.join(tempDir, 'source.mp4')
-    watermarkPath = path.join(tempDir, 'watermark.png')
+    backgroundMusicPath = path.join(tempDir, 'bgm.mp3')
 
     await fs.copyFile(path.join(__dirname, 'fixtures/sample.mp4'), sourcePath)
-    await fs.writeFile(watermarkPath, Buffer.from('fake-png'))
+    await fs.writeFile(backgroundMusicPath, Buffer.from('fake-mp3'))
   })
 
   it('throws FFMPEG_FAILED when source file does not exist', async () => {
@@ -96,26 +127,26 @@ describe('FfmpegProcessor', () => {
         jobId: 'job-no-source',
         sourcePath: path.join(tempDir, 'missing-source.mp4'),
         tempDir,
-        watermarkPath,
+        backgroundMusicPath,
       }),
     ).rejects.toMatchObject({
       code: ERROR_CODES.FFMPEG_FAILED,
     } satisfies Partial<ProjectApiError>)
   })
 
-  it('throws WATERMARK_MISSING when watermark file does not exist', async () => {
+  it('throws BACKGROUND_MUSIC_MISSING when bgm file does not exist', async () => {
     const { FfmpegProcessor } = await import('../src/processors/FfmpegProcessor')
     const processor = new FfmpegProcessor()
 
     await expect(
       processor.process({
-        jobId: 'job-missing-wm',
+        jobId: 'job-missing-bgm',
         sourcePath,
         tempDir,
-        watermarkPath: path.join(tempDir, 'missing.png'),
+        backgroundMusicPath: path.join(tempDir, 'missing.mp3'),
       }),
     ).rejects.toMatchObject({
-      code: ERROR_CODES.WATERMARK_MISSING,
+      code: ERROR_CODES.BACKGROUND_MUSIC_MISSING,
     } satisfies Partial<ProjectApiError>)
   })
 
@@ -130,7 +161,7 @@ describe('FfmpegProcessor', () => {
         jobId: 'job-ffmpeg-fail',
         sourcePath,
         tempDir,
-        watermarkPath,
+        backgroundMusicPath,
       }),
     ).rejects.toMatchObject({
       code: ERROR_CODES.FFMPEG_FAILED,
@@ -149,10 +180,31 @@ describe('FfmpegProcessor', () => {
       jobId: 'job-42',
       sourcePath,
       tempDir,
-      watermarkPath,
+      backgroundMusicPath,
     })
 
     expect(result.outputPath).toBe(outputPath)
     expect(runCommandMock.mock.calls[0]?.[1]).toContain(outputPath)
+  })
+
+  it('throws FFMPEG_FAILED when output is not vertical Shorts geometry', async () => {
+    runCommandMock.mockResolvedValue({ stdout: '', stderr: '', exitCode: 0 })
+    probeVideoDimensionsMock.mockResolvedValue({ width: 1920, height: 1080 })
+    vi.spyOn(fs, 'stat').mockResolvedValue({ size: 2048 } as Awaited<ReturnType<typeof fs.stat>>)
+
+    const { FfmpegProcessor } = await import('../src/processors/FfmpegProcessor')
+    const processor = new FfmpegProcessor()
+
+    await expect(
+      processor.process({
+        jobId: 'job-landscape',
+        sourcePath,
+        tempDir,
+        backgroundMusicPath,
+      }),
+    ).rejects.toMatchObject({
+      code: ERROR_CODES.FFMPEG_FAILED,
+      message: expect.stringContaining('1920x1080'),
+    })
   })
 })

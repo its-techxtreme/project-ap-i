@@ -1,11 +1,7 @@
-import fs from 'node:fs/promises'
-import os from 'node:os'
-import path from 'node:path'
-
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { MockMetadataProvider } from '../src/metadata/MockMetadataProvider'
-import { buildMetadataPrompt } from '../src/metadata/prompts'
+import { buildMetadataUserPrompt, METADATA_SYSTEM_PROMPT } from '../src/metadata/prompts'
 import { parseMetadataJson } from '../src/metadata/parseMetadataJson'
 
 const updateMock = vi.fn()
@@ -50,42 +46,38 @@ describe('MockMetadataProvider', () => {
   })
 })
 
-describe('buildMetadataPrompt', () => {
-  it('includes the selected niche slug', () => {
-    const prompt = buildMetadataPrompt({ ...sampleInput, nicheSlug: 'anime' })
-
-    expect(prompt).toContain('Niche: anime')
-    expect(prompt).toContain('anime edits')
-  })
-
-  it('instructs rephrasing the original source caption', () => {
-    const prompt = buildMetadataPrompt({
+describe('buildMetadataUserPrompt', () => {
+  it('includes the selected niche slug and untrusted delimiters', () => {
+    const prompt = buildMetadataUserPrompt({
       ...sampleInput,
+      nicheSlug: 'anime',
       sourceTitle: 'Original reel title',
       sourceDescription: 'This is the original Instagram caption about the clip',
+      transcript: 'spoken words from the clip',
     })
 
-    expect(prompt).toContain('REPHRASE')
-    expect(prompt).toContain('Original source caption/description:')
-    expect(prompt).toContain('This is the original Instagram caption about the clip')
+    expect(prompt).toContain('NICHE:')
+    expect(prompt).toContain('anime')
+    expect(prompt).toContain('<<<UNTRUSTED_SOURCE_TEXT>>>')
     expect(prompt).toContain('Original reel title')
-    expect(prompt).toContain('Do NOT invent an unrelated topic')
-  })
-
-  it('notes when source caption is unavailable', () => {
-    const prompt = buildMetadataPrompt(sampleInput)
-
-    expect(prompt).toContain('not available')
-    expect(prompt).toContain('do NOT invent a fake story')
+    expect(prompt).toContain('spoken words from the clip')
+    expect(prompt).toContain('Not provided') // creator notes etc.
   })
 
   it('does not include job ID, service role key, or internal paths', () => {
-    const prompt = buildMetadataPrompt(sampleInput)
+    const prompt = buildMetadataUserPrompt(sampleInput)
 
     expect(prompt).not.toContain(sampleInput.jobId)
     expect(prompt).not.toContain('SUPABASE_SERVICE_ROLE_KEY')
     expect(prompt).not.toContain('/app/')
     expect(prompt).not.toContain('service role')
+  })
+
+  it('system prompt forbids invention and requires JSON', () => {
+    expect(METADATA_SYSTEM_PROMPT).toContain('Never invent')
+    expect(METADATA_SYSTEM_PROMPT).toContain('Return valid JSON only')
+    expect(METADATA_SYSTEM_PROMPT).toContain('MEMES:')
+    expect(METADATA_SYSTEM_PROMPT).toContain('SPORTS:')
   })
 })
 
@@ -106,15 +98,20 @@ describe('getFallbackMetadata', () => {
 })
 
 describe('parseMetadataJson', () => {
-  it('parses raw JSON content', () => {
+  it('parses raw JSON content with optional keyword fields', () => {
     const parsed = parseMetadataJson(
       JSON.stringify({
         youtubeTitle: 'Title',
         youtubeDescription: 'Desc',
         instagramCaption: 'Caption',
+        keywords: ['meme', 'funny'],
+        instagramHashtags: ['#memes'],
+        youtubeHashtags: ['#shorts'],
       }),
     )
     expect(parsed.youtubeTitle).toBe('Title')
+    expect(parsed.keywords).toEqual(['meme', 'funny'])
+    expect(parsed.instagramHashtags).toEqual(['#memes'])
   })
 
   it('parses JSON inside markdown fences', () => {
@@ -127,20 +124,22 @@ describe('parseMetadataJson', () => {
 
 describe('AiMetadataProvider', () => {
   beforeEach(() => {
-    vi.unstubAllGlobals()
+    vi.resetModules()
   })
 
   afterEach(() => {
     vi.doUnmock('../src/config')
+    vi.doUnmock('../src/metadata/geminiClient')
+    vi.doUnmock('../src/metadata/openaiCompatibleClient')
     vi.resetModules()
   })
 
-  it('falls back to template when AI_PROVIDER_API_KEY is REPLACE_ME', async () => {
+  it('falls back when no provider keys are configured', async () => {
     vi.doMock('../src/config', () => ({
       config: {
-        AI_PROVIDER_BASE_URL: 'https://integrate.api.nvidia.com/v1',
-        AI_PROVIDER_API_KEY: 'REPLACE_ME',
-        AI_MODEL: 'meta/llama-3.1-8b-instruct',
+        GEMINI_API_KEY: undefined,
+        GROQ_API_KEY: undefined,
+        OPENROUTER_API_KEY: undefined,
       },
     }))
 
@@ -148,70 +147,154 @@ describe('AiMetadataProvider', () => {
     const result = await new AiMetadataProvider().generate(sampleInput)
 
     expect(result.generatedBy).toBe('fallback')
+    expect(result.provider).toBe('fallback')
   })
 
-  it('falls back to template when AI_PROVIDER_BASE_URL is not set', async () => {
+  it('uses Gemini when configured', async () => {
     vi.doMock('../src/config', () => ({
       config: {
-        AI_PROVIDER_BASE_URL: undefined,
-        AI_PROVIDER_API_KEY: undefined,
-        AI_MODEL: undefined,
+        GEMINI_API_KEY: 'gemini-test-key',
+        GEMINI_MODEL: 'gemini-3.5-flash',
+        GROQ_API_KEY: undefined,
+        OPENROUTER_API_KEY: undefined,
       },
     }))
-
-    const { AiMetadataProvider } = await import('../src/metadata/AiMetadataProvider')
-    const result = await new AiMetadataProvider().generate(sampleInput)
-
-    expect(result.generatedBy).toBe('fallback')
-    expect(result.youtubeTitle).toContain('laughing')
-  })
-
-  it('falls back to template on HTTP error', async () => {
-    vi.doMock('../src/config', () => ({
-      config: {
-        AI_PROVIDER_BASE_URL: 'https://api.example.com/v1',
-        AI_PROVIDER_API_KEY: 'test-key',
-        AI_MODEL: 'gpt-4o-mini',
-      },
-    }))
-
-    vi.stubGlobal(
-      'fetch',
-      vi.fn().mockResolvedValue({
-        ok: false,
-        status: 500,
-      }),
-    )
-
-    const { AiMetadataProvider } = await import('../src/metadata/AiMetadataProvider')
-    const result = await new AiMetadataProvider().generate(sampleInput)
-
-    expect(result.generatedBy).toBe('fallback')
-  })
-
-  it('falls back to template on malformed JSON response', async () => {
-    vi.doMock('../src/config', () => ({
-      config: {
-        AI_PROVIDER_BASE_URL: 'https://api.example.com/v1',
-        AI_PROVIDER_API_KEY: 'test-key',
-        AI_MODEL: 'gpt-4o-mini',
-      },
-    }))
-
-    vi.stubGlobal(
-      'fetch',
-      vi.fn().mockResolvedValue({
-        ok: true,
-        json: async () => ({
-          choices: [{ message: { content: 'not valid json {{{' } }],
+    vi.doMock('../src/metadata/geminiClient', () => ({
+      generateWithGemini: vi.fn().mockResolvedValue(
+        JSON.stringify({
+          youtubeTitle: 'When the group chat goes silent after the perfect meme drop',
+          youtubeDescription: `${'A'.repeat(1000)} #shorts #memes`,
+          instagramCaption: `${'B'.repeat(300)} #memes #reels #funny`,
+          keywords: ['meme'],
+          instagramHashtags: ['#memes'],
+          youtubeHashtags: ['#shorts'],
         }),
-      }),
-    )
+      ),
+      isRateLimitError: () => false,
+      RateLimitedError: class RateLimitedError extends Error {},
+    }))
+
+    const { AiMetadataProvider } = await import('../src/metadata/AiMetadataProvider')
+    const result = await new AiMetadataProvider().generate({
+      ...sampleInput,
+      sourceDescription: 'guy trips over a skateboard in a parking lot',
+    })
+
+    expect(result.generatedBy).toBe('ai')
+    expect(result.provider).toBe('gemini')
+    expect(result.model).toBe('gemini-3.5-flash')
+    expect(result.youtubeTitle.length).toBeGreaterThanOrEqual(40)
+    expect(result.keywords).toEqual(['meme'])
+    expect(result.youtubeDescription.length).toBeGreaterThanOrEqual(1000)
+  })
+
+  it('rejects short first draft then accepts expanded rewrite', async () => {
+    const short = JSON.stringify({
+      youtubeTitle: 'Too short',
+      youtubeDescription: 'Tiny blurb',
+      instagramCaption: 'Nope',
+    })
+    const expanded = JSON.stringify({
+      youtubeTitle: 'Expanded title about the silent group chat meme moment',
+      youtubeDescription: `${'E'.repeat(1200)} #shorts #memes`,
+      instagramCaption: `${'F'.repeat(300)} #memes #reels #funny`,
+    })
+    const generateWithGemini = vi
+      .fn()
+      .mockResolvedValueOnce(short)
+      .mockResolvedValueOnce(expanded)
+
+    vi.doMock('../src/config', () => ({
+      config: {
+        GEMINI_API_KEY: 'gemini-test-key',
+        GEMINI_MODEL: 'gemini-3.5-flash',
+        GROQ_API_KEY: undefined,
+        OPENROUTER_API_KEY: undefined,
+      },
+    }))
+    vi.doMock('../src/metadata/geminiClient', () => ({
+      generateWithGemini,
+      isRateLimitError: () => false,
+      RateLimitedError: class RateLimitedError extends Error {},
+    }))
+
+    const { AiMetadataProvider } = await import('../src/metadata/AiMetadataProvider')
+    const result = await new AiMetadataProvider().generate(sampleInput)
+
+    expect(generateWithGemini).toHaveBeenCalledTimes(2)
+    expect(result.generatedBy).toBe('ai')
+    expect(result.youtubeDescription.length).toBeGreaterThanOrEqual(1000)
+  })
+
+  it('falls back to Groq when Gemini is rate limited', async () => {
+    class RateLimitedError extends Error {
+      name = 'RateLimitedError'
+    }
+
+    vi.doMock('../src/config', () => ({
+      config: {
+        GEMINI_API_KEY: 'gemini-test-key',
+        GEMINI_MODEL: 'gemini-3.5-flash',
+        GROQ_API_KEY: 'groq-test-key',
+        GROQ_MODEL: 'llama-3.3-70b-versatile',
+        GROQ_BASE_URL: 'https://api.groq.com/openai/v1',
+        OPENROUTER_API_KEY: undefined,
+      },
+    }))
+    vi.doMock('../src/metadata/geminiClient', () => ({
+      generateWithGemini: vi.fn().mockRejectedValue(new RateLimitedError('429 quota')),
+      isRateLimitError: () => true,
+      RateLimitedError,
+    }))
+    vi.doMock('../src/metadata/openaiCompatibleClient', () => ({
+      generateWithOpenAiCompatible: vi.fn().mockResolvedValue(
+        JSON.stringify({
+          youtubeTitle: 'Groq fallback title for the skateboard trip moment',
+          youtubeDescription: `${'C'.repeat(1100)} #shorts #memes`,
+          instagramCaption: `${'D'.repeat(320)} #memes #reels`,
+          keywords: ['skateboard'],
+          instagramHashtags: ['#memes'],
+          youtubeHashtags: ['#shorts'],
+        }),
+      ),
+    }))
+
+    const { AiMetadataProvider } = await import('../src/metadata/AiMetadataProvider')
+    const result = await new AiMetadataProvider().generate(sampleInput)
+
+    expect(result.generatedBy).toBe('ai')
+    expect(result.provider).toBe('groq')
+    expect(result.model).toBe('llama-3.3-70b-versatile')
+    expect(result.youtubeTitle).toContain('Groq')
+    expect(result.youtubeDescription.length).toBeGreaterThanOrEqual(1000)
+  })
+
+  it('uses safe template fallback when all providers fail', async () => {
+    vi.doMock('../src/config', () => ({
+      config: {
+        GEMINI_API_KEY: 'gemini-test-key',
+        GEMINI_MODEL: 'gemini-3.5-flash',
+        GROQ_API_KEY: 'groq-test-key',
+        GROQ_MODEL: 'llama-3.3-70b-versatile',
+        GROQ_BASE_URL: 'https://api.groq.com/openai/v1',
+        OPENROUTER_API_KEY: undefined,
+      },
+    }))
+    vi.doMock('../src/metadata/geminiClient', () => ({
+      generateWithGemini: vi.fn().mockRejectedValue(new Error('boom')),
+      isRateLimitError: () => false,
+      RateLimitedError: class RateLimitedError extends Error {},
+    }))
+    vi.doMock('../src/metadata/openaiCompatibleClient', () => ({
+      generateWithOpenAiCompatible: vi.fn().mockRejectedValue(new Error('groq down')),
+    }))
 
     const { AiMetadataProvider } = await import('../src/metadata/AiMetadataProvider')
     const result = await new AiMetadataProvider().generate(sampleInput)
 
     expect(result.generatedBy).toBe('fallback')
+    expect(result.provider).toBe('fallback')
+    expect(result.youtubeTitle).toBeTruthy()
   })
 
   it('truncates YouTube title to 100 characters', async () => {
@@ -219,31 +302,23 @@ describe('AiMetadataProvider', () => {
 
     vi.doMock('../src/config', () => ({
       config: {
-        AI_PROVIDER_BASE_URL: 'https://api.example.com/v1',
-        AI_PROVIDER_API_KEY: 'test-key',
-        AI_MODEL: 'gpt-4o-mini',
+        GEMINI_API_KEY: 'gemini-test-key',
+        GEMINI_MODEL: 'gemini-3.5-flash',
+        GROQ_API_KEY: undefined,
+        OPENROUTER_API_KEY: undefined,
       },
     }))
-
-    vi.stubGlobal(
-      'fetch',
-      vi.fn().mockResolvedValue({
-        ok: true,
-        json: async () => ({
-          choices: [
-            {
-              message: {
-                content: JSON.stringify({
-                  youtubeTitle: longTitle,
-                  youtubeDescription: 'Valid description #shorts',
-                  instagramCaption: 'Valid caption #reels',
-                }),
-              },
-            },
-          ],
+    vi.doMock('../src/metadata/geminiClient', () => ({
+      generateWithGemini: vi.fn().mockResolvedValue(
+        JSON.stringify({
+          youtubeTitle: longTitle.slice(0, 80),
+          youtubeDescription: `${'G'.repeat(1000)} #shorts`,
+          instagramCaption: `${'H'.repeat(300)} #reels`,
         }),
-      }),
-    )
+      ),
+      isRateLimitError: () => false,
+      RateLimitedError: class RateLimitedError extends Error {},
+    }))
 
     const { AiMetadataProvider } = await import('../src/metadata/AiMetadataProvider')
     const result = await new AiMetadataProvider().generate(sampleInput)
@@ -257,31 +332,23 @@ describe('AiMetadataProvider', () => {
 
     vi.doMock('../src/config', () => ({
       config: {
-        AI_PROVIDER_BASE_URL: 'https://api.example.com/v1',
-        AI_PROVIDER_API_KEY: 'test-key',
-        AI_MODEL: 'gpt-4o-mini',
+        GEMINI_API_KEY: 'gemini-test-key',
+        GEMINI_MODEL: 'gemini-3.5-flash',
+        GROQ_API_KEY: undefined,
+        OPENROUTER_API_KEY: undefined,
       },
     }))
-
-    vi.stubGlobal(
-      'fetch',
-      vi.fn().mockResolvedValue({
-        ok: true,
-        json: async () => ({
-          choices: [
-            {
-              message: {
-                content: JSON.stringify({
-                  youtubeTitle: 'Valid title',
-                  youtubeDescription: 'Valid description #shorts',
-                  instagramCaption: longCaption,
-                }),
-              },
-            },
-          ],
+    vi.doMock('../src/metadata/geminiClient', () => ({
+      generateWithGemini: vi.fn().mockResolvedValue(
+        JSON.stringify({
+          youtubeTitle: 'Valid title about this specific meme clip moment',
+          youtubeDescription: `${'I'.repeat(1000)} #shorts`,
+          instagramCaption: longCaption,
         }),
-      }),
-    )
+      ),
+      isRateLimitError: () => false,
+      RateLimitedError: class RateLimitedError extends Error {},
+    }))
 
     const { AiMetadataProvider } = await import('../src/metadata/AiMetadataProvider')
     const result = await new AiMetadataProvider().generate(sampleInput)
@@ -312,143 +379,112 @@ describe('runProcessPipeline metadata persistence', () => {
   })
 
   it('stores metadata fields in Supabase on pipeline success', async () => {
-    const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), 'meta-pipeline-'))
-    const sourcePath = path.join(tempDir, 'source.mp4')
-    const outputPath = path.join(tempDir, 'job_job-meta-pipe_edited.mp4')
-    await fs.writeFile(sourcePath, Buffer.from('source'))
-    await fs.writeFile(outputPath, Buffer.from('edited'))
-
-    const { MockDriveStorage } = await import('../src/storage/MockDriveStorage')
     const { runProcessPipeline } = await import('../src/jobs/processPipeline')
 
-    await runProcessPipeline(
+    const metadataProvider = {
+      generate: vi.fn().mockResolvedValue({
+        youtubeTitle: 'AI Title',
+        youtubeDescription: 'AI Description',
+        instagramCaption: 'AI Caption',
+        generatedBy: 'ai' as const,
+        model: 'gemini-3.5-flash',
+        provider: 'gemini' as const,
+      }),
+    }
+
+    const result = await runProcessPipeline(
       {
-        id: 'job-meta-pipe',
-        source_url: 'https://www.youtube.com/watch?v=test',
+        id: 'job-1',
+        source_url: 'https://www.youtube.com/watch?v=abc',
         source_platform: 'youtube',
         niche_id: 'niche-memes',
-        rights_confirmed: true,
         status: 'queued',
-        download_status: 'pending',
-        processing_status: 'pending',
-        metadata_status: 'pending',
-        youtube_upload_status: 'pending',
-        instagram_upload_status: 'pending',
-        verification_status: 'pending',
-        retry_count: 0,
-        youtube_retry_count: 0,
-        instagram_retry_count: 0,
-        created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString(),
-      },
+      } as never,
       {
         downloader: {
           download: vi.fn().mockResolvedValue({
-            localPath: sourcePath,
-            fileSize: 100,
-            title: 'Source title about cats',
-            description: 'Original caption: cats being chaotic again',
-            uploader: 'CatChannel',
+            localPath: '/tmp/source.mp4',
+            fileSize: 1000,
+            title: 'src',
+            description: 'desc',
           }),
         },
         processor: {
-          process: vi.fn().mockResolvedValue({ outputPath, fileSize: 200 }),
+          process: vi.fn().mockResolvedValue({ outputPath: '/tmp/out.mp4', fileSize: 2000 }),
         },
-        driveStorage: new MockDriveStorage(),
-        metadataProvider: new MockMetadataProvider(),
+        driveStorage: {
+          upload: vi.fn().mockResolvedValue({
+            fileId: 'drive-1',
+            fileName: 'out.mp4',
+            viewUrl: 'https://drive.google.com/file/d/drive-1',
+            folderState: 'processed_ready',
+          }),
+        },
+        metadataProvider,
         tempFileManager: {
-          createJobDir: vi.fn().mockResolvedValue(tempDir),
+          createJobDir: vi.fn().mockResolvedValue('/tmp/job-1'),
           cleanupJobDir: vi.fn().mockResolvedValue(undefined),
-          getOutputPath: vi.fn().mockReturnValue(outputPath),
+          getOutputPath: vi.fn(),
         },
         getNicheSlug: vi.fn().mockResolvedValue('memes'),
-      },
+      } as never,
     )
 
-    const readyUpdate = updateMock.mock.calls.find(
-      (call) => (call[0] as { status: string }).status === 'ready_to_upload',
-    )
-
-    expect(readyUpdate?.[0]).toMatchObject({
-      youtube_title: expect.stringContaining('cats being chaotic'),
-      youtube_description: expect.stringContaining('cats being chaotic'),
-      instagram_caption: expect.stringContaining('cats being chaotic'),
+    expect(result).toBe('ready_to_upload')
+    expect(updateMock).toHaveBeenCalled()
+    const updatePayload = updateMock.mock.calls.find((c) => c[0]?.youtube_title)?.[0]
+    expect(updatePayload).toMatchObject({
+      youtube_title: 'AI Title',
+      youtube_description: 'AI Description',
+      instagram_caption: 'AI Caption',
       metadata_status: 'generated',
     })
-
-    const metadataEvent = insertEventMock.mock.calls.find(
-      (call) => call[0].event_type === 'metadata_generation_completed',
-    )
-    expect(metadataEvent?.[0]).toMatchObject({
-      stage: 'metadata',
-      event_type: 'metadata_generation_completed',
-    })
-
-    await fs.rm(tempDir, { recursive: true, force: true })
   })
 
   it('sets metadata_status to fallback_used when fallback metadata is used', async () => {
-    const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), 'meta-fallback-'))
-    const sourcePath = path.join(tempDir, 'source.mp4')
-    const outputPath = path.join(tempDir, 'job_job-meta-fb_edited.mp4')
-    await fs.writeFile(sourcePath, Buffer.from('source'))
-    await fs.writeFile(outputPath, Buffer.from('edited'))
-
-    const { MockDriveStorage } = await import('../src/storage/MockDriveStorage')
-    const { getFallbackMetadata } = await import('../src/metadata/fallbacks')
     const { runProcessPipeline } = await import('../src/jobs/processPipeline')
-
-    const fallbackProvider = {
-      generate: vi.fn().mockResolvedValue(getFallbackMetadata('sports')),
-    }
 
     await runProcessPipeline(
       {
-        id: 'job-meta-fb',
-        source_url: 'https://www.youtube.com/watch?v=test',
+        id: 'job-2',
+        source_url: 'https://www.youtube.com/watch?v=abc',
         source_platform: 'youtube',
-        niche_id: 'niche-sports',
-        rights_confirmed: true,
+        niche_id: 'niche-memes',
         status: 'queued',
-        download_status: 'pending',
-        processing_status: 'pending',
-        metadata_status: 'pending',
-        youtube_upload_status: 'pending',
-        instagram_upload_status: 'pending',
-        verification_status: 'pending',
-        retry_count: 0,
-        youtube_retry_count: 0,
-        instagram_retry_count: 0,
-        created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString(),
-      },
+      } as never,
       {
         downloader: {
-          download: vi.fn().mockResolvedValue({ localPath: sourcePath, fileSize: 100 }),
+          download: vi.fn().mockResolvedValue({ localPath: '/tmp/source.mp4', fileSize: 1000 }),
         },
         processor: {
-          process: vi.fn().mockResolvedValue({ outputPath, fileSize: 200 }),
+          process: vi.fn().mockResolvedValue({ outputPath: '/tmp/out.mp4', fileSize: 2000 }),
         },
-        driveStorage: new MockDriveStorage(),
-        metadataProvider: fallbackProvider,
+        driveStorage: {
+          upload: vi.fn().mockResolvedValue({
+            fileId: 'drive-2',
+            fileName: 'out.mp4',
+            folderState: 'processed_ready',
+          }),
+        },
+        metadataProvider: {
+          generate: vi.fn().mockResolvedValue({
+            youtubeTitle: 'Fallback',
+            youtubeDescription: 'Fallback desc',
+            instagramCaption: 'Fallback cap',
+            generatedBy: 'fallback' as const,
+            provider: 'fallback' as const,
+          }),
+        },
         tempFileManager: {
-          createJobDir: vi.fn().mockResolvedValue(tempDir),
+          createJobDir: vi.fn().mockResolvedValue('/tmp/job-2'),
           cleanupJobDir: vi.fn().mockResolvedValue(undefined),
-          getOutputPath: vi.fn().mockReturnValue(outputPath),
+          getOutputPath: vi.fn(),
         },
-        getNicheSlug: vi.fn().mockResolvedValue('sports'),
-      },
+        getNicheSlug: vi.fn().mockResolvedValue('memes'),
+      } as never,
     )
 
-    const readyUpdate = updateMock.mock.calls.find(
-      (call) => (call[0] as { status: string }).status === 'ready_to_upload',
-    )
-
-    expect(readyUpdate?.[0]).toMatchObject({
-      metadata_status: 'fallback_used',
-      youtube_title: expect.stringContaining('sports'),
-    })
-
-    await fs.rm(tempDir, { recursive: true, force: true })
+    const updatePayload = updateMock.mock.calls.find((c) => c[0]?.metadata_status)?.[0]
+    expect(updatePayload?.metadata_status).toBe('fallback_used')
   })
 })

@@ -2,6 +2,7 @@ import { Suspense } from 'react'
 
 import { LogsTable } from '@/components/admin/LogsTable'
 import { LoadingState } from '@/components/app/LoadingState'
+import { DeskPageHeader } from '@/components/desk/DeskPageHeader'
 import { requireAdmin } from '@/lib/auth/requireAdmin'
 import {
   getAuditLogs,
@@ -43,13 +44,14 @@ export default async function AdminLogsPage({
       : { events: [], total: 0 }
 
   return (
-    <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-semibold tracking-tight">Logs</h1>
-        <p className="text-sm text-muted-foreground">Audit logs and job event history.</p>
-      </div>
+    <div className="space-y-4 animate-enter">
+      <DeskPageHeader
+        kicker="Ship's logbook"
+        title="Logbook"
+        description="Audit trail and job event history for the publishing voyage."
+      />
 
-      <Suspense fallback={<LoadingState label="Loading logs…" />}>
+      <Suspense fallback={<LoadingState label="Unrolling the log…" />}>
         <LogsTable
           tab={tab}
           auditLogs={auditResult.logs}

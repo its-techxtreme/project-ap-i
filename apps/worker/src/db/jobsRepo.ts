@@ -46,6 +46,8 @@ export interface DbJobRow {
   instagram_caption?: string | null
   failure_code?: string | null
   failure_reason?: string | null
+  /** Admin one-shot soft daily-limit bypass; cleared after upload accepts the job. */
+  force_upload_override?: boolean | null
 }
 
 /** Supabase represents SQL NULL composite returns as an object of null fields. */
@@ -71,19 +73,41 @@ export async function claimNextJob(workerId: string): Promise<DbJobRow | null> {
   return normalizeClaimRpcResult(data)
 }
 
-/** Updates the job status and optional extra columns. */
+/** Strip characters that break PostgREST/Postgres JSON payloads (e.g. NUL). */
+function sanitizeJobUpdateValue(value: unknown): unknown {
+  if (typeof value === 'string') {
+    return value.replace(/\u0000/g, '').normalize('NFC')
+  }
+  if (Array.isArray(value)) {
+    return value.map(sanitizeJobUpdateValue)
+  }
+  if (value && typeof value === 'object') {
+    const out: Record<string, unknown> = {}
+    for (const [k, v] of Object.entries(value as Record<string, unknown>)) {
+      out[k] = sanitizeJobUpdateValue(v)
+    }
+    return out
+  }
+  return value
+}
+
+/** Updates the job status and optional extra columns. Throws on failure. */
 export async function updateJobStatus(
   jobId: string,
   status: string,
   extra?: Record<string, unknown>,
 ): Promise<void> {
-  const { error } = await supabaseAdmin
-    .from('jobs')
-    .update({ status, updated_at: new Date().toISOString(), ...extra })
-    .eq('id', jobId)
+  const payload = sanitizeJobUpdateValue({
+    status,
+    updated_at: new Date().toISOString(),
+    ...(extra ?? {}),
+  }) as Record<string, unknown>
+
+  const { error } = await supabaseAdmin.from('jobs').update(payload).eq('id', jobId)
 
   if (error) {
     logger.error({ msg: 'Failed to update job status', jobId, error: error.message })
+    throw new Error(`Failed to update job status: ${error.message}`)
   }
 }
 

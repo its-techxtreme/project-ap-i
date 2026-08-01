@@ -16,8 +16,13 @@ type RetryOutcome = 'ok' | 'retry' | 'manual'
 
 export { isRealPlatformMediaId }
 
-function platformOutcome(failed: boolean, retryCount: number): RetryOutcome {
-  if (!failed) return 'ok'
+/** Treat failed + retry_scheduled as upload-not-ok (avoids forever-uncertain loops). */
+function platformNeedsAttention(status: string | null | undefined): boolean {
+  return status === 'failed' || status === 'retry_scheduled'
+}
+
+function platformOutcome(needsAttention: boolean, retryCount: number): RetryOutcome {
+  if (!needsAttention) return 'ok'
   return retryCount >= MAX_RETRY_COUNT ? 'manual' : 'retry'
 }
 
@@ -141,7 +146,8 @@ export async function verifyJob(jobId: string): Promise<void> {
   const bothUploaded =
     (youtubeStatus === 'uploaded' || youtubeStatus === 'verified') &&
     (instagramStatus === 'uploaded' || instagramStatus === 'verified')
-  const anyFailed = youtubeStatus === 'failed' || instagramStatus === 'failed'
+  const anyFailed =
+    platformNeedsAttention(youtubeStatus) || platformNeedsAttention(instagramStatus)
   const anyLoginRequired = youtubeStatus === 'login_required' || instagramStatus === 'login_required'
 
   if (bothUploaded) {
@@ -251,13 +257,17 @@ export async function verifyJob(jobId: string): Promise<void> {
       }
     }
 
-    const youtubeFailed = youtubeStatus === 'failed' && !ytSuccess
-    const instagramFailed = instagramStatus === 'failed' && !igSuccess
+    const youtubeFailed = platformNeedsAttention(youtubeStatus) && !ytSuccess
+    const instagramFailed = platformNeedsAttention(instagramStatus) && !igSuccess
 
     // Publish-clicked-without-URL must not auto re-upload (causes duplicate YT posts).
-    if (youtubeFailed && (await hasPublishWithoutUrlFailure(jobId, 'youtube'))) {
+    if (
+      youtubeStatus === 'failed' &&
+      !ytSuccess &&
+      (await hasPublishWithoutUrlFailure(jobId, 'youtube'))
+    ) {
       await updateJobStatus(job.id, 'needs_manual_review', {
-        failure_code: ERROR_CODES.YOUTUBE_UPLOAD_FAILED,
+        failure_code: ERROR_CODES.YOUTUBE_URL_CAPTURE_FAILED,
         failure_reason:
           'YouTube publish likely succeeded but no video URL was captured — review Studio before retrying (auto re-upload disabled to prevent duplicates)',
         youtube_upload_status: 'failed',

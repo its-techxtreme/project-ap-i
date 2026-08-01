@@ -8,7 +8,7 @@ import { cn } from '@/lib/utils'
 
 export function ThemeToggle({ className }: { className?: string }) {
   const { theme, toggleTheme } = useTheme()
-  const next = theme === 'dark' ? 'light' : 'dark'
+  const next = theme === 'dark' ? 'day' : 'night'
 
   return (
     <Button
@@ -17,13 +17,13 @@ export function ThemeToggle({ className }: { className?: string }) {
       size="icon"
       onClick={toggleTheme}
       className={cn('cursor-pointer', className)}
-      aria-label={`Switch to ${next} theme`}
-      title={`Switch to ${next} theme`}
+      aria-label={`Switch to ${next}`}
+      title={theme === 'dark' ? 'Day voyage' : 'Night watch'}
     >
       {theme === 'dark' ? (
-        <Sun className="h-4 w-4" aria-hidden="true" />
+        <Sun className="h-4 w-4 text-amber-300" aria-hidden="true" />
       ) : (
-        <Moon className="h-4 w-4" aria-hidden="true" />
+        <Moon className="h-4 w-4 text-slate-600" aria-hidden="true" />
       )}
     </Button>
   )

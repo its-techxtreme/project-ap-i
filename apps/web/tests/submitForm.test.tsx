@@ -45,12 +45,12 @@ describe('SubmitForm', () => {
         name: 'I confirm this content is client-approved and we have permission to process and publish it.',
       }),
     ).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: 'Submit' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Load aboard' })).toBeInTheDocument()
   })
 
   it('disables submit when URL is empty', async () => {
     await renderSubmitForm()
-    expect(screen.getByRole('button', { name: 'Submit' })).toBeDisabled()
+    expect(screen.getByRole('button', { name: 'Load aboard' })).toBeDisabled()
   })
 
   it('disables submit when rights are not checked', async () => {
@@ -63,7 +63,7 @@ describe('SubmitForm', () => {
     )
     await user.selectOptions(screen.getByLabelText('Niche'), TEST_NICHES[0].id)
 
-    expect(screen.getByRole('button', { name: 'Submit' })).toBeDisabled()
+    expect(screen.getByRole('button', { name: 'Load aboard' })).toBeDisabled()
   })
 
   it('disables submit when niche is not selected', async () => {
@@ -80,7 +80,7 @@ describe('SubmitForm', () => {
       }),
     )
 
-    expect(screen.getByRole('button', { name: 'Submit' })).toBeDisabled()
+    expect(screen.getByRole('button', { name: 'Load aboard' })).toBeDisabled()
   })
 
   it('auto-fills platform as YouTube for YouTube Shorts URL', async () => {
@@ -157,9 +157,9 @@ describe('SubmitForm', () => {
         name: 'I confirm this content is client-approved and we have permission to process and publish it.',
       }),
     )
-    await user.click(screen.getByRole('button', { name: 'Submit' }))
+    await user.click(screen.getByRole('button', { name: 'Load aboard' }))
 
-    expect(await screen.findByText('Submitting...')).toBeInTheDocument()
+    expect(await screen.findByText('Loading aboard…')).toBeInTheDocument()
 
     resolveSubmit({
       success: true,
@@ -183,18 +183,21 @@ describe('SubmitForm', () => {
         name: 'I confirm this content is client-approved and we have permission to process and publish it.',
       }),
     )
-    await user.click(screen.getByRole('button', { name: 'Submit' }))
+    await user.click(screen.getByRole('button', { name: 'Load aboard' }))
 
     await waitFor(() => {
       expect(
-        screen.getByText('Submitted successfully. This job is now queued for processing.'),
+        screen.getByText('Ahem! The content has been loaded on the ship'),
       ).toBeInTheDocument()
     })
     expect(
-      screen.getByText((_, el) => el?.textContent === 'Niche: Memes'),
+      screen.getByText('The ship is waiting on the dock, ready to sail!!'),
     ).toBeInTheDocument()
     expect(
-      screen.getByText((_, el) => el?.textContent === 'Status: Queued for processing'),
+      screen.getByText((_, el) => el?.textContent === 'Sea lane: Memes'),
+    ).toBeInTheDocument()
+    expect(
+      screen.getByText((_, el) => el?.textContent === 'Status: Queued at the dock — awaiting crew'),
     ).toBeInTheDocument()
   })
 
@@ -215,7 +218,7 @@ describe('SubmitForm', () => {
         name: 'I confirm this content is client-approved and we have permission to process and publish it.',
       }),
     )
-    await user.click(screen.getByRole('button', { name: 'Submit' }))
+    await user.click(screen.getByRole('button', { name: 'Load aboard' }))
 
     expect(
       await screen.findByText('Submission failed. Please try again.'),

@@ -1,5 +1,6 @@
 import { ERROR_CODES, ProjectApiError } from '@project-api/shared'
 
+import { config } from '../config'
 import { getJobById, getNicheSlugById, updateJobStatus, writeJobEvent } from '../db/jobsRepo'
 import { supabaseAdmin } from '../db/supabaseAdmin'
 import { createUploadCoordinator } from '../uploaders'
@@ -9,7 +10,9 @@ import { withUploadConcurrency } from './ConcurrencyGuard'
 import {
   DAILY_UPLOAD_WINDOW_MS,
   checkNicheDailyUploadLimits,
+  clearForceUploadOverride,
   dailyLimitDeferMessage,
+  hasForceUploadOverride,
 } from './dailyUploadLimit'
 import { finalizeUploadStatus } from './uploadFinalize'
 import { prepareLocalUploadFile } from './uploadLocalFile'
@@ -44,7 +47,7 @@ async function runUploadInner(jobId: string): Promise<string> {
     })
   }
 
-  if (isWithinDailyLimitDeferral(job)) {
+  if (isWithinDailyLimitDeferral(job) && !hasForceUploadOverride(job)) {
     logger.info({
       msg: 'Upload skipped — job parked for daily upload limit window',
       jobId,
@@ -69,33 +72,57 @@ async function runUploadInner(jobId: string): Promise<string> {
   const igNeeds =
     job.instagram_upload_status !== 'uploaded' && job.instagram_upload_status !== 'verified'
 
-  const limitCheck = await checkNicheDailyUploadLimits(job.niche_id, {
-    youtube: ytNeeds,
-    instagram: igNeeds,
-  })
-  if (limitCheck.blocked) {
-    const message = dailyLimitDeferMessage(limitCheck)
+  const forceOverride = hasForceUploadOverride(job)
+  if (!forceOverride) {
+    const limitCheck = await checkNicheDailyUploadLimits(job.niche_id, {
+      youtube: ytNeeds,
+      instagram: igNeeds,
+    })
+    if (limitCheck.blocked) {
+      const message = dailyLimitDeferMessage(limitCheck)
+      logger.info({
+        msg: 'Deferring upload — daily account limit reached',
+        jobId,
+        usages: limitCheck.usages,
+      })
+      await updateJobStatus(jobId, 'ready_to_upload', {
+        ...(ytNeeds ? { youtube_upload_status: 'pending' } : {}),
+        ...(igNeeds ? { instagram_upload_status: 'pending' } : {}),
+        failure_code: ERROR_CODES.DAILY_UPLOAD_LIMIT_REACHED,
+        failure_reason: message,
+      })
+      await writeJobEvent(jobId, 'upload', 'daily_upload_limit_deferred', message, 'info', {
+        usages: limitCheck.usages,
+        limit: limitCheck.limit,
+      })
+      return 'ready_to_upload'
+    }
+  } else {
     logger.info({
-      msg: 'Deferring upload — daily account limit reached',
+      msg: 'Upload proceeding with admin force_upload_override (soft daily limit bypass)',
       jobId,
-      usages: limitCheck.usages,
     })
-    await updateJobStatus(jobId, 'ready_to_upload', {
-      ...(ytNeeds ? { youtube_upload_status: 'pending' } : {}),
-      ...(igNeeds ? { instagram_upload_status: 'pending' } : {}),
-      failure_code: ERROR_CODES.DAILY_UPLOAD_LIMIT_REACHED,
-      failure_reason: message,
-    })
-    await writeJobEvent(jobId, 'upload', 'daily_upload_limit_deferred', message, 'info', {
-      usages: limitCheck.usages,
-      limit: limitCheck.limit,
-    })
-    return 'ready_to_upload'
+    await clearForceUploadOverride(jobId)
+    await writeJobEvent(
+      jobId,
+      'upload',
+      'force_upload_override_consumed',
+      'Admin force-start consumed — soft daily upload limit bypassed for this job',
+      'info',
+    )
   }
 
+  // Hold an upload lock so claim/stale-recovery cannot treat an in-flight
+  // Playwright session as abandoned (null lock used to look "expired").
+  const lockExpiresAt = new Date(
+    Date.now() + Math.max(1, config.JOB_LOCK_MINUTES) * 60_000,
+  ).toISOString()
   await updateJobStatus(jobId, 'uploading', {
     ...(ytNeeds ? { youtube_upload_status: 'uploading' } : {}),
     ...(igNeeds ? { instagram_upload_status: 'uploading' } : {}),
+    locked_by: `upload-${process.pid}`,
+    locked_at: new Date().toISOString(),
+    lock_expires_at: lockExpiresAt,
   })
 
   const coordinator = createUploadCoordinator()

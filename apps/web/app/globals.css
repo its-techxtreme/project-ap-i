@@ -4,80 +4,92 @@
 
 @layer base {
   :root {
-    /* Light — public + admin light mode */
-    --background: 210 16% 97%;
-    --foreground: 220 40% 10%;
-    --card: 0 0% 100%;
-    --card-foreground: 220 40% 10%;
-    --popover: 0 0% 100%;
-    --popover-foreground: 220 40% 10%;
-    --primary: 175 78% 26%;
+    /* Captain's Deck — daytime voyage */
+    --background: 198 42% 92%;
+    --foreground: 210 45% 10%;
+    --card: 40 45% 96%;
+    --card-foreground: 210 45% 10%;
+    --popover: 40 45% 96%;
+    --popover-foreground: 210 45% 10%;
+    --primary: 188 72% 28%;
     --primary-foreground: 0 0% 100%;
-    --secondary: 210 18% 94%;
-    --secondary-foreground: 220 40% 12%;
-    --muted: 210 16% 93%;
-    --muted-foreground: 218 14% 38%;
-    --accent: 166 55% 92%;
-    --accent-foreground: 175 78% 18%;
-    --destructive: 0 72% 48%;
+    --secondary: 35 35% 90%;
+    --secondary-foreground: 210 40% 14%;
+    --muted: 198 22% 88%;
+    --muted-foreground: 210 18% 38%;
+    --accent: 8 62% 92%;
+    --accent-foreground: 8 55% 32%;
+    --destructive: 4 72% 48%;
     --destructive-foreground: 0 0% 100%;
-    --border: 216 18% 86%;
-    --input: 216 18% 86%;
-    --ring: 175 78% 26%;
+    --border: 30 22% 78%;
+    --input: 30 22% 78%;
+    --ring: 188 72% 28%;
     --radius: 0.75rem;
-    --atmosphere-from: 175 42% 95%;
-    --atmosphere-to: 210 22% 97%;
-    --surface-elevated: 0 0% 100%;
-    --chrome: 0 0% 100%;
-    --row-hover: 210 20% 95%;
-    --panel: 0 0% 100%;
-    --notice-fg: 32 80% 28%;
-    --notice-bg: 43 96% 95%;
-    --notice-border: 38 80% 72%;
-    --glass-fill: 0 0% 100% / 0.72;
-    --glass-border: 175 40% 40% / 0.22;
-    --glass-highlight: 0 0% 100% / 0.85;
-    --login-orb: 175 60% 40% / 0.14;
-    --login-grid-line: 216 18% 78% / 0.55;
-    --login-stage-base: 210 16% 97%;
+    --atmosphere-from: 198 55% 88%;
+    --atmosphere-to: 198 42% 92%;
+    --surface-elevated: 40 45% 96%;
+    --chrome: 40 40% 95%;
+    --row-hover: 198 28% 88%;
+    --panel: 40 42% 95%;
+    --notice-fg: 28 70% 28%;
+    --notice-bg: 40 80% 93%;
+    --notice-border: 32 65% 55%;
+    --glass-fill: 40 45% 96% / 0.82;
+    --glass-border: 188 50% 30% / 0.22;
+    --glass-highlight: 0 0% 100% / 0.9;
+    --login-orb: 42 90% 55% / 0.22;
+    --login-grid-line: 198 25% 70% / 0.45;
+    --login-stage-base: 198 42% 92%;
+    --signal-amber: 38 85% 42%;
+    --sea: 188 72% 28%;
+    --parchment: 40 45% 96%;
+    --sail: 8 68% 48%;
+    --lantern: 42 90% 48%;
+    --moon: 210 40% 88%;
   }
 
   .dark {
-    /* Dark — admin default (near-black ops console) */
-    --background: 220 28% 3%;
-    --foreground: 214 40% 94%;
-    --card: 220 24% 6%;
-    --card-foreground: 214 40% 94%;
-    --popover: 220 24% 6%;
-    --popover-foreground: 214 40% 94%;
-    --primary: 172 66% 50%;
-    --primary-foreground: 220 28% 4%;
-    --secondary: 220 20% 10%;
-    --secondary-foreground: 214 40% 94%;
-    --muted: 220 18% 10%;
-    --muted-foreground: 215 12% 58%;
-    --accent: 175 45% 14%;
-    --accent-foreground: 172 66% 70%;
-    --destructive: 0 72% 55%;
+    /* Captain's Deck — night watch */
+    --background: 218 48% 6%;
+    --foreground: 40 30% 94%;
+    --card: 218 40% 10%;
+    --card-foreground: 40 30% 94%;
+    --popover: 218 40% 10%;
+    --popover-foreground: 40 30% 94%;
+    --primary: 188 65% 48%;
+    --primary-foreground: 218 48% 6%;
+    --secondary: 218 32% 14%;
+    --secondary-foreground: 40 30% 94%;
+    --muted: 218 28% 14%;
+    --muted-foreground: 210 16% 62%;
+    --accent: 42 55% 16%;
+    --accent-foreground: 42 90% 72%;
+    --destructive: 4 78% 62%;
     --destructive-foreground: 0 0% 100%;
-    --border: 215 18% 14%;
-    --input: 215 18% 14%;
-    --ring: 172 66% 50%;
-    --atmosphere-from: 220 30% 5%;
-    --atmosphere-to: 210 22% 4%;
-    --surface-elevated: 220 22% 8%;
-    --chrome: 220 28% 3.5%;
-    --row-hover: 220 22% 9%;
-    --panel: 220 24% 6%;
-    --notice-fg: 43 90% 78%;
-    --notice-bg: 40 50% 12%;
-    --notice-border: 38 70% 35%;
-    --glass-fill: 220 28% 8% / 0.32;
-    --glass-border: 172 66% 50% / 0.3;
-    --glass-highlight: 0 0% 100% / 0.16;
-    --login-orb: 172 66% 50% / 0.2;
-    --login-grid-line: 215 18% 14% / 0.55;
-    --login-stage-base: 220 28% 3%;
+    --border: 218 28% 18%;
+    --input: 218 28% 18%;
+    --ring: 188 65% 48%;
+    --atmosphere-from: 218 45% 8%;
+    --atmosphere-to: 218 48% 6%;
+    --surface-elevated: 218 38% 12%;
+    --chrome: 218 42% 8%;
+    --row-hover: 218 32% 13%;
+    --panel: 218 40% 10%;
+    --notice-fg: 42 85% 72%;
+    --notice-bg: 42 40% 12%;
+    --notice-border: 42 55% 32%;
+    --glass-fill: 218 40% 10% / 0.55;
+    --glass-border: 42 80% 55% / 0.28;
+    --glass-highlight: 0 0% 100% / 0.1;
+    --login-orb: 42 90% 55% / 0.16;
+    --login-grid-line: 218 28% 20% / 0.5;
+    --login-stage-base: 218 48% 6%;
+    --signal-amber: 42 85% 55%;
+    --sea: 188 65% 48%;
+    --parchment: 218 40% 10%;
+    --sail: 8 70% 55%;
+    --lantern: 42 90% 55%;
+    --moon: 210 40% 90%;
   }
 
   * {
@@ -86,6 +98,7 @@
 
   body {
     @apply bg-background text-foreground antialiased;
+    font-family: var(--font-body), ui-sans-serif, system-ui, sans-serif;
   }
 
   :focus-visible {
@@ -96,23 +109,18 @@
 @layer utilities {
   .bg-atmosphere {
     background-color: hsl(var(--background));
-    background-image:
-      radial-gradient(ellipse 70% 55% at 12% -8%, hsl(var(--primary) / 0.1), transparent 52%),
-      radial-gradient(ellipse 80% 60% at 20% -10%, hsl(var(--atmosphere-from) / 0.85), transparent 55%),
-      radial-gradient(ellipse 60% 40% at 95% 5%, hsl(var(--primary) / 0.04), transparent 48%),
-      linear-gradient(165deg, hsl(var(--atmosphere-from)), hsl(var(--atmosphere-to)));
   }
 
   .font-display {
-    font-family: var(--font-display), ui-sans-serif, system-ui, sans-serif;
+    font-family: var(--font-display), ui-serif, Georgia, serif;
   }
 
   .animate-enter {
-    animation: enter 420ms cubic-bezier(0.22, 1, 0.36, 1) both;
+    animation: enter 480ms cubic-bezier(0.22, 1, 0.36, 1) both;
   }
 
   .animate-success {
-    animation: success-in 380ms cubic-bezier(0.22, 1, 0.36, 1) both;
+    animation: success-in 420ms cubic-bezier(0.22, 1, 0.36, 1) both;
   }
 
   .bg-chrome {
@@ -124,8 +132,38 @@
   }
 
   .panel-surface {
-    background-color: hsl(var(--panel) / 0.85);
-    box-shadow: inset 0 1px 0 0 hsl(var(--primary) / 0.08);
+    background-color: hsl(var(--panel) / 0.88);
+    box-shadow: inset 0 1px 0 0 hsl(var(--lantern) / 0.12);
+  }
+
+  .desk-rail {
+    background:
+      linear-gradient(180deg, hsl(var(--chrome) / 0.98), hsl(var(--panel) / 0.92)),
+      hsl(var(--chrome));
+  }
+
+  .desk-chrome {
+    background-color: hsl(var(--chrome) / 0.94);
+  }
+
+  .desk-panel {
+    background:
+      linear-gradient(180deg, hsl(var(--lantern) / 0.05), transparent 42%),
+      hsl(var(--panel) / 0.9);
+  }
+
+  .desk-tile {
+    background:
+      linear-gradient(135deg, hsl(var(--sea) / 0.06), transparent 42%),
+      hsl(var(--card) / 0.94);
+  }
+
+  .desk-shell main {
+    background-image: radial-gradient(
+      ellipse 50% 30% at 100% 0%,
+      hsl(var(--lantern) / 0.06),
+      transparent 60%
+    );
   }
 
   .notice-warn {
@@ -137,24 +175,69 @@
   .soft-chip {
     @apply inline-flex items-center rounded border border-border bg-muted/60 px-1.5 py-0.5 text-[11px] text-foreground;
   }
+
+  .parchment-panel {
+    background:
+      linear-gradient(165deg, hsl(var(--lantern) / 0.1), transparent 40%),
+      hsl(var(--card) / 0.96);
+    border: 1px solid hsl(var(--border));
+    box-shadow:
+      inset 0 1px 0 0 hsl(var(--glass-highlight)),
+      0 24px 50px -28px hsl(210 50% 10% / 0.55);
+    -webkit-backdrop-filter: blur(12px) saturate(1.2);
+    backdrop-filter: blur(12px) saturate(1.2);
+  }
+
+  .lantern-border {
+    border-color: hsl(var(--lantern) / 0.45);
+  }
+
+  .wave-shimmer {
+    animation: wave-drift 8s ease-in-out infinite;
+  }
+
+  .moon-glow {
+    animation: moon-rise 1.2s ease-out both;
+  }
+
+  .ship-sail {
+    animation: ship-sail-across 3.6s cubic-bezier(0.22, 1, 0.36, 1) both;
+  }
+
+  .flag-flutter {
+    animation: flag-flutter 2.2s ease-in-out infinite;
+    transform-origin: left center;
+  }
+
+  .sparkle {
+    animation: sparkle 2.8s ease-in-out infinite;
+  }
+
+  .sky-pan {
+    animation: sky-pan 48s ease-in-out infinite alternate;
+  }
+
+  .crew-doodle {
+    animation: crew-bob 4.5s ease-in-out infinite;
+  }
 }
 
-/* Glass / login atmosphere — outside @layer so filters are not stripped */
+/* Glass / pirate stage — outside @layer so filters are not stripped */
 .glass-panel {
   background:
     linear-gradient(
       160deg,
       hsl(var(--glass-highlight)) 0%,
       transparent 45%,
-      hsl(var(--primary) / 0.04) 100%
+      hsl(var(--sea) / 0.05) 100%
     ),
     hsl(var(--glass-fill));
   border: 1px solid hsl(var(--glass-border));
   box-shadow:
     inset 0 1px 0 0 hsl(var(--glass-highlight)),
-    0 24px 48px -28px hsl(0 0% 0% / 0.18);
-  -webkit-backdrop-filter: blur(28px) saturate(1.4);
-  backdrop-filter: blur(28px) saturate(1.4);
+    0 24px 48px -28px hsl(0 0% 0% / 0.22);
+  -webkit-backdrop-filter: blur(28px) saturate(1.35);
+  backdrop-filter: blur(28px) saturate(1.35);
 }
 
 .dark .glass-panel {
@@ -175,16 +258,110 @@
 
 .login-stage {
   background-color: hsl(var(--login-stage-base));
-  background-image:
-    radial-gradient(ellipse 55% 45% at 18% 12%, hsl(var(--login-orb)), transparent 55%),
-    radial-gradient(ellipse 45% 40% at 88% 78%, hsl(var(--primary) / 0.08), transparent 50%),
-    radial-gradient(ellipse 80% 60% at 50% 100%, hsl(var(--atmosphere-to) / 0.9), transparent 55%);
+}
+
+.pirate-sky {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  pointer-events: none;
+  background-color: #7eb6d9;
+}
+
+.dark .pirate-sky {
+  background-color: #0a1628;
+}
+
+.pirate-sky__image {
+  position: absolute;
+  inset: 0;
+  background-size: cover;
+  background-position: center bottom;
+  background-repeat: no-repeat;
+  transition: opacity 500ms ease;
+}
+
+.pirate-sky__day {
+  background-image: url('/pirate/sky-day.png');
+  background-size: cover;
+  background-position: 40% bottom;
+  opacity: 1;
+}
+
+.dark .pirate-sky__day {
+  opacity: 0;
+}
+
+.pirate-sky__night {
+  background-image: url('/pirate/sky-night.png');
+  background-size: cover;
+  background-position: 50% bottom;
+  opacity: 0;
+}
+
+.dark .pirate-sky__night {
+  opacity: 1;
+}
+
+.pirate-sky__wash {
+  position: absolute;
+  inset: 0;
+  background:
+    linear-gradient(
+      180deg,
+      hsl(var(--background) / 0.55) 0%,
+      hsl(var(--background) / 0.72) 42%,
+      hsl(var(--background) / 0.94) 100%
+    ),
+    radial-gradient(ellipse 50% 40% at 85% 12%, hsl(var(--lantern) / 0.2), transparent 55%);
+}
+
+.dark .pirate-sky__wash {
+  background: linear-gradient(
+    180deg,
+    hsl(var(--background) / 0.62) 0%,
+    hsl(var(--background) / 0.82) 48%,
+    hsl(var(--background) / 0.96) 100%
+  );
+}
+
+/* Night moon comes from sky-night art only — no CSS second moon. */
+.pirate-sky__moon {
+  display: none;
+}
+
+.pirate-sky__sun {
+  position: absolute;
+  top: 5%;
+  right: 8%;
+  width: 2.25rem;
+  height: 2.25rem;
+  border-radius: 9999px;
+  background: radial-gradient(circle at 40% 40%, hsl(48 100% 85%), hsl(var(--lantern)) 70%);
+  box-shadow: 0 0 36px 10px hsl(var(--lantern) / 0.35);
+  opacity: 0.85;
+  /* Keep clear of title-flanking doodles */
+  z-index: 1;
+}
+
+.dark .pirate-sky__sun {
+  opacity: 0;
+}
+
+.pirate-sky__wave {
+  position: absolute;
+  left: -5%;
+  right: -5%;
+  bottom: 0;
+  height: 18%;
+  background: linear-gradient(180deg, transparent, hsl(var(--sea) / 0.18));
+  mask-image: radial-gradient(ellipse 100% 80% at 50% 100%, black, transparent);
 }
 
 @keyframes enter {
   from {
     opacity: 0;
-    transform: translateY(12px);
+    transform: translateY(14px);
   }
   to {
     opacity: 1;
@@ -195,17 +372,210 @@
 @keyframes success-in {
   from {
     opacity: 0;
-    transform: scale(0.98);
+    transform: scale(0.97) translateY(8px);
   }
   to {
     opacity: 1;
-    transform: scale(1);
+    transform: scale(1) translateY(0);
   }
+}
+
+@keyframes signal-pulse {
+  0%,
+  100% {
+    box-shadow: 0 0 0 0 hsl(var(--primary) / 0);
+  }
+  50% {
+    box-shadow: 0 0 0 3px hsl(var(--primary) / 0.18);
+  }
+}
+
+@keyframes wave-drift {
+  0%,
+  100% {
+    transform: translateX(0);
+  }
+  50% {
+    transform: translateX(-2.5%);
+  }
+}
+
+/* Pan background-position only — layer stays full-bleed (no edge gap). */
+@keyframes sky-pan {
+  from {
+    background-position: 22% bottom;
+  }
+  to {
+    background-position: 78% bottom;
+  }
+}
+
+@keyframes ship-sail-across {
+  0% {
+    opacity: 0;
+    transform: translateX(-35%) translateY(8px);
+  }
+  18% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 1;
+    transform: translateX(42%) translateY(0);
+  }
+}
+
+@keyframes flag-flutter {
+  0%,
+  100% {
+    transform: rotate(-2deg) skewX(0deg);
+  }
+  50% {
+    transform: rotate(3deg) skewX(-4deg);
+  }
+}
+
+@keyframes moon-rise {
+  from {
+    opacity: 0;
+    transform: translateY(16px) scale(0.88);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes sparkle {
+  0%,
+  100% {
+    opacity: 0.35;
+  }
+  50% {
+    opacity: 1;
+  }
+}
+
+@keyframes crew-bob {
+  0%,
+  100% {
+    transform: translateY(0) rotate(-1deg);
+  }
+  50% {
+    transform: translateY(-10px) rotate(2deg);
+  }
+}
+
+.status-live {
+  animation: signal-pulse 2.4s ease-in-out infinite;
+}
+
+/* Demo voyage tutorial */
+@keyframes tutorial-pulse-ring {
+  0%,
+  100% {
+    box-shadow:
+      0 0 0 3px hsl(var(--primary) / 0.9),
+      0 0 0 10px hsl(var(--primary) / 0.18);
+  }
+  50% {
+    box-shadow:
+      0 0 0 5px hsl(var(--primary) / 1),
+      0 0 0 16px hsl(var(--primary) / 0.1);
+  }
+}
+
+@keyframes tutorial-pointer-bounce {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(10px);
+  }
+}
+
+@keyframes tutorial-pointer-bounce-x {
+  0%,
+  100% {
+    transform: translateX(0);
+  }
+  50% {
+    transform: translateX(10px);
+  }
+}
+
+@keyframes tutorial-checkpoint-pop {
+  0% {
+    opacity: 0;
+    transform: translate(-50%, -50%) scale(0.6);
+  }
+  35% {
+    opacity: 1;
+    transform: translate(-50%, -50%) scale(1.08);
+  }
+  100% {
+    opacity: 0;
+    transform: translate(-50%, -50%) scale(1.2);
+  }
+}
+
+@keyframes tutorial-mascot-bob {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-6px);
+  }
+}
+
+.tutorial-pulse-ring {
+  animation: tutorial-pulse-ring 1.2s ease-in-out infinite;
+}
+
+.tutorial-pointer-y {
+  animation: tutorial-pointer-bounce 0.85s ease-in-out infinite;
+}
+
+.tutorial-pointer-x {
+  animation: tutorial-pointer-bounce-x 0.85s ease-in-out infinite;
+}
+
+.tutorial-checkpoint-flash {
+  animation: tutorial-checkpoint-pop 0.95s ease-out forwards;
+}
+
+.tutorial-mascot-bob {
+  animation: tutorial-mascot-bob 2.4s ease-in-out infinite;
 }
 
 @media (prefers-reduced-motion: reduce) {
   .animate-enter,
-  .animate-success {
-    animation: none;
+  .animate-success,
+  .status-live,
+  .wave-shimmer,
+  .ship-sail,
+  .flag-flutter,
+  .sparkle,
+  .sky-pan,
+  .crew-doodle,
+  .moon-glow,
+  .dark .pirate-sky__moon,
+  .tutorial-pulse-ring,
+  .tutorial-pointer-y,
+  .tutorial-pointer-x,
+  .tutorial-mascot-bob,
+  .tutorial-checkpoint-flash {
+    animation: none !important;
+  }
+
+  .dark .pirate-sky__moon {
+    opacity: 1;
+    transform: none;
+  }
+
+  .ship-sail {
+    opacity: 1;
+    transform: translateX(10%);
   }
 }

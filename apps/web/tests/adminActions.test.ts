@@ -355,6 +355,65 @@ describe('adminActions', () => {
     expect(result.error).toContain('already queued')
   })
 
+  it('forceStartDespiteDailyLimit() arms override and enqueues retry when Drive exists', async () => {
+    requireAdminWriteMock.mockResolvedValueOnce({ denied: false })
+    supabaseAdminSingleMock.mockResolvedValueOnce({
+      data: {
+        id: 'job-test-1',
+        status: 'ready_to_upload',
+        failure_code: 'DAILY_UPLOAD_LIMIT_REACHED',
+        failure_reason: 'Daily upload limit reached',
+        drive_file_id: 'drive-file-1',
+        drive_deleted_at: null,
+        youtube_upload_status: 'pending',
+        instagram_upload_status: 'pending',
+      },
+      error: null,
+    })
+
+    const { forceStartDespiteDailyLimit } = await import('@/app/actions/adminActions')
+    const result = await forceStartDespiteDailyLimit('job-test-1')
+
+    expect(result.success).toBe(true)
+    expect(adminCommandsInsertMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        job_id: 'job-test-1',
+        command: 'retry_upload',
+        payload: expect.objectContaining({ forceDailyLimitBypass: true }),
+      }),
+    )
+    expect(supabaseAdminInsertMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        action: 'force_start_despite_daily_limit',
+        target_id: 'job-test-1',
+      }),
+    )
+  })
+
+  it('forceStartDespiteDailyLimit() rejects jobs not parked for daily limit', async () => {
+    requireAdminWriteMock.mockResolvedValueOnce({ denied: false })
+    supabaseAdminSingleMock.mockResolvedValueOnce({
+      data: {
+        id: 'job-test-1',
+        status: 'queued',
+        failure_code: null,
+        failure_reason: null,
+        drive_file_id: null,
+        drive_deleted_at: null,
+        youtube_upload_status: 'pending',
+        instagram_upload_status: 'pending',
+      },
+      error: null,
+    })
+
+    const { forceStartDespiteDailyLimit } = await import('@/app/actions/adminActions')
+    const result = await forceStartDespiteDailyLimit('job-test-1')
+    expect(result).toEqual({
+      success: false,
+      error: 'Force start is only available when the job is parked for the daily upload limit.',
+    })
+  })
+
   it('bulkRetryJobUploads() aggregates per-job results', async () => {
     requireAdminWriteMock.mockResolvedValue({ denied: false })
 
@@ -432,27 +491,30 @@ describe('adminActions', () => {
     )
   })
 
-  it('deleteJobRecord() blocks active in-flight statuses', async () => {
-    requireAdminWriteMock.mockResolvedValueOnce({ denied: false })
-    supabaseAdminSingleMock.mockResolvedValueOnce({
-      data: {
-        id: 'job-test-1',
-        status: 'uploading',
-        drive_file_id: 'drive-1',
-        drive_deleted_at: null,
-        source_url: 'https://www.youtube.com/shorts/x',
-        niche_id: 'niche-1',
-      },
-      error: null,
-    })
+  it('deleteJobRecord() cancels in-flight jobs then deletes', async () => {
+    requireAdminWriteMock.mockResolvedValue({ denied: false })
+    // First fetch in deleteJobRecord, second fetch in cancelJob
+    supabaseAdminSingleMock
+      .mockResolvedValueOnce({
+        data: {
+          id: 'job-test-1',
+          status: 'uploading',
+          drive_file_id: 'drive-1',
+          drive_deleted_at: null,
+          source_url: 'https://www.youtube.com/shorts/x',
+          niche_id: 'niche-1',
+        },
+        error: null,
+      })
+      .mockResolvedValueOnce({
+        data: { id: 'job-test-1', status: 'uploading' },
+        error: null,
+      })
 
     const { deleteJobRecord } = await import('@/app/actions/adminActions')
     const result = await deleteJobRecord('job-test-1')
 
-    expect(result.success).toBe(false)
-    if (!result.success) {
-      expect(result.error).toContain('uploading')
-    }
-    expect(jobsDeleteEqMock).not.toHaveBeenCalled()
+    expect(result.success).toBe(true)
+    expect(jobsDeleteEqMock).toHaveBeenCalledWith('id', 'job-test-1')
   })
 })

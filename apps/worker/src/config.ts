@@ -43,12 +43,15 @@ const configSchema = z.object({
   VERIFY_DELAY_MINUTES: z.string().default('5').transform(Number),
   /** Mark uploading jobs stale after this many ms without progress (default 25m). */
   UPLOAD_STALE_THRESHOLD_MS: z.string().default('1500000').transform(Number),
+  /** Requeue mid-pipeline jobs with no progress after this many ms (default 50m). */
+  PIPELINE_STALE_THRESHOLD_MS: z.string().default('3000000').transform(Number),
   /** Hard timeout for a single platform Playwright upload (default 12m). */
   UPLOAD_PLATFORM_TIMEOUT_MS: z.string().default('720000').transform(Number),
 
-  WATERMARK_PATH: z.string().default('/app/assets/watermark.png'),
-  /** Directory containing memes.png / anime.png / sports.png (niche watermarks). */
-  WATERMARKS_DIR: z.string().optional(),
+  /** Quiet guitar bed mixed under original audio (5% volume in EditPreset). */
+  BACKGROUND_MUSIC_PATH: z
+    .string()
+    .default('/app/assets/bgm/absolutesound-background-guitar-no-copyright-561871.mp3'),
   TMP_DIR: z.string().default('/app/tmp/jobs'),
 
   MAX_SOURCE_DURATION_SECONDS: z.string().default('180').transform(Number),
@@ -63,6 +66,11 @@ const configSchema = z.object({
   GOOGLE_DRIVE_CLIENT_ID: z.string().optional(),
   GOOGLE_DRIVE_CLIENT_SECRET: z.string().optional(),
   GOOGLE_DRIVE_REFRESH_TOKEN: z.string().optional(),
+  /**
+   * Preferred permanent auth: path to a Google Cloud service-account JSON key.
+   * When set, OAuth refresh token is ignored. Share Drive folders with the SA email.
+   */
+  GOOGLE_DRIVE_SERVICE_ACCOUNT_FILE: z.string().optional(),
   GOOGLE_DRIVE_ROOT_FOLDER_ID: z.string().optional(),
   GOOGLE_DRIVE_PROCESSED_FOLDER_ID: z.string().optional(),
   GOOGLE_DRIVE_FAILED_FOLDER_ID: z.string().optional(),
@@ -70,6 +78,20 @@ const configSchema = z.object({
   AI_PROVIDER_BASE_URL: z.string().optional(),
   AI_PROVIDER_API_KEY: z.string().optional(),
   AI_MODEL: z.string().optional(),
+
+  /** Primary metadata model — Google Gemini (official @google/genai SDK). */
+  GEMINI_API_KEY: z.string().optional(),
+  GEMINI_MODEL: z.string().default('gemini-3.5-flash'),
+
+  /** Fallback metadata — Groq OpenAI-compatible API. */
+  GROQ_API_KEY: z.string().optional(),
+  GROQ_MODEL: z.string().default('llama-3.3-70b-versatile'),
+  GROQ_BASE_URL: z.string().default('https://api.groq.com/openai/v1'),
+
+  /** Optional tertiary fallback — OpenRouter OpenAI-compatible API. */
+  OPENROUTER_API_KEY: z.string().optional(),
+  OPENROUTER_MODEL: z.string().optional(),
+  OPENROUTER_BASE_URL: z.string().default('https://openrouter.ai/api/v1'),
 })
 
 const envForParse = {

@@ -3,6 +3,7 @@ import type { FastifyInstance } from 'fastify'
 
 import { config } from '../config'
 import { supabaseAdmin } from '../db/supabaseAdmin'
+import { probeDriveAuth } from '../storage/driveAuth'
 import { runCommand } from '../utils/runCommand'
 
 type CheckResult = { ok: boolean; detail?: string }
@@ -48,6 +49,15 @@ async function checkSupabase(): Promise<CheckResult> {
   }
 }
 
+async function checkDrive(): Promise<CheckResult> {
+  try {
+    const probe = await probeDriveAuth()
+    return { ok: probe.ok, detail: `${probe.mode}: ${probe.detail}` }
+  } catch (err) {
+    return { ok: false, detail: err instanceof Error ? err.message : String(err) }
+  }
+}
+
 function detectPlaywright(): 'installed' | 'not_installed' {
   try {
     // eslint-disable-next-line @typescript-eslint/no-require-imports
@@ -76,14 +86,21 @@ export async function healthRoutes(app: FastifyInstance): Promise<void> {
   app.get('/health', async (_request, reply) => {
     const isTest = config.NODE_ENV === 'test'
 
-    const [ffmpeg, ytDlp, disk, supabase] = isTest
+    const [ffmpeg, ytDlp, disk, supabase, drive] = isTest
       ? [
           { ok: true, detail: 'skipped_in_test' } satisfies CheckResult,
           { ok: true, detail: 'skipped_in_test' } satisfies CheckResult,
           { ok: true, detail: 'skipped_in_test' } satisfies CheckResult,
           { ok: true, detail: 'skipped_in_test' } satisfies CheckResult,
+          { ok: true, detail: 'skipped_in_test' } satisfies CheckResult,
         ]
-      : await Promise.all([checkFfmpeg(), checkYtDlp(), checkDisk(), checkSupabase()])
+      : await Promise.all([
+          checkFfmpeg(),
+          checkYtDlp(),
+          checkDisk(),
+          checkSupabase(),
+          checkDrive(),
+        ])
 
     const chrome = checkChromeChannel()
     const playwright = detectPlaywright()
@@ -93,6 +110,7 @@ export async function healthRoutes(app: FastifyInstance): Promise<void> {
       ytDlp.ok &&
       disk.ok &&
       supabase.ok &&
+      drive.ok &&
       chrome.ok &&
       (isTest || playwright === 'installed')
 
@@ -109,6 +127,7 @@ export async function healthRoutes(app: FastifyInstance): Promise<void> {
         ffmpeg,
         ytDlp,
         disk,
+        drive,
         playwright,
         playwrightChannel: config.PLAYWRIGHT_CHANNEL ?? 'unset',
         chromeChannel: chrome,

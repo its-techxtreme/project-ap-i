@@ -6,6 +6,7 @@ import { Filter, X } from 'lucide-react'
 import type { ReactNode } from 'react'
 
 import { Button } from '@/components/ui/button'
+import { emitTutorialAction } from '@/lib/demo/tutorial-bus'
 import { cn } from '@/lib/utils'
 
 type NicheOption = { id: string; name: string }
@@ -81,6 +82,7 @@ export function JobFilters({ niches }: { niches: NicheOption[] }) {
     params.delete('dateFrom')
     params.delete('dateTo')
     params.delete('page')
+    emitTutorialAction('filter-jobs')
     router.push(`${pathname}?${params.toString()}`)
   }
 
@@ -92,7 +94,10 @@ export function JobFilters({ niches }: { niches: NicheOption[] }) {
   }
 
   return (
-    <div className="panel-surface overflow-hidden rounded-xl border border-border">
+    <div
+      className="panel-surface overflow-hidden rounded-xl border border-border"
+      data-tutorial="job-filters"
+    >
       <div className="flex flex-wrap items-end gap-x-2.5 gap-y-2 px-3 py-2.5">
         <div className="mb-0.5 flex size-8 shrink-0 items-center justify-center rounded-md border border-border/60 bg-background/50 text-primary">
           <Filter className="size-3.5" aria-hidden />

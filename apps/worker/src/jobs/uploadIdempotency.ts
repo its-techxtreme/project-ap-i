@@ -55,6 +55,6 @@ export async function hasPublishWithoutUrlFailure(
 
   return (data ?? []).some((row) => {
     const msg = (row.error_message ?? '').toLowerCase()
-    return msg.includes('no video url was captured') || msg.includes('refusing synthetic media')
+    return msg.includes('no video url was captured') || msg.includes('refusing synthetic media') || msg.includes('youtube_url_capture_failed')
   })
 }

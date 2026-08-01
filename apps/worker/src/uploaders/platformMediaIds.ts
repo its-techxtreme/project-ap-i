@@ -3,6 +3,41 @@
  * Legacy Playwright uploaders invented `ig-<uuid>-<ts>` / `yt-<jobId>-<ts>`
  * placeholders after clicking Share/Publish — those must never count as success.
  */
+
+/** YouTube video ids are 11 chars from [A-Za-z0-9_-]. */
+const YT_VIDEO_ID = /([A-Za-z0-9_-]{11})/
+
+/**
+ * Pull a YouTube video id from watch/shorts/youtu.be/Studio URLs or raw text.
+ * Studio often exposes `/video/<id>/edit` after Publish even when the share dialog is slow.
+ */
+export function extractYoutubeVideoId(text: string | null | undefined): string | undefined {
+  if (!text) return undefined
+  const patterns = [
+    /youtu\.be\/([A-Za-z0-9_-]{11})/i,
+    /youtube\.com\/(?:watch\?(?:[^#]*&)?v=|shorts\/|embed\/|live\/)([A-Za-z0-9_-]{11})/i,
+    /studio\.youtube\.com\/video\/([A-Za-z0-9_-]{11})/i,
+    /youtube\.com\/video\/([A-Za-z0-9_-]{11})/i,
+  ]
+  for (const re of patterns) {
+    const match = text.match(re)
+    if (match?.[1]) return match[1]
+  }
+  // Bare 11-char id only when the whole string is just the id.
+  const bare = text.trim().match(new RegExp(`^${YT_VIDEO_ID.source}$`))
+  return bare?.[1]
+}
+
+/** Canonical public watch URL used as platform_media_id. */
+export function youtubeUrlFromVideoId(videoId: string): string {
+  return `https://youtu.be/${videoId}`
+}
+
+export function normalizeYoutubeMediaUrl(href: string): string | null {
+  const id = extractYoutubeVideoId(href)
+  return id ? youtubeUrlFromVideoId(id) : null
+}
+
 export function isRealPlatformMediaId(
   platform: 'youtube' | 'instagram' | string,
   mediaId: string | null | undefined,
@@ -14,7 +49,8 @@ export function isRealPlatformMediaId(
   if (/^(ig|yt)-[0-9a-z_-]+-\d{10,}$/i.test(id)) return false
 
   if (platform === 'youtube') {
-    return /youtu\.be\/|youtube\.com\/(watch|shorts)/i.test(id)
+    // Accept public watch/shorts/youtu.be and Studio `/video/<id>` (normalized to youtu.be).
+    return Boolean(normalizeYoutubeMediaUrl(id))
   }
   if (platform === 'instagram') {
     // Accept both /reel/ID and /{username}/reel/ID (current Instagram web URLs).

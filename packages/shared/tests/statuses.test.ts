@@ -34,6 +34,7 @@ describe('statuses', () => {
       'needs_manual_review',
       'ignored',
       'cancelled',
+      'paused',
     ])
   })
 

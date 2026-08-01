@@ -2,7 +2,7 @@ export interface ProcessInput {
   jobId: string
   sourcePath: string
   tempDir: string
-  watermarkPath: string
+  backgroundMusicPath: string
 }
 
 export interface ProcessOutput {

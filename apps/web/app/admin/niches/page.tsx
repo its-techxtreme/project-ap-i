@@ -1,5 +1,6 @@
 import { StatusBadge } from '@/components/app/StatusBadge'
 import { EmptyState } from '@/components/app/EmptyState'
+import { DeskPageHeader } from '@/components/desk/DeskPageHeader'
 import { requireAdmin } from '@/lib/auth/requireAdmin'
 import { getNicheAccountMappings } from '@/lib/data/adminQueries'
 
@@ -8,20 +9,19 @@ export default async function AdminNichesPage() {
   const niches = await getNicheAccountMappings()
 
   return (
-    <div className="space-y-6">
-      <div>
-        <h1 className="font-display text-2xl font-semibold tracking-tight">Niches</h1>
-        <p className="mt-1 text-sm text-muted-foreground">
-          Niche to platform account mapping (read-only). Editing lands in a later phase.
-        </p>
-      </div>
+    <div className="space-y-4 animate-enter">
+      <DeskPageHeader
+        kicker="Chart of lanes"
+        title="Sea lanes"
+        description="Niche to platform account mapping (read-only). Editing lands in a later voyage."
+      />
 
       {niches.length === 0 ? (
-        <EmptyState title="No niches" description="No niches are configured yet." />
+        <EmptyState title="No sea lanes" description="No niches are configured yet." />
       ) : (
-        <div className="overflow-x-auto rounded-lg border border-border bg-card">
+        <div className="desk-panel overflow-x-auto rounded-md border border-border/80">
           <table className="w-full min-w-[640px] text-left text-sm">
-            <thead className="border-b border-border bg-muted/40 text-muted-foreground">
+            <thead className="border-b border-border/70 bg-muted/35 font-mono text-[10px] uppercase tracking-[0.1em] text-muted-foreground">
               <tr>
                 <th className="px-4 py-3 font-medium">Niche</th>
                 <th className="px-4 py-3 font-medium">Slug</th>
@@ -32,9 +32,9 @@ export default async function AdminNichesPage() {
             </thead>
             <tbody>
               {niches.map((niche) => (
-                <tr key={niche.id} className="border-b border-border/70 last:border-0">
+                <tr key={niche.id} className="border-b border-border/60 last:border-0">
                   <td className="px-4 py-3 font-medium">{niche.name}</td>
-                  <td className="px-4 py-3 text-muted-foreground">{niche.slug}</td>
+                  <td className="px-4 py-3 font-mono text-xs text-muted-foreground">{niche.slug}</td>
                   <td className="px-4 py-3">{niche.is_active ? 'Yes' : 'No'}</td>
                   <td className="px-4 py-3">
                     {niche.youtube_label ? (

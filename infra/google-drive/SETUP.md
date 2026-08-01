@@ -1,76 +1,112 @@
-# Google Drive credentials (OAuth2)
+# Google Drive credentials
 
-The worker uses a **refresh token** (long-lived) plus client ID/secret to upload staged videos. Supabase remains the source of truth; Drive is staging only.
+The worker stages edited videos on Google Drive. Supabase remains the source of truth; Drive is staging only.
 
-## Step 1 — Google Cloud project
+## Important (April 2025+)
 
-1. Open [Google Cloud Console](https://console.cloud.google.com/).
-2. Create a project (e.g. `project-ap-i-dev`).
-3. **APIs & Services → Library** → enable **Google Drive API**.
+New Google **service accounts have no Drive storage quota** and **cannot own files in My Drive**, even if a personal folder is shared with them. You will see:
 
-## Step 2 — OAuth consent screen
+`Service Accounts do not have storage quota`
 
-1. **APIs & Services → OAuth consent screen**.
-2. User type: **External** (or Internal if you have Workspace).
-3. Add app name, support email, developer email.
-4. Scopes → add **`https://www.googleapis.com/auth/drive.file`**  
-   (creates/edits files the app opens — least privilege for staging uploads).
-   Note: with this scope, reading folder metadata by ID may return 404, but **uploads into your folders still work**.
-5. Add your Google account as a **Test user** while in Testing mode.
+Permanent options:
 
-## Step 3 — OAuth client
+1. **Service account + Shared Drive** (best if you have Google Workspace)
+2. **User OAuth** with a published app + dedicated Google account (works on personal Gmail)
 
-1. **APIs & Services → Credentials → Create credentials → OAuth client ID**.
-2. Application type: **Desktop app** (simplest for refresh-token flow).
-3. Copy **Client ID** and **Client secret** into `.env`:
-   - `GOOGLE_DRIVE_CLIENT_ID`
-   - `GOOGLE_DRIVE_CLIENT_SECRET`
+---
 
-## Step 4 — Refresh token (one-time)
+## Option A — Service account + Shared Drive (recommended when Workspace is available)
 
-### Option A — OAuth 2.0 Playground (easiest)
+### A1. Create service account + JSON key
 
-1. Open [OAuth 2.0 Playground](https://developers.google.com/oauthplayground/).
-2. Gear icon → check **Use your own OAuth credentials** → paste Client ID & Secret.
-3. Step 1: select scope `https://www.googleapis.com/auth/drive.file` → **Authorize APIs**.
-4. Sign in with the Google account that owns the staging Drive folders.
-5. Step 2: **Exchange authorization code for tokens**.
-6. Copy **Refresh token** → `.env` as `GOOGLE_DRIVE_REFRESH_TOKEN`.
+1. [Google Cloud Console](https://console.cloud.google.com/) → your project (`project-ap-1`).
+2. Enable **Google Drive API**.
+3. **IAM & Admin → Service Accounts → Create** (e.g. `project-api-drive`).
+4. **Keys → Add key → JSON** → save outside the repo, e.g. `C:\Users\notte\secrets\project-ap-1-….json`.
+5. Copy the SA email: `project-api-drive@project-ap-1.iam.gserviceaccount.com`.
 
-### Option B — CLI script (repo)
+### A2. Create a Shared Drive (Workspace required)
 
-After Client ID/Secret are in `.env`:
+Personal `@gmail.com` My Drive cannot host this. You need Google Workspace.
 
-```bash
-node scripts/google-drive-auth.mjs
-```
+1. In Drive left nav → **Shared drives** → **New**
+2. Name: `AP-I Staging` (or similar)
+3. Manage members → add the SA email as **Content manager** (or Manager)
+4. Also add your human admin account as Manager
 
-Follow the printed URL, paste the auth code, script writes the refresh token into `.env`.
+### A3. Create the three folders inside the Shared Drive
 
-## Step 5 — Drive folders
+Inside the Shared Drive create:
 
-Create three folders in the Google account you authorized (names are up to you):
+| Folder | Env var |
+|--------|---------|
+| `AP-I Staging` (root/incoming) | `GOOGLE_DRIVE_ROOT_FOLDER_ID` |
+| `AP-I Processed` | `GOOGLE_DRIVE_PROCESSED_FOLDER_ID` |
+| `AP-I Failed` | `GOOGLE_DRIVE_FAILED_FOLDER_ID` |
 
-| Purpose | Suggested name | `.env` variable |
-|---------|----------------|-----------------|
-| Incoming / root staging | `AP-I Staging` | `GOOGLE_DRIVE_ROOT_FOLDER_ID` |
-| Processed ready to upload | `AP-I Processed` | `GOOGLE_DRIVE_PROCESSED_FOLDER_ID` |
-| Failed / manual review | `AP-I Failed` | `GOOGLE_DRIVE_FAILED_FOLDER_ID` |
+Open each folder and copy the ID from the URL (`…/folders/FOLDER_ID`).
 
-Folder ID = last segment of the URL when the folder is open:
-
-`https://drive.google.com/drive/folders/`**`1abc...xyz`**
-
-## Step 6 — Verify
+### A4. `.env`
 
 ```bash
-node scripts/google-drive-test.mjs
+GOOGLE_DRIVE_SERVICE_ACCOUNT_FILE=C:\Users\notte\secrets\project-ap-1-….json
+GOOGLE_DRIVE_ROOT_FOLDER_ID=...
+GOOGLE_DRIVE_PROCESSED_FOLDER_ID=...
+GOOGLE_DRIVE_FAILED_FOLDER_ID=...
 ```
 
-Lists the three folders (no upload) if credentials are valid.
+When `GOOGLE_DRIVE_SERVICE_ACCOUNT_FILE` is set, OAuth refresh-token vars are ignored.
 
-## Security notes
+### A5. Verify + restart
 
-- Never commit `.env` or refresh tokens.
-- Use a dedicated Google account or Shared Drive for production staging.
-- Rotate client secret if exposed; refresh token can be revoked in [Google Account → Security → Third-party access](https://myaccount.google.com/permissions).
+```bash
+node --env-file=.env scripts/google-drive-test.mjs
+pnpm stack:up
+pnpm stack:status
+```
+
+Expect `Service account auth OK` and all three folder uploads OK, then `drive=true (...service_account_ok...)`.
+
+---
+
+## Option B — User OAuth (personal Gmail / no Shared Drive)
+
+Use a **dedicated Google account** that only the worker uses (don’t log into it casually). Keep the OAuth app **In production**.
+
+### B1. Remove / comment SA override
+
+In `.env`, comment out so OAuth is used again:
+
+```bash
+# GOOGLE_DRIVE_SERVICE_ACCOUNT_FILE=...
+```
+
+Keep your existing folder IDs (My Drive folders are fine for OAuth).
+
+### B2. Re-issue refresh token
+
+```bash
+node --env-file=.env scripts/google-drive-auth.mjs
+```
+
+Approve with the Drive owner account, paste the redirect URL if needed. This writes a new `GOOGLE_DRIVE_REFRESH_TOKEN`.
+
+### B3. Verify + restart
+
+```bash
+node --env-file=.env scripts/google-drive-test.mjs
+pnpm stack:up
+pnpm stack:status
+```
+
+Worker health includes a Drive probe and will **stop claiming jobs** if the token dies again (`DRIVE_AUTH_FAILED`), instead of failing the whole queue silently.
+
+If `invalid_grant` returns later: re-run `google-drive-auth.mjs` (usually after password reset / security revoke / Google account changes).
+
+---
+
+## Security
+
+- Never commit `.env`, refresh tokens, or service-account JSON.
+- Prefer a dedicated Google / Workspace account for production staging.
+- Rotate SA keys / client secrets if exposed.

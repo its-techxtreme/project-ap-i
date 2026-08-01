@@ -55,7 +55,7 @@ The local machine is sufficient for MVP if FFmpeg is limited to one active proce
 | Video processing | FFmpeg | Industry-standard video processing |
 | Browser automation | Playwright | MVP uploading where official APIs are not used |
 | Staging storage | Google Drive API | Uses existing 2 TB Drive storage |
-| AI metadata | Configurable OpenAI-compatible/NVIDIA-compatible model endpoint | Replaceable provider design |
+| AI metadata | Google Gemini 3.5 Flash primary + Groq fallback (OpenRouter optional) | Replaceable provider design |
 | Runtime | Docker Compose | Isolation, resource limits, repeatable deployment |
 | Monitoring | Dashboard + logs + n8n execution history | Low-cost MVP observability |
 
@@ -252,7 +252,7 @@ For plain Docker Compose, `deploy.resources` may not enforce limits unless using
   .env
   infra/docker-compose.yml
   playwright-profiles/     ← gitignored, outside committed tree
-  apps/worker/assets/watermark.png
+  apps/worker/assets/bgm/absolutesound-background-guitar-no-copyright-561871.mp3
   tmp/jobs/                ← native worker temp (optional)
 ```
 
@@ -281,10 +281,13 @@ GOOGLE_DRIVE_CLIENT_ID=
 GOOGLE_DRIVE_CLIENT_SECRET=
 GOOGLE_DRIVE_REFRESH_TOKEN=
 GOOGLE_DRIVE_ROOT_FOLDER_ID=
-AI_PROVIDER_BASE_URL=
-AI_PROVIDER_API_KEY=
+GEMINI_API_KEY=
+GEMINI_MODEL=gemini-3.5-flash
+GROQ_API_KEY=
+GROQ_MODEL=llama-3.3-70b-versatile
+GROQ_BASE_URL=https://api.groq.com/openai/v1
 AI_MODEL=
-WATERMARK_PATH=/app/assets/watermark.png
+BACKGROUND_MUSIC_PATH=/app/assets/bgm/absolutesound-background-guitar-no-copyright-561871.mp3
 TMP_DIR=/app/tmp/jobs
 MAX_FFMPEG_CONCURRENCY=1
 MAX_DOWNLOAD_CONCURRENCY=2

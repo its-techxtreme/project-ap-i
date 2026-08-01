@@ -1,10 +1,17 @@
 import type { DbJobRow } from '../db/jobsRepo'
 import { claimNextJob, updateJobStatus, writeJobEvent } from '../db/jobsRepo'
 import { supabaseAdmin } from '../db/supabaseAdmin'
+import { config } from '../config'
 import { logger } from '../logging/logger'
+import { isDriveAuthHealthy } from '../storage/driveAuth'
 
 import { getUploadQueueStatus } from './ConcurrencyGuard'
-import { checkNicheDailyUploadLimits, dailyLimitDeferMessage } from './dailyUploadLimit'
+import {
+  checkNicheDailyUploadLimits,
+  dailyLimitDeferMessage,
+  hasForceUploadOverride,
+} from './dailyUploadLimit'
+import { recoverStalePipelineJobs } from './recoverStalePipelineJobs'
 import { recoverStaleUploadingJobs } from './recoverStaleUploads'
 
 /**
@@ -16,12 +23,46 @@ export async function claimJob(workerId: string): Promise<DbJobRow | null> {
   // Heal crash zombies before backpressure checks so one hung IG upload cannot
   // freeze the queue forever after the worker restarts.
   try {
-    const recovered = await recoverStaleUploadingJobs(workerId)
-    if (recovered > 0) {
-      logger.info({ msg: 'Recovered stale uploading jobs before claim', workerId, recovered })
+    const recoveredUploads = await recoverStaleUploadingJobs(workerId)
+    if (recoveredUploads > 0) {
+      logger.info({
+        msg: 'Recovered stale uploading jobs before claim',
+        workerId,
+        recovered: recoveredUploads,
+      })
     }
   } catch (err) {
     logger.warn({ msg: 'Stale upload recovery failed before claim', workerId, err: String(err) })
+  }
+
+  try {
+    const recoveredPipeline = await recoverStalePipelineJobs(workerId)
+    if (recoveredPipeline > 0) {
+      logger.info({
+        msg: 'Recovered stale pipeline jobs before claim',
+        workerId,
+        recovered: recoveredPipeline,
+      })
+    }
+  } catch (err) {
+    logger.warn({ msg: 'Stale pipeline recovery failed before claim', workerId, err: String(err) })
+  }
+
+  // Dead Drive credentials must not claim/fail every queued job.
+  if (config.NODE_ENV !== 'test') {
+    try {
+      const driveOk = await isDriveAuthHealthy()
+      if (!driveOk) {
+        logger.error({
+          msg: 'Skipping job claim — Google Drive auth unhealthy (fix credentials, then restart/reprobe)',
+          workerId,
+        })
+        return null
+      }
+    } catch (err) {
+      logger.warn({ msg: 'Drive auth probe failed before claim', workerId, err: String(err) })
+      return null
+    }
   }
 
   const uploadQueue = getUploadQueueStatus()
@@ -65,17 +106,26 @@ export async function claimJob(workerId: string): Promise<DbJobRow | null> {
     }
 
     try {
-      const limitCheck = await checkNicheDailyUploadLimits(job.niche_id)
-      if (limitCheck.blocked) {
-        skipped.add(job.id)
-        await releaseClaimToQueued(job.id, workerId, dailyLimitDeferMessage(limitCheck))
+      const forceOverride = hasForceUploadOverride(job)
+      if (forceOverride) {
         logger.info({
-          msg: 'Released claim — daily upload limit reached for niche accounts',
+          msg: 'Claim accepted with admin force_upload_override (soft daily limit bypass)',
           jobId: job.id,
           nicheId: job.niche_id,
-          usages: limitCheck.usages,
         })
-        continue
+      } else {
+        const limitCheck = await checkNicheDailyUploadLimits(job.niche_id)
+        if (limitCheck.blocked) {
+          skipped.add(job.id)
+          await releaseClaimToQueued(job.id, workerId, dailyLimitDeferMessage(limitCheck))
+          logger.info({
+            msg: 'Released claim — daily upload limit reached for niche accounts',
+            jobId: job.id,
+            nicheId: job.niche_id,
+            usages: limitCheck.usages,
+          })
+          continue
+        }
       }
     } catch (err) {
       // Account mapping errors should not leave the job locked forever.

@@ -1,3 +1,4 @@
+import { DeskPageHeader } from '@/components/desk/DeskPageHeader'
 import { requireAdmin } from '@/lib/auth/requireAdmin'
 import { getSystemSettings } from '@/lib/data/adminQueries'
 import { formatSettingValue } from '@/lib/format/dateFilters'
@@ -15,17 +16,16 @@ export default async function AdminSettingsPage() {
   const settings = await getSystemSettings()
 
   return (
-    <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-semibold tracking-tight">Settings</h1>
-        <p className="text-sm text-muted-foreground">
-          Read-only system settings. Editing will be enabled in Phase 16.
-        </p>
-      </div>
+    <div className="space-y-4 animate-enter">
+      <DeskPageHeader
+        kicker="Chart room"
+        title="Chart room"
+        description="Read-only system settings. Editing will be enabled in a later voyage."
+      />
 
-      <div className="overflow-hidden rounded-lg border">
+      <div className="desk-panel overflow-hidden rounded-md border border-border/80">
         <table className="w-full text-left text-sm">
-          <thead className="border-b bg-muted/40">
+          <thead className="border-b border-border/70 bg-muted/35 font-mono text-[10px] uppercase tracking-[0.1em] text-muted-foreground">
             <tr>
               <th className="px-4 py-3 font-medium">Setting</th>
               <th className="px-4 py-3 font-medium">Value</th>
@@ -33,11 +33,9 @@ export default async function AdminSettingsPage() {
           </thead>
           <tbody>
             {DISPLAY_KEYS.map((key) => (
-              <tr key={key} className="border-b last:border-b-0">
+              <tr key={key} className="border-b border-border/60 last:border-b-0">
                 <td className="px-4 py-3 font-mono text-xs">{key}</td>
-                <td className="px-4 py-3">
-                  {formatSettingValue(settings[key])}
-                </td>
+                <td className="px-4 py-3">{formatSettingValue(settings[key])}</td>
               </tr>
             ))}
           </tbody>

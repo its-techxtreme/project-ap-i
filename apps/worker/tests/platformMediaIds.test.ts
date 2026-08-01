@@ -1,15 +1,23 @@
 import { describe, expect, it } from 'vitest'
 
 import {
+  extractYoutubeVideoId,
   isRealPlatformMediaId,
   normalizeInstagramMediaUrl,
+  normalizeYoutubeMediaUrl,
 } from '../src/uploaders/platformMediaIds'
 
 describe('isRealPlatformMediaId', () => {
   it('accepts real YouTube watch/shorts/youtu.be URLs', () => {
     expect(isRealPlatformMediaId('youtube', 'https://www.youtube.com/watch?v=nW68t-yqvUs')).toBe(true)
     expect(isRealPlatformMediaId('youtube', 'https://youtu.be/nW68t-yqvUs')).toBe(true)
-    expect(isRealPlatformMediaId('youtube', 'https://www.youtube.com/shorts/abc123')).toBe(true)
+    expect(isRealPlatformMediaId('youtube', 'https://www.youtube.com/shorts/nW68t-yqvUs')).toBe(true)
+  })
+
+  it('accepts YouTube Studio video URLs (normalized via video id)', () => {
+    expect(
+      isRealPlatformMediaId('youtube', 'https://studio.youtube.com/video/nW68t-yqvUs/edit'),
+    ).toBe(true)
   })
 
   it('accepts real Instagram reel/p/tv URLs', () => {
@@ -34,6 +42,24 @@ describe('isRealPlatformMediaId', () => {
     expect(isRealPlatformMediaId('instagram', null)).toBe(false)
     expect(isRealPlatformMediaId('instagram', 'Shared')).toBe(false)
     expect(isRealPlatformMediaId('youtube', 'uploaded')).toBe(false)
+  })
+})
+
+describe('extractYoutubeVideoId / normalizeYoutubeMediaUrl', () => {
+  it('extracts ids from Studio and public URLs', () => {
+    expect(extractYoutubeVideoId('https://studio.youtube.com/video/nW68t-yqvUs/edit')).toBe(
+      'nW68t-yqvUs',
+    )
+    expect(normalizeYoutubeMediaUrl('https://studio.youtube.com/video/nW68t-yqvUs/edit')).toBe(
+      'https://youtu.be/nW68t-yqvUs',
+    )
+    expect(normalizeYoutubeMediaUrl('https://www.youtube.com/watch?v=nW68t-yqvUs&t=12')).toBe(
+      'https://youtu.be/nW68t-yqvUs',
+    )
+  })
+
+  it('returns null for non-video strings', () => {
+    expect(normalizeYoutubeMediaUrl('https://studio.youtube.com/channel/UC123/videos')).toBeNull()
   })
 })
 

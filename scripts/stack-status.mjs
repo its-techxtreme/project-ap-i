@@ -10,7 +10,8 @@ const port = Number(env.WORKER_PORT || env.PORT || 3001)
 async function check(url, headers = {}) {
   try {
     const res = await fetch(url, { headers })
-    return { ok: res.ok, status: res.status, body: await res.json().catch(() => null) }
+    const body = await res.json().catch(() => null)
+    return { ok: res.ok, status: res.status, body }
   } catch (err) {
     return { ok: false, error: err.message }
   }
@@ -20,16 +21,22 @@ async function main() {
   console.log('=== Project AP-I stack:status ===')
 
   const health = await check(`http://127.0.0.1:${port}/health`)
-  if (!health.ok) {
+  if (!health.body) {
     console.log(`worker: OFFLINE (${health.error || health.status})`)
   } else {
     const h = health.body
     const checks = h.checks || {}
-    console.log(`worker: OK  version=${h.version} env=${h.env}`)
+    const label = h.ok ? 'OK' : 'DEGRADED'
+    console.log(`worker: ${label}  version=${h.version} env=${h.env} http=${health.status}`)
     console.log(`  realUploads=${h.realUploadsEnabled} yt=${h.youtubeUploadsEnabled} ig=${h.instagramUploadsEnabled}`)
     console.log(`  ffmpeg=${checks.ffmpeg?.ok ?? checks.ffmpeg} ytDlp=${checks.ytDlp?.ok ?? checks.ytDlp}`)
     console.log(`  disk=${checks.disk?.ok ?? checks.disk} supabase=${checks.supabase?.ok ?? checks.supabase}`)
+    console.log(`  drive=${checks.drive?.ok ?? 'n/a'} ${checks.drive?.detail ? `(${checks.drive.detail})` : ''}`)
     console.log(`  playwright=${checks.playwright} channel=${checks.playwrightChannel}`)
+    if (checks.drive && checks.drive.ok === false) {
+      console.log('  WARNING: Google Drive auth failed — re-auth or set GOOGLE_DRIVE_SERVICE_ACCOUNT_FILE')
+      console.log('           See infra/google-drive/SETUP.md (Testing-mode OAuth tokens expire after ~7 days)')
+    }
     if (h.realUploadsEnabled && checks.playwrightChannel !== 'chrome') {
       console.log('  WARNING: real uploads require PLAYWRIGHT_CHANNEL=chrome')
     }

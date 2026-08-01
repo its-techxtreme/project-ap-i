@@ -28,9 +28,8 @@ ENV PORT=3001
 
 WORKDIR /app
 COPY --from=builder /out/worker ./
-COPY apps/worker/assets/watermark.png ./assets/watermark.png
-COPY apps/worker/assets/watermarks ./assets/watermarks
-ENV WATERMARKS_DIR=/app/assets/watermarks
+COPY apps/worker/assets/bgm ./assets/bgm
+ENV BACKGROUND_MUSIC_PATH=/app/assets/bgm/absolutesound-background-guitar-no-copyright-561871.mp3
 
 RUN npx playwright install-deps chromium
 RUN npx playwright install chromium

@@ -33,6 +33,13 @@ describe('Chrome-only real upload gate', () => {
     )
     expect(src).toContain('VIDEO_MADE_FOR_KIDS_NOT_MFK')
     expect(src).toContain("No, it's not made for kids")
+    expect(src).toContain('selectNotMadeForKids')
+    expect(src).toContain('recoverFromKidsHelpPage')
+    expect(src).toContain('clickNotMadeForKidsRadio')
+    expect(src).toContain('isNotMadeForKidsSelected')
+    expect(src).toContain('waitForYoutubeDetailsSaved')
+    // Bare text= matches Learn more / help and navigates away from Studio.
+    expect(src).not.toMatch(/'text=No, it\\'s not made for kids'/)
     expect(src).not.toMatch(/VIDEO_MADE_FOR_KIDS_MFK[^_]/)
     expect(src).not.toMatch(/Yes, it's made for kids/)
   })

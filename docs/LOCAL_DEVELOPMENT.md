@@ -130,9 +130,7 @@ PLAYWRIGHT_HEADLESS=false
 PLAYWRIGHT_CHANNEL=chrome          # required when REAL_UPLOADS_ENABLED=true
 PLAYWRIGHT_PROFILES_DIR=C:\path\to\repo\playwright-profiles
 VERIFY_DELAY_MINUTES=5             # post-upload verify wait (use 1–2 for local smoke)
-WATERMARK_PATH=C:\path\to\repo\apps\worker\assets\watermark.png
-# Per-niche logos (default if unset: apps/worker/assets/watermarks/{memes,anime,sports}.png)
-# WATERMARKS_DIR=C:\path\to\repo\apps\worker\assets\watermarks
+BACKGROUND_MUSIC_PATH=C:\path\to\repo\apps\worker\assets\bgm\absolutesound-background-guitar-no-copyright-561871.mp3
 TMP_DIR=C:\path\to\repo\apps\worker\tmp\jobs
 ```
 
@@ -196,7 +194,7 @@ Keep `MAX_FFMPEG_CONCURRENCY=1` on typical dev laptops.
 | Job stuck `locked` | Migration `0015` reclaims expired locks on next claim |
 | Dashboard shows Processing but no new activity | Check n8n: pollers must be **Active**. `pnpm stack:up` now re-activates them; if WF-01/02 fail, run `pnpm n8n:setup` |
 | Queue frozen / claim always skipped | A crash-stuck `uploading` job with no lock used to block claims — fixed; WF-08 also drains pending `ready_to_upload` |
-| Jobs stay queued / ready_to_upload with daily limit message | Expected when an account hit `DAILY_UPLOAD_LIMIT_PER_ACCOUNT` (default 5) in the last rolling 24h — resumes as older uploads age out |
+| Jobs stay queued / ready_to_upload with daily limit message | Expected when an account hit `DAILY_UPLOAD_LIMIT_PER_ACCOUNT` (default 5) in the last rolling 24h — claim rechecks deferred jobs every **30 minutes**; resumes when older uploads age out of the window |
 | Verification never runs | Activate WF-08; or wait for WF-02 Wait → WF-03 |
 
 ## Deferred: VPS production

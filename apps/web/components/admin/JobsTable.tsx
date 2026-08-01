@@ -2,10 +2,17 @@
 
 import Link from 'next/link'
 import { useState, type ReactNode } from 'react'
-import { Ban, ExternalLink, Eye, RotateCcw, Trash2 } from 'lucide-react'
+import { Ban, ExternalLink, Eye, Pause, Play, RotateCcw, Trash2, Zap } from 'lucide-react'
 import { useRouter } from 'next/navigation'
 
-import { cancelJob, deleteJobRecord, retryJobUpload } from '@/app/actions/adminActions'
+import {
+  cancelJob,
+  deleteJobRecord,
+  forceStartDespiteDailyLimit,
+  pauseJob,
+  retryJobUpload,
+  unpauseJob,
+} from '@/app/actions/adminActions'
 import { useAdminCapabilities } from '@/components/admin/AdminCapabilities'
 import { StatusBadge } from '@/components/app/StatusBadge'
 import type { JobListRow } from '@/lib/data/adminQueries'
@@ -69,6 +76,12 @@ function SoftChip({ children }: { children: ReactNode }) {
   return <span className="soft-chip">{children}</span>
 }
 
+function isDailyUploadLimitJob(job: JobListRow): boolean {
+  if (job.failure_code === 'DAILY_UPLOAD_LIMIT_REACHED') return true
+  const reason = (job.failure_reason ?? '').toLowerCase()
+  return reason.includes('daily upload limit')
+}
+
 export function JobsTable({ jobs }: { jobs: JobListRow[] }) {
   const router = useRouter()
   const { canWrite } = useAdminCapabilities()
@@ -90,6 +103,44 @@ export function JobsTable({ jobs }: { jobs: JobListRow[] }) {
         result.success
           ? (result.message ?? 'Retry queued. Runs when local worker/n8n is up.')
           : (result.error ?? 'Retry failed.'),
+      )
+      if (result.success) router.refresh()
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  async function handleForceStart(jobId: string) {
+    if (!canWrite) {
+      setActionMessage('Demo account is read-only.')
+      return
+    }
+    setBusy(true)
+    try {
+      const result = await forceStartDespiteDailyLimit(jobId)
+      setActionMessage(
+        result.success
+          ? (result.message ?? 'Force-start armed.')
+          : (result.error ?? 'Force-start failed.'),
+      )
+      if (result.success) router.refresh()
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  async function handlePauseToggle(jobId: string, status: string) {
+    if (!canWrite) {
+      setActionMessage('Demo account is read-only.')
+      return
+    }
+    setBusy(true)
+    try {
+      const result = status === 'paused' ? await unpauseJob(jobId) : await pauseJob(jobId)
+      setActionMessage(
+        result.success
+          ? (result.message ?? (status === 'paused' ? 'Job unpaused.' : 'Job paused.'))
+          : (result.error ?? 'Pause action failed.'),
       )
       if (result.success) router.refresh()
     } finally {
@@ -137,7 +188,7 @@ export function JobsTable({ jobs }: { jobs: JobListRow[] }) {
 
   if (jobs.length === 0) {
     return (
-      <div className="rounded-xl border border-dashed border-border/80 bg-card/30 px-4 py-10 text-center text-sm text-muted-foreground">
+      <div className="desk-panel rounded-md border border-dashed border-border/80 px-4 py-10 text-center text-sm text-muted-foreground">
         No jobs yet.
       </div>
     )
@@ -150,10 +201,10 @@ export function JobsTable({ jobs }: { jobs: JobListRow[] }) {
         <p className="notice-warn mb-3 rounded-md border px-3 py-2 text-sm">{actionMessage}</p>
       ) : null}
 
-      <div className="panel-surface overflow-hidden rounded-xl border border-border">
+      <div className="desk-panel overflow-hidden rounded-md border border-border/80">
         <div className="overflow-x-auto">
           <table className="w-full min-w-[980px] text-left text-sm">
-            <thead className="border-b border-border bg-muted/40 text-[10px] uppercase tracking-[0.08em] text-muted-foreground">
+            <thead className="border-b border-border/70 bg-muted/35 font-mono text-[10px] uppercase tracking-[0.1em] text-muted-foreground">
               <tr>
                 <th className="px-2.5 py-2.5 font-medium">Queue</th>
                 <th className="px-2.5 py-2.5 font-medium">Job</th>
@@ -237,7 +288,23 @@ export function JobsTable({ jobs }: { jobs: JobListRow[] }) {
                       )}
                     </div>
                   </td>
-                  <td className="px-2.5 py-2 text-xs tabular-nums">{job.retry_count}</td>
+                  <td className="px-2.5 py-2 text-xs tabular-nums">
+                    {isDailyUploadLimitJob(job) && canWrite ? (
+                      <button
+                        type="button"
+                        disabled={busy}
+                        onClick={() => void handleForceStart(job.id)}
+                        title="Force-start this job past the soft daily upload limit"
+                        aria-label="Force start past daily limit"
+                        className="inline-flex items-center gap-1 rounded-md border border-amber-500/40 bg-amber-500/10 px-1.5 py-0.5 font-mono text-[10px] uppercase tracking-[0.06em] text-amber-900 transition-colors hover:bg-amber-500/20 disabled:opacity-50 dark:text-amber-300"
+                      >
+                        <Zap className="size-3" aria-hidden />
+                        Force
+                      </button>
+                    ) : (
+                      job.retry_count
+                    )}
+                  </td>
                   <td
                     className="max-w-[10rem] truncate px-2.5 py-2 text-xs text-muted-foreground"
                     title={job.failure_reason ?? undefined}
@@ -254,6 +321,19 @@ export function JobsTable({ jobs }: { jobs: JobListRow[] }) {
                       </ActionIcon>
                       {canWrite ? (
                         <>
+                          {job.status === 'paused' ||
+                          !['completed', 'cancelled', 'ignored'].includes(job.status) ? (
+                            <ActionIcon
+                              label={job.status === 'paused' ? 'Unpause job' : 'Pause job'}
+                              onClick={() => void handlePauseToggle(job.id, job.status)}
+                            >
+                              {job.status === 'paused' ? (
+                                <Play className="size-3.5" />
+                              ) : (
+                                <Pause className="size-3.5" />
+                              )}
+                            </ActionIcon>
+                          ) : null}
                           <ActionIcon label="Retry upload" onClick={() => void handleRetry(job.id)}>
                             <RotateCcw className="size-3.5" />
                           </ActionIcon>

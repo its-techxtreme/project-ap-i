@@ -5,9 +5,11 @@ import { updateJobStatus, writeJobEvent } from '../db/jobsRepo'
 import { supabaseAdmin } from '../db/supabaseAdmin'
 import { logger } from '../logging/logger'
 
+import { prepareYoutubeUploadVariant } from '../processors/prepareYoutubeUploadVariant'
 import { resolveNicheAccounts } from './accountResolver'
 import { isDailyUploadLimitError } from '../jobs/dailyUploadLimit'
 import { findSuccessfulUploadAttempt } from '../jobs/uploadIdempotency'
+import { assertJobNotAborted } from '../jobs/jobAbort'
 import { isRealPlatformMediaId } from './platformMediaIds'
 import { isTransientUploadFailure } from './transientUploadErrors'
 import type { PlatformUploader, UploadJobInput, UploadResult } from './types'
@@ -74,6 +76,7 @@ export class UploadCoordinator {
     const platforms = job.platformsToUpload ?? (['youtube', 'instagram'] as const)
 
     if (platforms.includes('youtube')) {
+      await assertJobNotAborted(job.id)
       await this.uploadToPlatform({
         job,
         platform: 'youtube',
@@ -85,6 +88,8 @@ export class UploadCoordinator {
         },
       })
     }
+
+    await assertJobNotAborted(job.id)
 
     if (platforms.includes('instagram')) {
       await this.uploadToPlatform({
@@ -172,6 +177,25 @@ export class UploadCoordinator {
       errorMessage: 'Upload did not run',
     }
 
+    // Instagram uses the shared edit export. YouTube may get a niche brand
+    // c-text overlay when the reel has no existing burned-in captions.
+    let localFilePath = job.localFilePath
+    if (platform === 'youtube' && job.localFilePath) {
+      const ytVariant = await prepareYoutubeUploadVariant({
+        jobId: job.id,
+        nicheSlug: job.nicheSlug,
+        sourcePath: job.localFilePath,
+      })
+      localFilePath = ytVariant.localFilePath
+      logger.info({
+        msg: 'YouTube upload file resolved',
+        jobId: job.id,
+        brandOverlayApplied: ytVariant.brandOverlayApplied,
+        detectionReason: ytVariant.detectionReason,
+        localFilePath,
+      })
+    }
+
     for (let transientTry = 0; transientTry < TRANSIENT_UPLOAD_ATTEMPTS; transientTry++) {
       result = await withUploadTimeout(
         uploader.upload({
@@ -179,7 +203,7 @@ export class UploadCoordinator {
           nicheSlug: job.nicheSlug,
           driveFileId: job.driveFileId,
           driveViewUrl: job.driveViewUrl,
-          localFilePath: job.localFilePath,
+          localFilePath,
           platform,
           account,
           metadata,

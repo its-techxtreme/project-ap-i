@@ -84,56 +84,62 @@ server-side Zod validation, service-role insert (no anon RLS insert on jobs).
 
 ```text
 Header:
-  Project AP-I logo/name
-  User email
-  Logout
+  Project AP-I + compass mark
+  Theme toggle (day / night)
+  Captain's Deck link → /login
 
-Main card:
+Main parchment panel:
   Link input
   Platform selector
-  Niche dropdown
+  Niche (sea lane) dropdown
   Rights confirmation checkbox
-  Submit button
+  Load aboard button
 
-Result state:
-  Job submitted successfully
-  Job ID short display
-  Status queued
+Result state (ShipSuccess):
+  “Ahem! The content has been loaded on the ship”
+  “The ship is waiting on the dock, ready to sail!!”
+  Voyage ticket / sea lane / source port
+  Animated ship sailing across the dock
 ```
 
 ### Admin layout
 
 ```text
-Sidebar:
-  Overview
-  Jobs
-  Failed Review
-  Accounts
-  Niches
-  Logs
-  Settings
+Sidebar (Captain's Deck):
+  Crow's nest
+  Ship's log
+  Lost cargo
+  Crew
+  Sea lanes
+  Logbook
+  Chart room
 
 Topbar:
   Environment badge
-  Submissions link (opens public form at `/`)
-  Theme toggle
+  Remote laptop signal (center): offline / connected-ready / connected-not-ready
+    — derived from worker heartbeat in system_settings (never exposes worker URLs)
+  Cargo bay link (public form at `/`)
+  Theme toggle (day / night)
   Current user
   Log out
 
 Main content:
   Dense tables, compact filters, icon actions
+  Day/night pirate sky wash behind chrome
 ```
 
-Login (`/login`): dark glassmorphism sign-in panel with teal atmosphere graphics; admin theme by default.
+Login (`/login`): Captain's gate glass panel over pirate sky; admin theme by default.
 
 ## Visual design
 
 ### Style direction
 
-- Admin: near-black ops console (`#030508` canvas), teal accent, Syne + Public Sans.
-- Public submit: light brand composition (separate from admin chrome).
-- Dense tables, hairline borders, color-coded status badges.
-- Soft teal atmosphere glow only — no purple/indigo themes.
+- Theme: **Pirate voyage** — One Piece–inspired crew language without copyrighted marks or characters.
+- Light = **daytime voyage** (turquoise sea, parchment panels, sun).
+- Dark = **night watch** (deep navy, moon + stars, lantern gold).
+- Fonts: Pirata One (display) + Source Sans 3 (body).
+- Generated sky art under `/public/pirate/` plus SVG ornaments (compass, anchor, map-scroll).
+- Motions: sky wash, wave shimmer, ship-sail success, moon rise (respects `prefers-reduced-motion`).
 
 ### Status colors
 
@@ -151,15 +157,15 @@ login_required: red
 
 ### Typography
 
-- Display / brand: Syne
-- Body / UI: Public Sans
+- Display / brand: Pirata One
+- Body / UI: Source Sans 3
 - Never use Inter, Roboto, Arial, or system-ui as primary
 
 Recommended:
 
 ```text
-Headings: semibold (Syne on page titles)
-Body: regular (Public Sans)
+Headings: Pirata One on page titles / brand
+Body: regular (Source Sans 3)
 Tables: small but readable
 Badges: medium weight
 ```
@@ -249,10 +255,10 @@ This value is stored in the job row.
 States:
 
 ```text
-Submit
+Load aboard
 Validating...
-Submitting...
-Submitted
+Loading aboard…
+(success → ShipSuccess panel)
 ```
 
 ### Submit page error messages
@@ -260,8 +266,8 @@ Submitted
 ```text
 Please paste a valid URL.
 Only YouTube and Instagram links are supported.
-Please select a niche.
-Please confirm rights permission before submitting.
+Please select a sea lane (niche).
+Confirm rights before the cargo can board.
 This niche is not fully configured yet.
 Submission failed. Please try again.
 ```
@@ -269,15 +275,17 @@ Submission failed. Please try again.
 ### Success message
 
 ```text
-Submitted successfully. This job is now queued for processing.
+Ahem! The content has been loaded on the ship
+The ship is waiting on the dock, ready to sail!!
 ```
 
 Optional display:
 
 ```text
-Job: AP-I-20260628-0001
-Niche: Memes
-Status: Queued
+Voyage ticket: AP-I-20260628-0001
+Sea lane: Memes
+Source port: YouTube
+Status: Queued at the dock — awaiting crew
 ```
 
 ## Admin overview page
@@ -285,13 +293,13 @@ Status: Queued
 ### Cards
 
 ```text
-Queued jobs
-Processing now
-Completed today
-Failed today
-Needs manual review
-Login required accounts
-Drive files waiting cleanup
+At dock
+Under weigh
+Landed today
+Lost today
+Needs boarding
+Crew locked out
+Hold cleanup
 ```
 
 ### Recent activity
@@ -337,7 +345,9 @@ Instagram upload status
 ```
 
 Jobs table shows a FIFO **Queue** number (`#1`, `#2`, …) for `queued` / `ready_to_upload` jobs.
-Admin actions include cancel (sets `cancelled`, stops retries).
+Admin actions include pause/unpause (`paused` skips claim; unpause requeues at end of FIFO), cancel (sets `cancelled` + optional `abort_job`), retry, ignore, Drive delete, and manual YouTube URL attach after capture-miss.
+
+When a job is parked for soft `DAILY_UPLOAD_LIMIT_REACHED`, the Retries column shows a **Force** button (admin only) instead of the retry count. Force arms a one-shot `force_upload_override` so claim/upload bypass the soft cap for that job only (platform hard limits still apply).
 
 Note: Jobs filters do not include created-date range (Created from / Created to). Date filters remain on Logs only.
 

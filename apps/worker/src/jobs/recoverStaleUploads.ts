@@ -48,9 +48,11 @@ export async function recoverStaleUploadingJobs(workerId: string): Promise<numbe
       updated_at: string
     }
 
+    // Require BOTH signals: an expired/missing lock alone must not kill a live
+    // Playwright upload (runUpload often has null lock_expires_at while in flight).
     const lockExpired = !job.lock_expires_at || job.lock_expires_at <= nowIso
     const updatedStale = job.updated_at <= cutoff
-    if (!lockExpired && !updatedStale) continue
+    if (!lockExpired || !updatedStale) continue
 
     const ytInflight = isInflightStatus(job.youtube_upload_status)
     const igInflight = isInflightStatus(job.instagram_upload_status)

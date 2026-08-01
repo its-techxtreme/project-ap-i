@@ -23,6 +23,9 @@ const EXPECTED_MIGRATIONS = [
   '0016_daily_upload_limit_claim_skip.sql',
   '0017_daily_upload_limit_rolling_24h.sql',
   '0018_fix_claim_null_failure_code.sql',
+  '0019_job_pause_abort_command.sql',
+  '0020_daily_limit_defer_recheck_30m.sql',
+  '0021_force_upload_override.sql',
 ]
 
 const RLS_TABLES = [
@@ -55,6 +58,12 @@ describe('db schema — migration files (static)', () => {
     expect(sql).toMatch(/enable row level security/i)
     expect(sql).toMatch(/grant execute on function public\.claim_next_admin_command/)
     expect(sql).toMatch(/to service_role/)
+  })
+
+  it('0019 expands admin_commands to abort_job', () => {
+    const sql = readMigration('0019_job_pause_abort_command.sql')
+    expect(sql).toMatch(/abort_job/)
+    expect(sql).toMatch(/admin_commands_command_check/)
   })
 
   it('seed.sql exists and seeds three niches', () => {
@@ -123,6 +132,12 @@ describe('db schema — migration files (static)', () => {
   it('claim_next_job NULL-safe daily deferral skip (0018)', () => {
     const sql = readMigration('0018_fix_claim_null_failure_code.sql')
     expect(sql).toMatch(/is not distinct from 'DAILY_UPLOAD_LIMIT_REACHED'/)
+  })
+
+  it('claim_next_job rechecks daily deferrals after 30 minutes (0020)', () => {
+    const sql = readMigration('0020_daily_limit_defer_recheck_30m.sql')
+    expect(sql).toMatch(/is not distinct from 'DAILY_UPLOAD_LIMIT_REACHED'/)
+    expect(sql).toMatch(/interval '30 minutes'/)
   })
 
   it('claim_next_job is restricted to service_role in function grants migration', () => {

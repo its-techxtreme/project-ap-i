@@ -1,53 +1,83 @@
 /**
- * Poll a job until terminal status or timeout.
- * Usage: node --env-file=.env scripts/watch-job.mjs <jobId> [--timeout-min 45]
+ * Web-app submit harness for approved Reel/Short links.
+ * Uses the public production intake form (not manual DB inserts).
+ *
+ * Usage examples (when links arrive):
+ *   node --env-file=.env scripts/watch-job.mjs <job-id>
+ *
+ * Browser automation will be driven by the agent against:
+ *   https://project-ap-i.vercel.app/
+ *   https://ap-i.techxtreme.me/
+ *
+ * This helper only polls Supabase for pipeline progress after a web submit.
  */
-import { loadEnvFile, requireEnv } from './lib/env.mjs'
+import process from 'node:process'
 
-const env = loadEnvFile()
-const supabaseUrl = requireEnv(env, 'SUPABASE_URL').replace(/\/$/, '')
-const key = requireEnv(env, 'SUPABASE_SERVICE_ROLE_KEY')
 const jobId = process.argv[2]
-const timeoutMin = Number(process.argv.includes('--timeout-min')
-  ? process.argv[process.argv.indexOf('--timeout-min') + 1]
-  : 45)
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || process.env.SUPABASE_URL
+const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY
 
 if (!jobId) {
-  console.error('Usage: node scripts/watch-job.mjs <jobId>')
+  console.error('Usage: node --env-file=.env scripts/watch-job.mjs <job-uuid>')
+  process.exit(1)
+}
+if (!supabaseUrl || !serviceKey) {
+  console.error('Missing SUPABASE URL / SERVICE_ROLE_KEY')
   process.exit(1)
 }
 
-const headers = {
-  apikey: key,
-  Authorization: `Bearer ${key}`,
+const fields =
+  'id,status,download_status,processing_status,metadata_status,youtube_upload_status,instagram_upload_status,verification_status,failure_code,failure_reason,youtube_url,instagram_url,drive_file_id,updated_at'
+
+async function fetchJob() {
+  const res = await fetch(
+    `${supabaseUrl}/rest/v1/jobs?id=eq.${jobId}&select=${fields}`,
+    {
+      headers: {
+        apikey: serviceKey,
+        Authorization: `Bearer ${serviceKey}`,
+      },
+    },
+  )
+  if (!res.ok) throw new Error(`jobs fetch ${res.status}: ${await res.text()}`)
+  const rows = await res.json()
+  return rows[0] ?? null
 }
 
-const terminal = new Set(['completed', 'failed', 'needs_manual_review', 'ignored'])
-const started = Date.now()
+const terminal = new Set(['completed', 'failed', 'needs_manual_review', 'cancelled', 'ignored'])
 let last = ''
 
-while (Date.now() - started < timeoutMin * 60_000) {
-  const res = await fetch(
-    `${supabaseUrl}/rest/v1/jobs?id=eq.${jobId}&select=id,status,youtube_upload_status,instagram_upload_status,drive_folder_state,failure_code,failure_reason,verification_due_at,updated_at`,
-    { headers },
-  )
-  const rows = await res.json()
-  const job = rows[0]
+for (let i = 0; i < 180; i++) {
+  const job = await fetchJob()
   if (!job) {
-    console.error('Job not found')
+    console.error('Job not found:', jobId)
     process.exit(1)
   }
-  const line = `${job.status} yt=${job.youtube_upload_status} ig=${job.instagram_upload_status} drive=${job.drive_folder_state}${job.failure_code ? ' code=' + job.failure_code : ''}`
+  const line = [
+    job.status,
+    `dl=${job.download_status}`,
+    `proc=${job.processing_status}`,
+    `meta=${job.metadata_status}`,
+    `yt=${job.youtube_upload_status}`,
+    `ig=${job.instagram_upload_status}`,
+    `ver=${job.verification_status}`,
+    job.failure_code || '',
+    (job.failure_reason || '').slice(0, 80),
+  ].join(' | ')
   if (line !== last) {
     console.log(new Date().toISOString(), line)
+    if (job.youtube_url) console.log('  YT', job.youtube_url)
+    if (job.instagram_url) console.log('  IG', job.instagram_url)
     last = line
   }
-  if (terminal.has(job.status)) {
-    console.log(JSON.stringify(job, null, 2))
+  if (terminal.has(job.status) && !['uploading', 'processing', 'queued', 'paused'].includes(job.status)) {
+    // verification may still be pending after upload — keep waiting if status is uploaded-ish
+  }
+  if (['completed', 'failed', 'needs_manual_review', 'cancelled', 'ignored'].includes(job.status)) {
     process.exit(job.status === 'completed' ? 0 : 2)
   }
-  await new Promise((r) => setTimeout(r, 15_000))
+  await new Promise((r) => setTimeout(r, 10000))
 }
 
-console.error('Timeout waiting for job')
+console.error('Timed out watching job')
 process.exit(3)

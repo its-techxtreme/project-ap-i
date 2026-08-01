@@ -2,7 +2,7 @@
 
 **Short-form content intake → process → publish**
 
-Project AP-I turns a repetitive multi-account posting routine into a tracked queue. Instead of downloading a clip, watermarking it, writing captions, opening YouTube Studio, opening Instagram, and uploading twice for every niche, you paste an approved link once, pick a niche, confirm rights, and let the pipeline do the rest.
+Project AP-I turns a repetitive multi-account posting routine into a tracked queue. Instead of downloading a clip, applying an edit preset, writing captions, opening YouTube Studio, opening Instagram, and uploading twice for every niche, you paste an approved link once, pick a niche, confirm rights, and let the pipeline do the rest.
 
 It is built for three niches — **Memes**, **Anime**, and **Sports** — each mapped server-side to exactly one YouTube account and one Instagram account. Submitters never choose destination accounts manually.
 
@@ -24,13 +24,13 @@ Manual short-form ops looks simple until you do it every day:
 
 1. Find an approved Reel or Short
 2. Download it
-3. Apply a watermark
+3. Apply the edit preset (1.2x speed, stronger filter, quiet BGM bed)
 4. Write a YouTube title/description and an Instagram caption
-5. Upload to the niche’s YouTube account
-6. Upload again to the niche’s Instagram account
+5. Upload to the niche’s YouTube account (brand c-text when reel has no hard captions)
+6. Upload again to the niche’s Instagram account (shared edit export)
 7. Remember which jobs failed, which need retry, and which Drive files still need cleanup
 
-Miss a step and you lose an evening. Project AP-I replaces that loop with a job queue: **submit → download → FFmpeg watermark → AI metadata → Google Drive staging → YouTube + Instagram upload → verification → Drive cleanup**. Status, retries, and audit logs live in Supabase so you can see what happened without digging through browser tabs.
+Miss a step and you lose an evening. Project AP-I replaces that loop with a job queue: **submit → download → FFmpeg edit → AI metadata → Google Drive staging → YouTube + Instagram upload → verification → Drive cleanup**. Status, retries, and audit logs live in Supabase so you can see what happened without digging through browser tabs.
 
 The public web app runs on Vercel. The heavy work (yt-dlp, FFmpeg, Playwright with real Chrome profiles) runs on a local laptop by design — a full always-on VPS with headed Chrome was not a realistic budget for this MVP.
 
@@ -42,15 +42,16 @@ The public web app runs on Vercel. The heavy work (yt-dlp, FFmpeg, Playwright wi
 
 You do not need to clone the repo to see how the product looks and behaves.
 
-1. Open **[https://project-ap-i.vercel.app](https://project-ap-i.vercel.app)**
-2. Use the public **submit** form freely (link, platform, niche, rights confirmation).
-3. To browse the **admin dashboard** without breaking anything, sign in with the read-only demo account:
-
+1. Open **[https://project-ap-i.vercel.app](https://project-ap-i.vercel.app)** (or the production domain) and go to **Login**.
+2. Click **Demo voyage — board & tour** — no typing needed. You land on a read-only Captain's Deck session and the crew runs an interactive briefing (spotlight + mascots).
+3. Optional manual login (same demo account):
 
 | Field    | Value            |
 | -------- | ---------------- |
 | Username | `ProjectAPIDemo` |
 | Password | `ProjectAPI@13`  |
+
+Use **Demo · replay tour** in the top bar anytime to restart the briefing.
 
 
 **What the demo user can do**
@@ -89,7 +90,8 @@ Submitter  →  Vercel / local Next.js  →  Supabase (job queued)
                                     n8n poller (WF-01…)
                                               ↓
                                     Worker on your laptop
-                         download → watermark → Drive → AI → upload
+                         download → edit (1.2x + filter + BGM) → Drive → AI → upload
+                         (YT: brand c-text if no hard captions; IG: shared export)
                                               ↓
                                     verify (~5 min) → cleanup
 ```
@@ -102,7 +104,7 @@ Submitter  →  Vercel / local Next.js  →  Supabase (job queued)
 
 Parts of this codebase were written and iterated with **[Cursor](https://cursor.com)**, an AI-assisted editor. Cursor was used for scaffolding, debugging pipeline edge cases, writing tests, and tightening ops scripts. Product decisions, architecture tradeoffs, deployment choices, and final review remain mine.
 
-The product also calls an AI API (NVIDIA NIM free endpoints by default) to rephrase source text into YouTube titles/descriptions and Instagram captions, with a plain fallback when the model returns unusable JSON.
+The product also calls Google Gemini (with Groq fallback) to generate YouTube titles/descriptions and Instagram captions from source context, with a plain fallback when models are unavailable.
 
 ---
 
@@ -121,7 +123,7 @@ Install these before the first local setup:
 Optional for a full end-to-end pipeline:
 
 - Google Cloud OAuth client for Drive (see `[infra/google-drive/SETUP.md](./infra/google-drive/SETUP.md)`)  
-- An OpenAI-compatible API key for captions (NVIDIA NIM free tier is documented in `.env.example`)  
+- A Gemini API key for captions (Groq key recommended as free-tier fallback; see `.env.example`)  
 - Platform accounts you are allowed to automate (never commit passwords or cookies)
 
 **Platform note:** The MVP runbook assumes **Windows**. Linux/macOS can work for web + Docker n8n, but Playwright profile paths and Chrome channel settings are documented for Windows first.
@@ -292,7 +294,7 @@ pnpm --filter @project-api/web dev
 ### 7. Google Drive + AI captions (full pipeline)
 
 - **Drive:** follow `[infra/google-drive/SETUP.md](./infra/google-drive/SETUP.md)`, then put client id, secret, refresh token, and folder IDs in `.env`. Helper scripts include `scripts/google-drive-ensure-folders.mjs` and `apps/worker/scripts/drive-oauth-via-profile.mjs`.  
-- **AI captions:** set `AI_PROVIDER_BASE_URL`, `AI_PROVIDER_API_KEY`, and `AI_MODEL` in `.env`. Without AI, the worker falls back to cleaned source caption text plus niche tags.
+- **AI captions:** set `GEMINI_API_KEY` (primary) and `GROQ_API_KEY` (fallback) in `.env`. Without AI keys, the worker falls back to cleaned source caption text plus niche tags.
 
 
 
@@ -306,7 +308,7 @@ pnpm --filter @project-api/worker smoke:playwright -- --login --profile memes-yt
 
 Repeat for each profile you use (`memes-ig`, `anime-yt`, …). Complete any 2FA yourself in the opened Chrome window. **Never commit** that folder.
 
-Watermark assets should exist under `apps/worker/assets/` (per-niche files under `watermarks/` when you use niche logos).
+Watermarking is intentionally disabled. Background music for the edit preset lives under `apps/worker/assets/bgm/` (override with `BACKGROUND_MUSIC_PATH`).
 
 ---
 
@@ -431,7 +433,7 @@ Things that commonly go wrong when setting this up on a laptop, and how to recov
 | ------------------------------ | --------------------------------------------------------- | -------------------------------------------------------------------------------------------------- |
 | yt-dlp: no video formats found | Source URL restricted, region, or Instagram layout change | Confirm the URL opens in a normal browser; update yt-dlp; try another approved link                |
 | FFmpeg / binary not found      | Not on PATH for the detached worker                       | Install FFmpeg/yt-dlp system-wide, or set `FFMPEG_PATH` / `YT_DLP_PATH` / `FFPROBE_PATH` in `.env` |
-| Drive upload fails             | Expired refresh token or wrong folder IDs                 | Re-run Drive OAuth helpers; verify folder IDs in `.env`                                            |
+| Drive upload fails             | Expired refresh token (`invalid_grant`) or wrong folder IDs | Prefer service account (`GOOGLE_DRIVE_SERVICE_ACCOUNT_FILE`); if using OAuth, **publish** the consent screen to Production (Testing tokens die ~7 days). Re-run `scripts/google-drive-auth.mjs` / `scripts/google-drive-test.mjs`; check `pnpm stack:status` → `drive` |
 | AI captions empty / junk       | Rate limit or bad JSON from the model                     | Check API key and model id; worker should fall back to cleaned source text                         |
 
 

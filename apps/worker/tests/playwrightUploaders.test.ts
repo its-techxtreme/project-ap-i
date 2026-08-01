@@ -13,7 +13,13 @@ const boundingBoxMock = vi.fn()
 const newPageMock = vi.fn()
 const detectLoginOrChallengeMock = vi.fn()
 
-const getAttributeMock = vi.fn().mockResolvedValue('https://youtu.be/testVideoId123')
+const YT_SHARE_URL = 'https://youtu.be/testVideoId'
+const getAttributeMock = vi.fn(async (name?: string) => {
+  if (name === 'aria-checked') return 'true'
+  return YT_SHARE_URL
+})
+const inputValueMock = vi.fn().mockResolvedValue(YT_SHARE_URL)
+const keyboardPressMock = vi.fn().mockResolvedValue(undefined)
 
 const locatorMock = vi.fn(() => ({
   first: () => ({
@@ -27,8 +33,11 @@ const locatorMock = vi.fn(() => ({
     boundingBox: boundingBoxMock,
     press: vi.fn().mockResolvedValue(undefined),
     getAttribute: getAttributeMock,
+    inputValue: inputValueMock,
     count: vi.fn().mockResolvedValue(1),
     focus: vi.fn().mockResolvedValue(undefined),
+    innerText: vi.fn().mockResolvedValue(''),
+    evaluate: vi.fn().mockResolvedValue(true),
   }),
   isVisible: vi.fn().mockResolvedValue(true),
   click: clickMock,
@@ -40,8 +49,11 @@ const locatorMock = vi.fn(() => ({
   boundingBox: boundingBoxMock,
   press: vi.fn().mockResolvedValue(undefined),
   getAttribute: getAttributeMock,
+  inputValue: inputValueMock,
   count: vi.fn().mockResolvedValue(1),
   focus: vi.fn().mockResolvedValue(undefined),
+  innerText: vi.fn().mockResolvedValue(''),
+  evaluate: vi.fn().mockResolvedValue(true),
 }))
 
 vi.mock('../src/uploaders/playwrightContext', () => ({
@@ -77,8 +89,11 @@ vi.mock('../src/uploaders/playwrightHumanBehavior', async () => {
         boundingBox: boundingBoxMock,
         press: vi.fn().mockResolvedValue(undefined),
         getAttribute: getAttributeMock,
+        inputValue: inputValueMock,
         count: vi.fn().mockResolvedValue(1),
         focus: vi.fn().mockResolvedValue(undefined),
+        innerText: vi.fn().mockResolvedValue(''),
+        evaluate: vi.fn().mockResolvedValue(true),
       }),
       isVisible: vi.fn().mockResolvedValue(true),
       click: clickMock,
@@ -90,8 +105,11 @@ vi.mock('../src/uploaders/playwrightHumanBehavior', async () => {
       boundingBox: boundingBoxMock,
       press: vi.fn().mockResolvedValue(undefined),
       getAttribute: getAttributeMock,
+      inputValue: inputValueMock,
       count: vi.fn().mockResolvedValue(1),
       focus: vi.fn().mockResolvedValue(undefined),
+      innerText: vi.fn().mockResolvedValue(''),
+      evaluate: vi.fn().mockResolvedValue(true),
     }) as unknown
 
   return {
@@ -157,12 +175,18 @@ function setupPageMocks(options?: { throwOnPublish?: boolean }) {
   scrollIntoViewIfNeededMock.mockResolvedValue(undefined)
   boundingBoxMock.mockResolvedValue({ x: 10, y: 10, width: 100, height: 40 })
   closeMock.mockResolvedValue(undefined)
+  keyboardPressMock.mockReset()
+  keyboardPressMock.mockResolvedValue(undefined)
 
   newPageMock.mockResolvedValue({
     goto: gotoMock,
+    url: () => 'https://studio.youtube.com/channel/UC_test/videos/upload',
+    evaluate: vi.fn().mockResolvedValue(''),
     locator: locatorMock,
+    on: vi.fn(),
+    off: vi.fn(),
     keyboard: {
-      press: vi.fn().mockResolvedValue(undefined),
+      press: keyboardPressMock,
       type: vi.fn().mockResolvedValue(undefined),
     },
     screenshot: vi.fn().mockResolvedValue(Buffer.from('')),
@@ -296,10 +320,29 @@ describe('YoutubePlaywrightUploader', () => {
     const result = await uploader.upload(baseInput)
 
     expect(result.success).toBe(true)
-    expect(result.platformMediaId).toBe('https://youtu.be/testVideoId123')
-    expect(result.platformUrl).toBe('https://youtu.be/testVideoId123')
+    expect(result.platformMediaId).toBe(YT_SHARE_URL)
+    expect(result.platformUrl).toBe(YT_SHARE_URL)
     expect(closeMock).toHaveBeenCalled()
     expect(gotoMock).toHaveBeenCalledWith('https://www.youtube.com/', expect.any(Object))
+  })
+
+  it('never presses Escape during metadata (Escape closes Studio upload dialog)', async () => {
+    vi.doMock('../src/config', () => ({
+      config: {
+        REAL_UPLOADS_ENABLED: true,
+        YOUTUBE_UPLOADS_ENABLED: true,
+      },
+    }))
+
+    setupPageMocks()
+
+    const { YoutubePlaywrightUploader } = await import('../src/uploaders/YoutubePlaywrightUploader')
+    const uploader = new YoutubePlaywrightUploader()
+    const result = await uploader.upload(baseInput)
+
+    expect(result.success).toBe(true)
+    const escapePresses = keyboardPressMock.mock.calls.filter(([key]) => key === 'Escape')
+    expect(escapePresses).toEqual([])
   })
 })
 

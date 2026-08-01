@@ -85,7 +85,7 @@ export async function jobRoutes(app: FastifyInstance): Promise<void> {
       }
 
       const retryScheduled =
-        job.status === 'ready_to_upload' &&
+        (job.status === 'ready_to_upload' || job.status === 'awaiting_verification') &&
         (job.youtube_upload_status === 'retry_scheduled' ||
           job.instagram_upload_status === 'retry_scheduled')
 

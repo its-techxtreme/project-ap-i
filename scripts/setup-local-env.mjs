@@ -24,8 +24,11 @@ const defaults = {
   N8N_PROTOCOL: 'http',
   WEBHOOK_URL: 'http://localhost:5678/',
   GENERIC_TIMEZONE: 'UTC',
-  AI_PROVIDER_BASE_URL: 'https://integrate.api.nvidia.com/v1',
-  AI_MODEL: 'meta/llama-3.1-8b-instruct',
+  AI_PROVIDER_BASE_URL: 'https://api.groq.com/openai/v1',
+  AI_MODEL: 'llama-3.3-70b-versatile',
+  GEMINI_MODEL: 'gemini-3.5-flash',
+  GROQ_MODEL: 'llama-3.3-70b-versatile',
+  GROQ_BASE_URL: 'https://api.groq.com/openai/v1',
   REAL_UPLOADS_ENABLED: 'false',
   YOUTUBE_UPLOADS_ENABLED: 'false',
   INSTAGRAM_UPLOADS_ENABLED: 'false',
@@ -72,8 +75,11 @@ for (const [key, value] of Object.entries(defaults)) {
   }
 }
 
-if (isMissing(text.match(/^AI_PROVIDER_API_KEY=(.*)$/m)?.[1])) {
-  log.push('AI_PROVIDER_API_KEY=still MISSING — get nvapi- key from https://build.nvidia.com')
+if (isMissing(text.match(/^GEMINI_API_KEY=(.*)$/m)?.[1])) {
+  log.push('GEMINI_API_KEY=still MISSING — get a key from Google AI Studio')
+}
+if (isMissing(text.match(/^GROQ_API_KEY=(.*)$/m)?.[1])) {
+  log.push('GROQ_API_KEY=still MISSING — get a key from https://console.groq.com/keys')
 }
 
 for (const key of [

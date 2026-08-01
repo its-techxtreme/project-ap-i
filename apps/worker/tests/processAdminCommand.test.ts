@@ -6,6 +6,7 @@ const markFailedMock = vi.fn()
 const retryJobMock = vi.fn()
 const deleteDriveMock = vi.fn()
 const writeEventMock = vi.fn()
+const abortJobMock = vi.fn()
 const createDriveMock = vi.fn(() => ({ kind: 'mock-drive' }))
 
 vi.mock('../src/db/adminCommandsRepo', () => ({
@@ -20,6 +21,18 @@ vi.mock('../src/jobs/retryJob', () => ({
 
 vi.mock('../src/jobs/driveDelete', () => ({
   deleteJobDriveFile: (...args: unknown[]) => deleteDriveMock(...args),
+}))
+
+vi.mock('../src/jobs/jobAbort', () => ({
+  abortJobLocally: (...args: unknown[]) => abortJobMock(...args),
+}))
+
+vi.mock('../src/jobs/recoverStaleUploads', () => ({
+  recoverStaleUploadingJobs: vi.fn().mockResolvedValue(0),
+}))
+
+vi.mock('../src/jobs/recoverStalePipelineJobs', () => ({
+  recoverStalePipelineJobs: vi.fn().mockResolvedValue(0),
 }))
 
 vi.mock('../src/db/jobsRepo', () => ({
@@ -91,6 +104,24 @@ describe('processNextAdminCommand', () => {
     expect(deleteDriveMock).toHaveBeenCalledWith('job-2', { kind: 'mock-drive' })
     expect(result.success).toBe(true)
     expect(result.command).toBe('delete_drive_file')
+  })
+
+  it('executes abort_job and marks done', async () => {
+    claimMock.mockResolvedValueOnce({
+      id: 'cmd-abort',
+      job_id: 'job-abort',
+      command: 'abort_job',
+      payload: { reason: 'cancel' },
+    })
+    abortJobMock.mockResolvedValueOnce(undefined)
+    markDoneMock.mockResolvedValueOnce(undefined)
+
+    const { processNextAdminCommand } = await import('../src/jobs/processAdminCommand')
+    const result = await processNextAdminCommand('worker-1')
+
+    expect(abortJobMock).toHaveBeenCalledWith('job-abort', 'admin-command')
+    expect(result.success).toBe(true)
+    expect(result.command).toBe('abort_job')
   })
 
   it('marks failed when execution throws', async () => {

@@ -1,12 +1,14 @@
-# Project AP-I Design System
+# Project AP-I Design System — Broadcast Desk
 
 ## Brand
 - Product: Project AP-I — short-form content intake & publishing for agencies
+- Visual identity: **Broadcast Desk** — short-form publishing control room (not generic AI SaaS)
 - Surfaces: Public submit (anonymous) + Admin ops dashboard
 
 ## Typography
 - Display / brand: Syne
 - Body / UI: Public Sans
+- Tabular nums for job IDs and timestamps
 - Never use Inter, Roboto, Arial, or system-ui as primary
 
 ## Theme defaults
@@ -18,39 +20,42 @@
 
 ## Color tokens
 
-### Light
+### Light (public)
 | Role | Hex |
 |---|---|
-| Background | `#F4F6F8` |
-| Surface | `#FFFFFF` |
-| Ink | `#0B1220` |
-| Muted | `#5B6577` |
-| Accent / CTA | `#0F766E` |
-| Accent soft | `#CCFBF1` |
-| Border | `#D8DEE8` |
+| Background / paper | `#E8ECF1` |
+| Surface | `#F4F6F9` |
+| Ink | `#0A0F14` |
+| Muted | `#5A6573` |
+| Signal / CTA | `#1FA971` |
+| Amber caution | `#C9851A` |
+| Danger | `#C94A3A` |
+| Border / hairline | `#C5CDD8` |
 
-### Dark
+### Dark (admin)
 | Role | Hex |
 |---|---|
-| Background | `#030508` |
-| Surface | `#0A0E14` |
-| Ink | `#E8EEF7` |
+| Void | `#05070A` |
+| Panel | `#0C1118` |
+| Ink | `#E7EEF6` |
 | Muted | `#8B97AB` |
-| Accent / CTA | `#2DD4BF` |
-| Accent soft | `#134E4A` |
-| Border | `#1A222E` |
+| Signal | `#3DDC97` |
+| Amber | `#E0A33A` |
+| Danger | `#F07167` |
+| Hairline | `#1C2530` |
 
-Admin Jobs filters omit date range (no Created from / Created to). Compact toolbar + status chips only.
-
-Light and dark are full dual themes (not inverted text on dark chrome). Chrome, panels, row hover, notices, glass login, and status badges all use theme tokens / `dark:` pairs.
+## Atmosphere
+- Subtle radial signal bloom + light scanline/grid (CSS only)
+- Status chips as phosphor badges (signal / amber / danger)
+- No purple/indigo gradients, cream+terracotta, or broadsheet layouts
 
 ## Layout rules
 - Public: one composition — brand hero + single form card. No dashboard chrome.
 - Admin: dense tables, clear status badges, env badge, sidebar nav. Full light + dark themes.
-- Login: theme-aware glass panel (frosted light card / dark glass).
-- Radius: 0.75rem. Avoid pill clusters and multi-layer shadows.
+- Login: theme-aware glass panel on Broadcast Desk stage.
+- Radius: 0.65rem (slightly sharper ops feel). Avoid pill clusters and multi-layer shadows.
 - Icons: Lucide only. No emoji as UI icons.
-- Motion: form enter, CTA pending, success swap; respect `prefers-reduced-motion`.
+- Motion: form enter, CTA pending, live status pulse; respect `prefers-reduced-motion`.
 
 ## Anti-patterns
 - Purple/indigo gradients, gold luxury accents, cream+terracotta, broadsheet layouts

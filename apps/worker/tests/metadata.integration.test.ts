@@ -4,8 +4,8 @@ import { isAiProviderConfigured } from '../src/metadata/AiMetadataProvider'
 
 const integrationEnabled = isAiProviderConfigured()
 
-describe.skipIf(!integrationEnabled)('AiMetadataProvider (NVIDIA integration)', () => {
-  it('generates all three metadata fields via configured NVIDIA NIM endpoint', async () => {
+describe.skipIf(!integrationEnabled)('AiMetadataProvider (live Gemini/Groq integration)', () => {
+  it('generates all three metadata fields via configured AI providers', async () => {
     vi.resetModules()
 
     const { AiMetadataProvider } = await import('../src/metadata/AiMetadataProvider')
@@ -16,9 +16,13 @@ describe.skipIf(!integrationEnabled)('AiMetadataProvider (NVIDIA integration)', 
       sourceUrl: 'https://www.youtube.com/shorts/test',
       sourcePlatform: 'youtube',
       nicheSlug: 'memes',
+      sourceTitle: 'When the group chat goes silent after you send a meme',
+      sourceDescription:
+        'POV: you drop the perfect meme and everyone leaves you on read. Relatable group chat moment.',
     })
 
     expect(result.generatedBy).toBe('ai')
+    expect(['gemini', 'groq', 'openrouter']).toContain(result.provider)
     expect(result.youtubeTitle.length).toBeGreaterThan(0)
     expect(result.youtubeTitle.length).toBeLessThanOrEqual(100)
     expect(result.youtubeDescription.length).toBeGreaterThan(0)
@@ -27,12 +31,12 @@ describe.skipIf(!integrationEnabled)('AiMetadataProvider (NVIDIA integration)', 
     expect(result.model).toBeTruthy()
     expect(result.youtubeTitle).not.toContain('[MOCK]')
     expect(result.youtubeTitle).not.toContain('integration-metadata-job')
-  }, 60_000)
+  }, 90_000)
 })
 
-describe('AiMetadataProvider (NVIDIA integration prerequisites)', () => {
+describe('AiMetadataProvider (live integration prerequisites)', () => {
   it.skipIf(integrationEnabled)(
-    'skips live test when AI_PROVIDER_API_KEY is not configured in .env',
+    'skips live test when GEMINI_API_KEY / GROQ_API_KEY are not configured in .env',
     () => {
       expect(integrationEnabled).toBe(false)
     },

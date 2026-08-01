@@ -19,6 +19,7 @@ export const JOB_STATUSES = [
   'needs_manual_review',
   'ignored',
   'cancelled',
+  'paused',
 ] as const
 
 export type JobStatus = (typeof JOB_STATUSES)[number]

@@ -2,6 +2,8 @@ import { headers } from 'next/headers'
 import Script from 'next/script'
 
 import { PublicHeader } from '@/components/app/PublicHeader'
+import { CrewDoodles } from '@/components/pirate/CrewDoodles'
+import { PirateSky } from '@/components/pirate/PirateSky'
 import { ThemeProvider } from '@/components/theme/ThemeProvider'
 import { SubmitForm } from '@/app/submit/SubmitForm'
 import { supabaseAdmin } from '@/lib/supabase/admin'
@@ -20,7 +22,6 @@ export default async function HomePage({
     .eq('is_active', true)
     .order('name')
 
-  // Touch headers so Next treats this as dynamic (IP rate limit on submit).
   await headers()
 
   return (
@@ -28,27 +29,36 @@ export default async function HomePage({
       <Script id="theme-init-public" strategy="beforeInteractive">
         {themeInitScript('public')}
       </Script>
-      <div className="bg-atmosphere flex min-h-screen flex-col">
+      <div className="relative flex min-h-screen flex-col overflow-x-hidden">
+        <PirateSky />
         <PublicHeader />
-        <main className="mx-auto flex w-full max-w-lg flex-1 flex-col justify-center px-4 pb-16 pt-6 md:pt-10">
+        <main className="relative z-10 mx-auto flex w-full max-w-5xl flex-1 flex-col justify-center px-4 pb-16 pt-6 md:pt-10">
           {params.error === 'forbidden' ? (
             <p className="mb-6 rounded-lg border border-destructive/30 bg-destructive/10 px-4 py-3 text-sm text-destructive">
-              Access denied. You do not have permission to view that page.
+              Access denied. Ye have no leave to board that deck.
             </p>
           ) : null}
 
-          <div className="animate-enter mb-8 space-y-3 text-center">
-            <h1 className="font-display text-4xl font-semibold tracking-tight text-foreground md:text-5xl">
-              Project AP-I
-            </h1>
-            <p className="text-base text-muted-foreground md:text-lg">
-              Paste an approved Reel or Short. Pick a niche. Submit.
-            </p>
-          </div>
-
-          <div className="animate-enter" style={{ animationDelay: '80ms' }}>
-            <SubmitForm niches={niches ?? []} />
-          </div>
+          <CrewDoodles
+            hero={
+              <div className="animate-enter space-y-4 px-14 text-center sm:px-20 md:px-8">
+                <p className="font-mono text-[11px] uppercase tracking-[0.2em] text-primary drop-shadow-sm">
+                  Short-form voyage intake
+                </p>
+                <h1 className="font-display text-5xl tracking-wide text-foreground drop-shadow-sm md:text-7xl">
+                  Project AP-I
+                </h1>
+                <p className="mx-auto max-w-md text-base font-medium text-foreground/80 md:text-lg">
+                  Load the cargo. Pick the crew lane. Set sail.
+                </p>
+              </div>
+            }
+            form={
+              <div className="animate-enter" style={{ animationDelay: '80ms' }}>
+                <SubmitForm niches={niches ?? []} />
+              </div>
+            }
+          />
         </main>
       </div>
     </ThemeProvider>

@@ -10,6 +10,8 @@ import {
   normalizeUsername,
   recordLoginAttempt,
   verifyDashboardCredentials,
+  getDemoCredentials,
+  isDemoLoginRateLimited,
 } from '@/lib/auth/adminCredentials'
 import {
   ADMIN_SESSION_COOKIE,
@@ -86,6 +88,61 @@ export async function adminLogin(
 
   const dest = nextPath && nextPath.startsWith('/admin') ? nextPath : '/admin'
   redirect(dest)
+}
+
+/**
+ * One-click demo boarding — creates a read-only demo session without exposing
+ * credentials to the browser. Starts the crew voyage briefing via ?voyage=1.
+ */
+export async function demoLogin(): Promise<AdminLoginResult> {
+  const demo = getDemoCredentials()
+  if (!demo) {
+    return { success: false, error: 'Demo voyage is not fitted out on this ship.' }
+  }
+
+  const headerStore = await headers()
+  const ip = clientIp(headerStore)
+  const ipHash = hashIp(ip)
+  const usernameNorm = normalizeUsername(demo.username)
+
+  const lock = await isLoginLocked({ ipHash, usernameNorm })
+  if (lock.locked) {
+    await recordLoginAttempt({ ipHash, usernameNorm, success: false })
+    return {
+      success: false,
+      locked: true,
+      error: 'Too many failed attempts. Try again in 15 minutes.',
+    }
+  }
+
+  if (await isDemoLoginRateLimited(ipHash)) {
+    await recordLoginAttempt({ ipHash, usernameNorm, success: false })
+    return {
+      success: false,
+      locked: true,
+      error: 'Demo boarding is temporarily limited from this network. Try again later.',
+    }
+  }
+
+  await recordLoginAttempt({ ipHash, usernameNorm, success: true })
+
+  const token = await createAdminSessionToken(demo.username, 'demo')
+  const cookieStore = await cookies()
+  cookieStore.set(ADMIN_SESSION_COOKIE, token, adminSessionCookieOptions())
+
+  await supabaseAdmin.from('audit_logs').insert({
+    actor_type: 'anonymous',
+    action: 'demo_login',
+    target_type: 'admin',
+    metadata: {
+      username: demo.username,
+      role: 'demo',
+      ip_hash: ipHash,
+      via: 'one_click',
+    },
+  })
+
+  redirect('/admin?voyage=1')
 }
 
 export async function adminLogout(): Promise<void> {

@@ -33,6 +33,21 @@ vi.mock('../src/db/supabaseAdmin', () => ({
   },
 }))
 
+vi.mock('../src/jobs/dailyUploadLimit', () => ({
+  DAILY_UPLOAD_WINDOW_MS: 24 * 60 * 60 * 1000,
+  checkNicheDailyUploadLimits: vi.fn().mockResolvedValue({ blocked: false, usages: {}, limit: 10 }),
+  dailyLimitDeferMessage: vi.fn().mockReturnValue('daily limit'),
+  isDailyUploadLimitError: vi.fn().mockReturnValue(false),
+}))
+
+vi.mock('../src/jobs/uploadLocalFile', () => ({
+  prepareLocalUploadFile: vi.fn().mockResolvedValue({
+    localFilePath: undefined,
+    cleanup: async () => undefined,
+  }),
+  needsLocalUploadFile: vi.fn().mockReturnValue(false),
+}))
+
 import { getJobById } from '../src/db/jobsRepo'
 import { retryJob } from '../src/jobs/retryJob'
 import { ERROR_CODES } from '@project-api/shared'
@@ -139,6 +154,43 @@ describe('retryJob', () => {
         failure_code: ERROR_CODES.DRIVE_FILE_MISSING,
       }),
     )
+  })
+
+  it('Missing Drive but both platforms already verified -> restores completed', async () => {
+    const job = mockJob({
+      status: 'needs_manual_review',
+      youtube_upload_status: 'verified',
+      instagram_upload_status: 'verified',
+      drive_file_id: null,
+      drive_deleted_at: '2024-01-01T00:00:00Z',
+      completed_at: '2024-01-01T01:00:00Z',
+    } as never)
+    vi.mocked(getJobById).mockResolvedValue(job as never)
+
+    await retryJob('job-test-1')
+
+    expect(updateMock).toHaveBeenCalledWith(
+      'job-test-1',
+      'completed',
+      expect.objectContaining({
+        failure_code: null,
+        failure_reason: null,
+      }),
+    )
+  })
+
+  it('Completed job is a no-op (does not clobber after Drive cleanup)', async () => {
+    const job = mockJob({
+      status: 'completed',
+      youtube_upload_status: 'verified',
+      instagram_upload_status: 'verified',
+      drive_deleted_at: '2024-01-01T00:00:00Z',
+    })
+    vi.mocked(getJobById).mockResolvedValue(job)
+
+    await retryJob('job-test-1')
+
+    expect(updateMock).not.toHaveBeenCalled()
   })
 
   it('New upload_attempts row created for retry', async () => {

@@ -3,41 +3,28 @@ import path from 'node:path'
 import { pipeline } from 'node:stream/promises'
 
 import { ERROR_CODES, ProjectApiError } from '@project-api/shared'
-import { google } from 'googleapis'
 
 import { config } from '../config'
 import { logger } from '../logging/logger'
 
+import { classifyDriveError, createDriveApiClient, markDriveAuthFailed } from './driveAuth'
 import { buildDriveFileName } from './driveFileName'
 import type { DriveStorage, DriveUploadInput, DriveUploadOutput } from './types'
 import { assertLocalFileReadable } from './validateLocalFile'
 
-function buildDriveClient() {
-  const clientId = config.GOOGLE_DRIVE_CLIENT_ID
-  const clientSecret = config.GOOGLE_DRIVE_CLIENT_SECRET
-  const refreshToken = config.GOOGLE_DRIVE_REFRESH_TOKEN
-
-  if (!clientId || !clientSecret || !refreshToken) {
-    throw new ProjectApiError(
-      ERROR_CODES.DRIVE_UPLOAD_FAILED,
-      'Google Drive credentials are not configured',
-      { stage: 'staging_to_drive', retryable: false },
-    )
-  }
-
-  const auth = new google.auth.OAuth2(clientId, clientSecret)
-  auth.setCredentials({ refresh_token: refreshToken })
-  return google.drive({ version: 'v3', auth })
-}
-
 export class GoogleDriveStorage implements DriveStorage {
-  private drive: ReturnType<typeof google.drive> | null = null
+  private drive: ReturnType<typeof createDriveApiClient> | null = null
 
   private getDrive() {
     if (!this.drive) {
-      this.drive = buildDriveClient()
+      this.drive = createDriveApiClient()
     }
     return this.drive
+  }
+
+  /** Drop cached client after auth failure so a new token/SA file is picked up. */
+  private resetClient(): void {
+    this.drive = null
   }
 
   async upload(input: DriveUploadInput): Promise<DriveUploadOutput> {
@@ -117,21 +104,21 @@ export class GoogleDriveStorage implements DriveStorage {
       }
     } catch (err: unknown) {
       if (err instanceof ProjectApiError) throw err
-      const msg = err instanceof Error ? err.message : String(err)
-      throw new ProjectApiError(ERROR_CODES.DRIVE_UPLOAD_FAILED, `Drive upload failed: ${msg}`, {
-        stage: 'staging_to_drive',
-        retryable: true,
-      })
+      const classified = classifyDriveError(err, 'upload')
+      if (classified.code === ERROR_CODES.DRIVE_AUTH_FAILED) {
+        this.resetClient()
+        markDriveAuthFailed(classified.message)
+      }
+      throw classified
     }
   }
 
   async delete(fileId: string, jobId: string): Promise<void> {
     try {
-      await this.getDrive().files.delete({ fileId })
+      await this.getDrive().files.delete({ fileId, supportsAllDrives: true })
       logger.info({ msg: 'Drive file deleted', fileId, jobId })
     } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : String(err)
-      throw new ProjectApiError(ERROR_CODES.DRIVE_DELETE_FAILED, `Drive delete failed: ${msg}`)
+      throw classifyDriveError(err, 'delete')
     }
   }
 
@@ -140,13 +127,18 @@ export class GoogleDriveStorage implements DriveStorage {
     if (!failedFolderId) return
 
     try {
-      const file = await this.getDrive().files.get({ fileId, fields: 'parents' })
+      const file = await this.getDrive().files.get({
+        fileId,
+        fields: 'parents',
+        supportsAllDrives: true,
+      })
       const prevParents = (file.data.parents ?? []).join(',')
       await this.getDrive().files.update({
         fileId,
         addParents: failedFolderId,
         removeParents: prevParents,
         fields: 'id,parents',
+        supportsAllDrives: true,
       })
     } catch (err) {
       logger.warn({ msg: 'Failed to move file to failed folder', fileId, err })
@@ -159,7 +151,7 @@ export class GoogleDriveStorage implements DriveStorage {
     try {
       await fs.promises.mkdir(path.dirname(localFilePath), { recursive: true })
       const response = await this.getDrive().files.get(
-        { fileId, alt: 'media' },
+        { fileId, alt: 'media', supportsAllDrives: true },
         { responseType: 'stream' },
       )
       const dest = fs.createWriteStream(localFilePath)
@@ -168,11 +160,11 @@ export class GoogleDriveStorage implements DriveStorage {
       logger.info({ msg: 'Drive download complete', jobId, fileId, localFilePath })
     } catch (err: unknown) {
       if (err instanceof ProjectApiError) throw err
-      const msg = err instanceof Error ? err.message : String(err)
-      throw new ProjectApiError(ERROR_CODES.DRIVE_UPLOAD_FAILED, `Drive download failed: ${msg}`, {
-        stage: 'upload',
-        retryable: true,
-      })
+      const classified = classifyDriveError(err, 'download')
+      if (classified.code === ERROR_CODES.DRIVE_AUTH_FAILED) {
+        this.resetClient()
+      }
+      throw classified
     }
   }
 }

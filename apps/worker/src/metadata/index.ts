@@ -11,9 +11,9 @@ export function createMetadataProvider(): MetadataProvider {
   return new AiMetadataProvider()
 }
 
-export { AiMetadataProvider, DEFAULT_AI_MODEL, isAiProviderConfigured } from './AiMetadataProvider'
+export { AiMetadataProvider, DEFAULT_AI_MODEL, DEFAULT_GEMINI_MODEL, isAiProviderConfigured } from './AiMetadataProvider'
 export { MockMetadataProvider } from './MockMetadataProvider'
-export { buildMetadataPrompt } from './prompts'
+export { buildMetadataPrompt, buildMetadataUserPrompt, METADATA_SYSTEM_PROMPT } from './prompts'
 export { getFallbackMetadata } from './fallbacks'
 export { parseMetadataJson } from './parseMetadataJson'
-export type { MetadataInput, MetadataOutput, MetadataProvider } from './types'
+export type { MetadataInput, MetadataOutput, MetadataProvider, MetadataAiProvider } from './types'

@@ -15,9 +15,14 @@ vi.mock('@/components/admin/AdminAutoRefresh', () => ({
 
 vi.mock('@/app/actions/adminActions', () => ({
   retryJobUpload: vi.fn().mockResolvedValue({ success: false, error: 'stub' }),
+  forceStartDespiteDailyLimit: vi
+    .fn()
+    .mockResolvedValue({ success: true, message: 'Force-start armed.' }),
   deleteDriveFile: vi.fn().mockResolvedValue({ success: false, error: 'stub' }),
   deleteJobRecord: vi.fn().mockResolvedValue({ success: true, message: 'Job deleted.' }),
   cancelJob: vi.fn().mockResolvedValue({ success: true, jobId: 'job-1' }),
+  pauseJob: vi.fn().mockResolvedValue({ success: true, jobId: 'job-1' }),
+  unpauseJob: vi.fn().mockResolvedValue({ success: true, jobId: 'job-1' }),
   markJobIgnored: vi.fn().mockResolvedValue({ success: false, error: 'stub' }),
   bulkRetryJobUploads: vi.fn().mockResolvedValue({
     success: true,
@@ -75,13 +80,13 @@ describe('OverviewCards', () => {
     render(<OverviewCards summary={summary} />)
 
     for (const label of [
-      'Queued',
-      'Processing',
-      'Completed today',
-      'Failed today',
-      'Needs review',
-      'Login required',
-      'Drive cleanup',
+      'At dock',
+      'Under weigh',
+      'Landed today',
+      'Lost today',
+      'Needs boarding',
+      'Crew locked out',
+      'Hold cleanup',
     ]) {
       expect(screen.getByText(label)).toBeInTheDocument()
     }
@@ -113,6 +118,7 @@ describe('JobsTable', () => {
             drive_view_url: null,
             retry_count: 0,
             failure_reason: null,
+            failure_code: null,
             source_url: 'https://www.youtube.com/shorts/abc',
             queue_position: 1,
           },
@@ -141,6 +147,38 @@ describe('JobsTable', () => {
     expect(screen.getByLabelText('Delete job')).toBeInTheDocument()
   }, 15_000)
 
+  it('shows Force button in Retries column for daily-limit jobs', async () => {
+    const { JobsTable } = await import('@/components/admin/JobsTable')
+    render(
+      <JobsTable
+        jobs={[
+          {
+            id: 'bbbbbbbb-bbbb-cccc-dddd-eeeeeeeeeeee',
+            created_at: new Date().toISOString(),
+            created_at_label: 'just now',
+            source_platform: 'instagram',
+            niche_id: '11111111-1111-4111-8111-111111111111',
+            niche_name: 'Anime',
+            status: 'queued',
+            youtube_upload_status: 'pending',
+            instagram_upload_status: 'uploaded',
+            youtube_url: null,
+            instagram_url: null,
+            drive_view_url: null,
+            retry_count: 0,
+            failure_reason: 'Daily upload limit reached (5/account per rolling 24h).',
+            failure_code: 'DAILY_UPLOAD_LIMIT_REACHED',
+            source_url: 'https://www.instagram.com/reel/abc',
+            queue_position: 1,
+          },
+        ]}
+      />,
+    )
+
+    expect(screen.getByLabelText('Force start past daily limit')).toBeInTheDocument()
+    expect(screen.getByText('Force')).toBeInTheDocument()
+  }, 15_000)
+
   it('shows "No jobs yet." when empty', async () => {
     const { JobsTable } = await import('@/components/admin/JobsTable')
     render(<JobsTable jobs={[]} />)
@@ -155,14 +193,14 @@ describe('StatusBadge', () => {
     const { StatusBadge } = await import('@/components/app/StatusBadge')
     render(<StatusBadge status="completed" />)
     const badge = screen.getByLabelText('Status: completed')
-    expect(badge.className).toContain('bg-emerald-500/15')
+    expect(badge.className).toContain('bg-emerald-500/10')
   })
 
   it("renders 'needs_manual_review' as orange", async () => {
     const { StatusBadge } = await import('@/components/app/StatusBadge')
     render(<StatusBadge status="needs_manual_review" />)
     const badge = screen.getByLabelText('Status: needs manual review')
-    expect(badge.className).toContain('bg-orange-500/15')
+    expect(badge.className).toContain('bg-orange-500/10')
   })
 })
 

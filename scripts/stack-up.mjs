@@ -137,7 +137,10 @@ async function main() {
   }
 
   // 4) Start native worker via tsx (shared package exports TypeScript source)
-  const watermarkDefault = path.join(repoRoot, 'apps/worker/assets/watermark.png')
+  const bgmDefault = path.join(
+    repoRoot,
+    'apps/worker/assets/bgm/absolutesound-background-guitar-no-copyright-561871.mp3',
+  )
   const tmpDefault = path.join(repoRoot, 'apps/worker/tmp/jobs')
   const profilesDefault = path.join(repoRoot, 'playwright-profiles')
   const workerDir = path.join(repoRoot, 'apps/worker')
@@ -172,9 +175,9 @@ async function main() {
   const workerEnv = {
     ...env,
     PORT: String(PORT),
-    WATERMARK_PATH: env.WATERMARK_PATH?.startsWith('/app/')
-      ? watermarkDefault
-      : env.WATERMARK_PATH || watermarkDefault,
+    BACKGROUND_MUSIC_PATH: env.BACKGROUND_MUSIC_PATH?.startsWith('/app/')
+      ? bgmDefault
+      : env.BACKGROUND_MUSIC_PATH || bgmDefault,
     TMP_DIR: env.TMP_DIR?.startsWith('/app/') ? tmpDefault : env.TMP_DIR || tmpDefault,
     PLAYWRIGHT_CHANNEL: env.PLAYWRIGHT_CHANNEL || 'chrome',
     PLAYWRIGHT_PROFILES_DIR: env.PLAYWRIGHT_PROFILES_DIR || profilesDefault,

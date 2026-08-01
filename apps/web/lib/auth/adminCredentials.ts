@@ -9,6 +9,10 @@ export const LOGIN_WINDOW_MS = 15 * 60 * 1000
 export const MAX_FAILURES_PER_IP = 5
 export const MAX_FAILURES_PER_USERNAME = 10
 
+/** One-click demo boarding — success-side throttle (separate from failure lockout). */
+export const DEMO_LOGIN_WINDOW_MS = 60 * 60 * 1000
+export const MAX_DEMO_SUCCESSES_PER_IP = 8
+
 export function normalizeUsername(username: string): string {
   return username.trim().toLowerCase()
 }
@@ -70,6 +74,27 @@ export async function isLoginLocked(opts: {
     return { locked: true, reason: 'username' }
   }
   return { locked: false }
+}
+
+/**
+ * Caps successful one-click demo sessions per IP so anonymous callers cannot
+ * flood admin_login_attempts / audit_logs by hammering demoLogin().
+ */
+export async function isDemoLoginRateLimited(ipHash: string): Promise<boolean> {
+  const demo = getDemoCredentials()
+  if (!demo) return true
+
+  const since = new Date(Date.now() - DEMO_LOGIN_WINDOW_MS).toISOString()
+  const usernameNorm = normalizeUsername(demo.username)
+  const { count } = await supabaseAdmin
+    .from('admin_login_attempts')
+    .select('id', { count: 'exact', head: true })
+    .eq('ip_hash', ipHash)
+    .eq('username_norm', usernameNorm)
+    .eq('success', true)
+    .gte('created_at', since)
+
+  return (count ?? 0) >= MAX_DEMO_SUCCESSES_PER_IP
 }
 
 export async function recordLoginAttempt(opts: {

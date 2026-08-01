@@ -175,4 +175,40 @@ describe('recoverStaleUploadingJobs', () => {
     expect(recovered).toBe(0)
     expect(finalizeMock).not.toHaveBeenCalled()
   })
+
+  it('skips fresh uploading jobs even when lock_expires_at is null', async () => {
+    const freshUpdatedAt = new Date().toISOString()
+
+    fromMock.mockImplementation((table: string) => {
+      if (table === 'jobs') {
+        return {
+          select: vi.fn(() => ({
+            eq: vi.fn(() => ({
+              limit: vi.fn().mockResolvedValue({
+                data: [
+                  {
+                    id: 'job-live-no-lock',
+                    status: 'uploading',
+                    youtube_upload_status: 'uploading',
+                    instagram_upload_status: 'uploading',
+                    locked_by: null,
+                    lock_expires_at: null,
+                    updated_at: freshUpdatedAt,
+                  },
+                ],
+                error: null,
+              }),
+            })),
+          })),
+        }
+      }
+      return chainable({ data: null, error: null })
+    })
+
+    vi.resetModules()
+    const { recoverStaleUploadingJobs } = await import('../src/jobs/recoverStaleUploads')
+    const recovered = await recoverStaleUploadingJobs('worker-test')
+    expect(recovered).toBe(0)
+    expect(finalizeMock).not.toHaveBeenCalled()
+  })
 })

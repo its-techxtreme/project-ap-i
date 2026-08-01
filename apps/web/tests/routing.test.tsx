@@ -116,23 +116,22 @@ describe('StatusBadge', () => {
     const { StatusBadge } = await import('@/components/app/StatusBadge')
     render(<StatusBadge status="completed" />)
     const badge = screen.getByLabelText('Status: completed')
-    expect(badge.className).toContain('bg-emerald-500/15')
-    expect(badge.className).toContain('text-emerald-400')
+    expect(badge.className).toContain('bg-emerald-500/10')
+    expect(badge.className).toMatch(/text-emerald/)
   })
 
   it("renders correct color class for 'failed'", async () => {
     const { StatusBadge } = await import('@/components/app/StatusBadge')
     render(<StatusBadge status="failed" />)
     const badge = screen.getByLabelText('Status: failed')
-    expect(badge.className).toContain('bg-red-500/15')
-    expect(badge.className).toContain('text-red-400')
+    expect(badge.className).toContain('text-destructive')
   })
 
   it("renders correct color class for 'needs_manual_review'", async () => {
     const { StatusBadge } = await import('@/components/app/StatusBadge')
     render(<StatusBadge status="needs_manual_review" />)
     const badge = screen.getByLabelText('Status: needs manual review')
-    expect(badge.className).toContain('bg-orange-500/15')
-    expect(badge.className).toContain('text-orange-300')
+    expect(badge.className).toContain('bg-orange-500/10')
+    expect(badge.className).toMatch(/text-orange/)
   })
 })

@@ -12,6 +12,24 @@ const writeJobEventMock = vi.fn()
 
 vi.mock('../src/db/jobsRepo', () => ({
   writeJobEvent: (...args: unknown[]) => writeJobEventMock(...args),
+  getJobById: vi.fn().mockResolvedValue({ id: 'job-mock-attempt', status: 'uploading' }),
+}))
+
+vi.mock('../src/jobs/jobAbort', () => ({
+  assertJobNotAborted: vi.fn().mockResolvedValue(undefined),
+  JobAbortedError: class JobAbortedError extends Error {},
+}))
+
+vi.mock('../src/jobs/uploadIdempotency', () => ({
+  findSuccessfulUploadAttempt: vi.fn().mockResolvedValue(null),
+}))
+
+vi.mock('../src/processors/prepareYoutubeUploadVariant', () => ({
+  prepareYoutubeUploadVariant: vi.fn(async (opts: { sourcePath: string }) => ({
+    localFilePath: opts.sourcePath,
+    brandOverlayApplied: false,
+    detectionReason: 'mocked',
+  })),
 }))
 
 vi.mock('../src/db/supabaseAdmin', () => ({

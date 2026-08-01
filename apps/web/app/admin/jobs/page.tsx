@@ -4,6 +4,7 @@ import { JobFilters } from '@/components/admin/JobFilters'
 import { JobsTable } from '@/components/admin/JobsTable'
 import { Pagination } from '@/components/admin/Pagination'
 import { LoadingState } from '@/components/app/LoadingState'
+import { DeskPageHeader } from '@/components/desk/DeskPageHeader'
 import { requireAdmin } from '@/lib/auth/requireAdmin'
 import { getActiveNiches, getJobs, type JobFilters as JobFiltersType } from '@/lib/data/adminQueries'
 
@@ -51,14 +52,16 @@ export default async function AdminJobsPage({
 
   return (
     <div className="space-y-4 animate-enter">
-      <div className="flex flex-wrap items-end justify-between gap-2">
-        <div>
-          <h1 className="font-display text-2xl font-semibold tracking-tight">Jobs</h1>
-          <p className="mt-0.5 text-xs text-muted-foreground">
-            Pipeline queue · refreshes every 45s
-          </p>
-        </div>
-      </div>
+      <DeskPageHeader
+        kicker="Ship's log"
+        title="Ship's log"
+        description="Pause, unpause, cancel, and retry from the actions column. Refreshes every 45s."
+        meta={
+          <span className="rounded-md border border-border/70 bg-card/50 px-2.5 py-1.5 font-mono text-[11px] text-muted-foreground">
+            {total} rows
+          </span>
+        }
+      />
 
       <Suspense fallback={<LoadingState label="Loading filters…" />}>
         <JobFilters niches={niches} />

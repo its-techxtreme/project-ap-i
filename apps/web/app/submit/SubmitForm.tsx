@@ -1,13 +1,13 @@
 'use client'
 
 import { useState, useTransition } from 'react'
-import { CheckCircle2, Loader2 } from 'lucide-react'
+import { Loader2 } from 'lucide-react'
 import { detectPlatform, validateSourceUrl } from '@project-api/shared'
 
 import { submitJobAction } from '@/app/actions/submitJob'
 import { ErrorAlert } from '@/components/app/ErrorAlert'
+import { ShipSuccess } from '@/components/pirate/ShipSuccess'
 import { Button } from '@/components/ui/button'
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Checkbox } from '@/components/ui/checkbox'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -20,7 +20,7 @@ type NicheOption = {
 }
 
 const selectClassName = cn(
-  'flex h-11 w-full cursor-pointer rounded-lg border border-input bg-card px-3 py-2 text-sm text-foreground ring-offset-background transition-colors duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 dark:[color-scheme:dark]',
+  'flex h-11 w-full cursor-pointer rounded-lg border border-input bg-card/80 px-3 py-2 text-sm text-foreground ring-offset-background transition-colors duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 dark:[color-scheme:dark]',
 )
 
 const PLATFORM_LABELS: Record<'youtube' | 'instagram', string> = {
@@ -111,155 +111,133 @@ export function SubmitForm({ niches }: { niches: NicheOption[] }) {
 
   if (niches.length === 0) {
     return (
-      <ErrorAlert message="No active niche is configured. Contact admin." title="Unavailable" />
+      <ErrorAlert
+        message="No active sea lane is configured. Hail the captain."
+        title="Unavailable"
+      />
     )
   }
 
   if (success) {
     return (
-      <Card className="animate-success border-primary/20 shadow-lg shadow-primary/5">
-        <CardHeader className="space-y-3">
-          <div className="flex h-10 w-10 items-center justify-center rounded-full bg-accent text-accent-foreground">
-            <CheckCircle2 className="h-5 w-5" aria-hidden="true" />
-          </div>
-          <CardTitle className="font-display text-2xl">Submitted</CardTitle>
-          <CardDescription>
-            Submitted successfully. This job is now queued for processing.
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-2 text-sm text-muted-foreground">
-          {success.publicJobCode ? (
-            <p>
-              Job:{' '}
-              <span className="font-medium text-foreground">{success.publicJobCode}</span>
-            </p>
-          ) : null}
-          <p>
-            Niche: <span className="font-medium text-foreground">{success.nicheLabel}</span>
-          </p>
-          <p>
-            Platform:{' '}
-            <span className="font-medium text-foreground">{success.platformLabel}</span>
-          </p>
-          <p>
-            Status: <span className="font-medium text-primary">Queued for processing</span>
-          </p>
-        </CardContent>
-      </Card>
+      <ShipSuccess
+        nicheLabel={success.nicheLabel}
+        platformLabel={success.platformLabel}
+        publicJobCode={success.publicJobCode}
+      />
     )
   }
 
   return (
-    <Card className="border-border/80 shadow-xl shadow-foreground/5">
-      <CardHeader>
-        <CardTitle className="font-display text-2xl">Submit content</CardTitle>
-        <CardDescription>
-          Paste a client-approved reel or short link to queue processing.
-        </CardDescription>
-      </CardHeader>
-      <CardContent>
-        <form onSubmit={handleSubmit} className="space-y-5" noValidate>
-          {formError ? <ErrorAlert message={formError} /> : null}
+    <div className="parchment-panel rounded-xl p-5 md:p-6">
+      <div className="mb-5 space-y-1.5">
+        <h2 className="font-display text-3xl tracking-wide text-foreground">Load the cargo</h2>
+        <p className="text-sm text-muted-foreground">
+          Paste a client-approved Reel or Short. Pick a sea lane. Confirm rights. Set sail.
+        </p>
+      </div>
 
-          <div className="space-y-2">
-            <Label htmlFor="sourceUrl">Approved Reel/Short Link</Label>
-            <Input
-              id="sourceUrl"
-              name="sourceUrl"
-              type="url"
-              inputMode="url"
-              autoComplete="off"
-              placeholder="Paste Instagram Reel or YouTube Shorts link"
-              value={sourceUrl}
-              onChange={(event) => handleUrlChange(event.target.value)}
-              aria-invalid={urlError ? true : undefined}
-              aria-describedby={urlError ? 'sourceUrl-error' : undefined}
-              className="h-11"
-            />
-            {urlError ? (
-              <p id="sourceUrl-error" className="text-sm text-destructive" role="alert">
-                {urlError}
-              </p>
-            ) : null}
-          </div>
+      <form onSubmit={handleSubmit} className="space-y-5" noValidate>
+        {formError ? <ErrorAlert message={formError} /> : null}
 
-          <div className="space-y-2">
-            <Label htmlFor="sourcePlatform">Platform</Label>
-            <select
-              id="sourcePlatform"
-              aria-label="Platform"
-              className={selectClassName}
-              value={sourcePlatform}
-              onChange={(event) =>
-                setSourcePlatform(event.target.value as 'youtube' | 'instagram' | '')
-              }
-            >
-              <option value="">Select platform</option>
-              <option value="youtube">YouTube</option>
-              <option value="instagram">Instagram</option>
-            </select>
-          </div>
-
-          <div className="space-y-2">
-            <Label htmlFor="nicheId">Niche</Label>
-            <select
-              id="nicheId"
-              aria-label="Niche"
-              className={selectClassName}
-              value={nicheId}
-              onChange={(event) => setNicheId(event.target.value)}
-            >
-              <option value="">Select niche</option>
-              {niches.map((niche) => (
-                <option key={niche.id} value={niche.id}>
-                  {niche.name}
-                </option>
-              ))}
-            </select>
-            {!nicheId && sourceUrl ? (
-              <p className="text-sm text-muted-foreground">Please select a niche.</p>
-            ) : null}
-          </div>
-
-          <div className="flex items-start gap-3 rounded-lg border border-border/70 bg-muted/40 p-3">
-            <Checkbox
-              id="rightsConfirmed"
-              checked={rightsConfirmed}
-              onCheckedChange={(checked) => setRightsConfirmed(checked === true)}
-              aria-describedby="rightsConfirmed-label"
-              className="mt-0.5"
-            />
-            <Label
-              id="rightsConfirmed-label"
-              htmlFor="rightsConfirmed"
-              className="cursor-pointer font-normal leading-snug"
-            >
-              I confirm this content is client-approved and we have permission to process and
-              publish it.
-            </Label>
-          </div>
-          {!rightsConfirmed && nicheId ? (
-            <p className="text-sm text-muted-foreground">
-              Please confirm rights permission before submitting.
+        <div className="space-y-2">
+          <Label htmlFor="sourceUrl">Approved Reel/Short Link</Label>
+          <Input
+            id="sourceUrl"
+            name="sourceUrl"
+            type="url"
+            inputMode="url"
+            autoComplete="off"
+            placeholder="Paste Instagram Reel or YouTube Shorts link"
+            value={sourceUrl}
+            onChange={(event) => handleUrlChange(event.target.value)}
+            aria-invalid={urlError ? true : undefined}
+            aria-describedby={urlError ? 'sourceUrl-error' : undefined}
+            className="h-11 bg-card/70"
+          />
+          {urlError ? (
+            <p id="sourceUrl-error" className="text-sm text-destructive" role="alert">
+              {urlError}
             </p>
           ) : null}
+        </div>
 
-          <Button
-            type="submit"
-            className="h-11 w-full cursor-pointer text-base font-medium transition-colors duration-200"
-            disabled={!canSubmit}
+        <div className="space-y-2">
+          <Label htmlFor="sourcePlatform">Platform</Label>
+          <select
+            id="sourcePlatform"
+            aria-label="Platform"
+            className={selectClassName}
+            value={sourcePlatform}
+            onChange={(event) =>
+              setSourcePlatform(event.target.value as 'youtube' | 'instagram' | '')
+            }
           >
-            {isPending ? (
-              <>
-                <Loader2 className="animate-spin" aria-hidden="true" />
-                Submitting...
-              </>
-            ) : (
-              'Submit'
-            )}
-          </Button>
-        </form>
-      </CardContent>
-    </Card>
+            <option value="">Select platform</option>
+            <option value="youtube">YouTube</option>
+            <option value="instagram">Instagram</option>
+          </select>
+        </div>
+
+        <div className="space-y-2">
+          <Label htmlFor="nicheId">Niche</Label>
+          <select
+            id="nicheId"
+            aria-label="Niche"
+            className={selectClassName}
+            value={nicheId}
+            onChange={(event) => setNicheId(event.target.value)}
+          >
+            <option value="">Select sea lane</option>
+            {niches.map((niche) => (
+              <option key={niche.id} value={niche.id}>
+                {niche.name}
+              </option>
+            ))}
+          </select>
+          {!nicheId && sourceUrl ? (
+            <p className="text-sm text-muted-foreground">Please select a sea lane (niche).</p>
+          ) : null}
+        </div>
+
+        <div className="flex items-start gap-3 rounded-lg border border-border/70 bg-muted/35 p-3">
+          <Checkbox
+            id="rightsConfirmed"
+            checked={rightsConfirmed}
+            onCheckedChange={(checked) => setRightsConfirmed(checked === true)}
+            aria-describedby="rightsConfirmed-label"
+            className="mt-0.5"
+          />
+          <Label
+            id="rightsConfirmed-label"
+            htmlFor="rightsConfirmed"
+            className="cursor-pointer font-normal leading-snug"
+          >
+            I confirm this content is client-approved and we have permission to process and publish
+            it.
+          </Label>
+        </div>
+        {!rightsConfirmed && nicheId ? (
+          <p className="text-sm text-muted-foreground">
+            Confirm rights before the cargo can board.
+          </p>
+        ) : null}
+
+        <Button
+          type="submit"
+          className="h-12 w-full cursor-pointer text-base font-medium transition-all duration-200 hover:scale-[1.01]"
+          disabled={!canSubmit}
+        >
+          {isPending ? (
+            <>
+              <Loader2 className="animate-spin" aria-hidden="true" />
+              Loading aboard…
+            </>
+          ) : (
+            'Load aboard'
+          )}
+        </Button>
+      </form>
+    </div>
   )
 }

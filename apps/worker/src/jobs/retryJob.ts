@@ -7,7 +7,9 @@ import { withUploadConcurrency } from './ConcurrencyGuard'
 import {
   DAILY_UPLOAD_WINDOW_MS,
   checkNicheDailyUploadLimits,
+  clearForceUploadOverride,
   dailyLimitDeferMessage,
+  hasForceUploadOverride,
 } from './dailyUploadLimit'
 import { finalizeUploadStatus, platformsNeedingUpload } from './uploadFinalize'
 import { prepareLocalUploadFile } from './uploadLocalFile'
@@ -32,6 +34,68 @@ async function retryJobInner(jobId: string, platform?: 'youtube' | 'instagram'):
     throw new ProjectApiError(ERROR_CODES.JOB_NOT_FOUND, `Job not found: ${jobId}`)
   }
 
+  // Never clobber a finished / cancelled job (late WF-08 retries after verify+Drive cleanup).
+  if (job.status === 'completed' || job.status === 'cancelled' || job.status === 'ignored') {
+    logger.info({
+      msg: 'Retry skipped — job already in terminal status',
+      jobId,
+      status: job.status,
+    })
+    return
+  }
+
+  // Include `uploading` so crash-stuck retries can recover (retry_scheduled + no active work).
+  const retryableStatuses = [
+    'failed',
+    'needs_manual_review',
+    'ready_to_upload',
+    'awaiting_verification',
+    'uploading',
+  ]
+  if (!retryableStatuses.includes(job.status)) {
+    throw new ProjectApiError(
+      ERROR_CODES.JOB_NOT_FOUND,
+      `Job status ${job.status} is not retryable`,
+    )
+  }
+
+  if (isWithinDailyLimitDeferral(job) && !hasForceUploadOverride(job)) {
+    logger.info({
+      msg: 'Retry skipped — job parked for daily upload limit window',
+      jobId,
+      failureCode: job.failure_code,
+      updatedAt: job.updated_at,
+    })
+    return
+  }
+
+  const targets = platformsNeedingUpload(
+    job.youtube_upload_status,
+    job.instagram_upload_status,
+    platform,
+  )
+
+  if (targets.length === 0) {
+    // Both sides already uploaded/verified — do not require Drive (may already be cleaned up).
+    logger.info({ msg: 'Retry upload skipped — no platforms need upload', jobId, platform })
+    if (job.status === 'needs_manual_review') {
+      // Heal false DRIVE_FILE_MISSING after a successful upload+verify race.
+      const bothVerified =
+        (job.youtube_upload_status === 'uploaded' || job.youtube_upload_status === 'verified') &&
+        (job.instagram_upload_status === 'uploaded' || job.instagram_upload_status === 'verified')
+      if (bothVerified) {
+        await updateJobStatus(jobId, 'completed', {
+          failure_code: null,
+          failure_reason: null,
+          completed_at: job.completed_at ?? new Date().toISOString(),
+        })
+        return
+      }
+    }
+    await finalizeUploadStatus(jobId, job.youtube_upload_status, job.instagram_upload_status)
+    return
+  }
+
   if (!job.drive_file_id || job.drive_deleted_at) {
     await updateJobStatus(job.id, 'needs_manual_review', {
       failure_code: ERROR_CODES.DRIVE_FILE_MISSING,
@@ -49,72 +113,44 @@ async function retryJobInner(jobId: string, platform?: 'youtube' | 'instagram'):
     throw new ProjectApiError(ERROR_CODES.DRIVE_FILE_MISSING, 'Drive file missing, cannot retry')
   }
 
-  // Include `uploading` so WF-08 can recover crash-stuck retries (retry_scheduled + no lock).
-  const retryableStatuses = [
-    'failed',
-    'needs_manual_review',
-    'ready_to_upload',
-    'awaiting_verification',
-    'uploading',
-  ]
-  if (!retryableStatuses.includes(job.status)) {
-    throw new ProjectApiError(
-      ERROR_CODES.JOB_NOT_FOUND,
-      `Job status ${job.status} is not retryable`,
-    )
-  }
-
-  if (job.status === 'cancelled' || job.status === 'ignored' || job.status === 'completed') {
-    throw new ProjectApiError(
-      ERROR_CODES.JOB_NOT_FOUND,
-      `Job status ${job.status} is not retryable`,
-    )
-  }
-
-  if (isWithinDailyLimitDeferral(job)) {
+  const forceOverride = hasForceUploadOverride(job)
+  if (!forceOverride) {
+    const limitCheck = await checkNicheDailyUploadLimits(job.niche_id, {
+      youtube: targets.includes('youtube'),
+      instagram: targets.includes('instagram'),
+    })
+    if (limitCheck.blocked) {
+      const message = dailyLimitDeferMessage(limitCheck)
+      logger.info({
+        msg: 'Deferring retry upload — daily account limit reached',
+        jobId,
+        usages: limitCheck.usages,
+      })
+      await updateJobStatus(job.id, 'ready_to_upload', {
+        ...(targets.includes('youtube') ? { youtube_upload_status: 'pending' } : {}),
+        ...(targets.includes('instagram') ? { instagram_upload_status: 'pending' } : {}),
+        failure_code: ERROR_CODES.DAILY_UPLOAD_LIMIT_REACHED,
+        failure_reason: message,
+      })
+      await writeJobEvent(job.id, 'retry', 'daily_upload_limit_deferred', message, 'info', {
+        usages: limitCheck.usages,
+        limit: limitCheck.limit,
+      })
+      return
+    }
+  } else {
     logger.info({
-      msg: 'Retry skipped — job parked for daily upload limit window',
+      msg: 'Retry upload proceeding with admin force_upload_override',
       jobId,
-      failureCode: job.failure_code,
-      updatedAt: job.updated_at,
     })
-    return
-  }
-
-  const targets = platformsNeedingUpload(
-    job.youtube_upload_status,
-    job.instagram_upload_status,
-    platform,
-  )
-
-  if (targets.length === 0) {
-    logger.info({ msg: 'Retry upload skipped — no platforms need upload', jobId, platform })
-    await finalizeUploadStatus(jobId, job.youtube_upload_status, job.instagram_upload_status)
-    return
-  }
-
-  const limitCheck = await checkNicheDailyUploadLimits(job.niche_id, {
-    youtube: targets.includes('youtube'),
-    instagram: targets.includes('instagram'),
-  })
-  if (limitCheck.blocked) {
-    const message = dailyLimitDeferMessage(limitCheck)
-    logger.info({
-      msg: 'Deferring retry upload — daily account limit reached',
+    await clearForceUploadOverride(jobId)
+    await writeJobEvent(
       jobId,
-      usages: limitCheck.usages,
-    })
-    await updateJobStatus(job.id, 'ready_to_upload', {
-      ...(targets.includes('youtube') ? { youtube_upload_status: 'pending' } : {}),
-      ...(targets.includes('instagram') ? { instagram_upload_status: 'pending' } : {}),
-      failure_code: ERROR_CODES.DAILY_UPLOAD_LIMIT_REACHED,
-      failure_reason: message,
-    })
-    await writeJobEvent(job.id, 'retry', 'daily_upload_limit_deferred', message, 'info', {
-      usages: limitCheck.usages,
-      limit: limitCheck.limit,
-    })
-    return
+      'retry',
+      'force_upload_override_consumed',
+      'Admin force-start consumed — soft daily upload limit bypassed for this retry',
+      'info',
+    )
   }
 
   logger.info({ msg: 'Starting retry upload', jobId, platform, targets })

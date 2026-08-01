@@ -194,3 +194,28 @@ export function throwIfDailyLimitBlocked(check: DailyUploadLimitCheck): void {
     retryable: true,
   })
 }
+
+export function hasForceUploadOverride(job: {
+  force_upload_override?: boolean | null
+}): boolean {
+  return job.force_upload_override === true
+}
+
+/** Clears the one-shot admin bypass after the upload path accepts the job. */
+export async function clearForceUploadOverride(jobId: string): Promise<void> {
+  const { error } = await supabaseAdmin
+    .from('jobs')
+    .update({
+      force_upload_override: false,
+      updated_at: new Date().toISOString(),
+    })
+    .eq('id', jobId)
+
+  if (error) {
+    logger.warn({
+      msg: 'Failed to clear force_upload_override',
+      jobId,
+      error: error.message,
+    })
+  }
+}

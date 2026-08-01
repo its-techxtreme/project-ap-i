@@ -9,6 +9,8 @@ import { logger } from '../logging/logger'
 import { createDriveStorage } from '../storage'
 
 import { deleteJobDriveFile } from './driveDelete'
+import { abortJobLocally } from './jobAbort'
+import { recoverStalePipelineJobs } from './recoverStalePipelineJobs'
 import { recoverStaleUploadingJobs } from './recoverStaleUploads'
 import { retryJob } from './retryJob'
 
@@ -57,6 +59,11 @@ async function executeCommand(cmd: DbAdminCommandRow): Promise<void> {
     return
   }
 
+  if (cmd.command === 'abort_job') {
+    await abortJobLocally(cmd.job_id, 'admin-command')
+    return
+  }
+
   throw new Error(`Unknown admin command: ${String(cmd.command)}`)
 }
 
@@ -66,6 +73,12 @@ export async function processNextAdminCommand(workerId: string): Promise<Process
     await recoverStaleUploadingJobs(workerId)
   } catch (err) {
     logger.warn({ msg: 'Stale upload recovery failed before admin command', workerId, err: String(err) })
+  }
+
+  try {
+    await recoverStalePipelineJobs(workerId)
+  } catch (err) {
+    logger.warn({ msg: 'Stale pipeline recovery failed before admin command', workerId, err: String(err) })
   }
 
   const cmd = await claimNextAdminCommand(workerId)

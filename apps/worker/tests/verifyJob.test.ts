@@ -30,6 +30,11 @@ vi.mock('../src/db/supabaseAdmin', () => ({
   },
 }))
 
+vi.mock('../src/jobs/uploadIdempotency', () => ({
+  findSuccessfulUploadAttempt: vi.fn().mockResolvedValue(null),
+  hasPublishWithoutUrlFailure: vi.fn().mockResolvedValue(false),
+}))
+
 import { getJobById } from '../src/db/jobsRepo'
 import { verifyJob } from '../src/jobs/verifyJob'
 import { ERROR_CODES } from '@project-api/shared'
@@ -230,6 +235,46 @@ describe('verifyJob', () => {
       'needs_manual_review',
       expect.objectContaining({
         failure_code: ERROR_CODES.YOUTUBE_UPLOAD_FAILED,
+      }),
+    )
+  })
+
+  it('retry_scheduled platforms with max retries -> needs_manual_review (no uncertain loop)', async () => {
+    const job = mockJob({
+      youtube_upload_status: 'retry_scheduled',
+      instagram_upload_status: 'retry_scheduled',
+      youtube_retry_count: 2,
+      instagram_retry_count: 2,
+    })
+    vi.mocked(getJobById).mockResolvedValue(job)
+
+    await verifyJob('job-test-1')
+
+    expect(updateMock).toHaveBeenCalledWith(
+      'job-test-1',
+      'needs_manual_review',
+      expect.objectContaining({
+        failure_code: ERROR_CODES.YOUTUBE_UPLOAD_FAILED,
+      }),
+    )
+  })
+
+  it('retry_scheduled under max retries -> ready_to_upload for another attempt', async () => {
+    const job = mockJob({
+      youtube_upload_status: 'retry_scheduled',
+      instagram_upload_status: 'uploaded',
+      youtube_retry_count: 1,
+    })
+    vi.mocked(getJobById).mockResolvedValue(job)
+
+    await verifyJob('job-test-1')
+
+    expect(updateMock).toHaveBeenCalledWith(
+      'job-test-1',
+      'ready_to_upload',
+      expect.objectContaining({
+        youtube_retry_count: 2,
+        youtube_upload_status: 'retry_scheduled',
       }),
     )
   })

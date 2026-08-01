@@ -53,7 +53,7 @@
     {
       "parameters": {
         "method": "GET",
-        "url": "={{ $env.SUPABASE_URL }}/rest/v1/jobs?status=in.(ready_to_upload,uploading)&or=(youtube_upload_status.eq.retry_scheduled,instagram_upload_status.eq.retry_scheduled)&failure_code=is.null&select=id&order=updated_at.asc&limit=1",
+        "url": "={{ $env.SUPABASE_URL }}/rest/v1/jobs?status=in.(ready_to_upload,awaiting_verification)&or=(youtube_upload_status.eq.retry_scheduled,instagram_upload_status.eq.retry_scheduled)&select=id&order=updated_at.asc&limit=1",
         "sendHeaders": true,
         "headerParameters": {
           "parameters": [

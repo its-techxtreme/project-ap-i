@@ -3,6 +3,9 @@ import Script from 'next/script'
 import { AdminCapabilitiesProvider } from '@/components/admin/AdminCapabilities'
 import { Sidebar } from '@/components/app/Sidebar'
 import { Topbar } from '@/components/app/Topbar'
+import { DemoTutorialHost } from '@/components/demo/DemoTutorialHost'
+import { MobileNav } from '@/components/desk/MobileNav'
+import { PirateSky } from '@/components/pirate/PirateSky'
 import { ThemeProvider } from '@/components/theme/ThemeProvider'
 import { themeInitScript } from '@/lib/theme/themeInit'
 
@@ -25,20 +28,27 @@ export function AppShell({
           {themeInitScript('admin')}
         </Script>
         <AdminCapabilitiesProvider canWrite={canWrite} role={role}>
-          <div className="bg-atmosphere flex min-h-screen flex-col">
-            <Topbar email={email} role={role} />
-            <div className="flex flex-1">
-              <Sidebar />
-              <main className="flex-1 p-4 md:p-6 lg:p-7">
-                {!canWrite ? (
-                  <p className="notice-warn mb-4 rounded-md border px-3 py-2 text-sm">
-                    Demo mode — you can browse everything, but retry / delete / account actions are
-                    locked.
-                  </p>
-                ) : null}
-                {children}
-              </main>
+          <div className="desk-shell relative flex min-h-screen flex-col overflow-hidden">
+            <PirateSky className="opacity-40 dark:opacity-55" />
+            <div className="relative z-10 flex min-h-screen flex-col">
+              <Topbar email={email} role={role} />
+              <MobileNav />
+              <div className="flex flex-1">
+                <Sidebar />
+                <main className="flex-1 p-4 md:p-6 lg:p-7">
+                  {!canWrite ? (
+                    <p
+                      data-tutorial="demo-banner"
+                      className="notice-warn mb-4 rounded-md border px-3 py-2 text-sm"
+                    >
+                      Demo watch — browse only. Write actions are locked ashore.
+                    </p>
+                  ) : null}
+                  {children}
+                </main>
+              </div>
             </div>
+            {role === 'demo' ? <DemoTutorialHost /> : null}
           </div>
         </AdminCapabilitiesProvider>
       </ThemeProvider>

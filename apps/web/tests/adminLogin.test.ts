@@ -20,6 +20,7 @@ vi.mock('next/headers', () => ({
 const isLoginLockedMock = vi.fn()
 const recordLoginAttemptMock = vi.fn()
 const verifyDashboardCredentialsMock = vi.fn()
+const isDemoLoginRateLimitedMock = vi.fn()
 
 vi.mock('@/lib/auth/adminCredentials', async () => {
   const actual = await vi.importActual<typeof import('@/lib/auth/adminCredentials')>(
@@ -31,6 +32,7 @@ vi.mock('@/lib/auth/adminCredentials', async () => {
     recordLoginAttempt: (...args: unknown[]) => recordLoginAttemptMock(...args),
     verifyDashboardCredentials: (...args: unknown[]) => verifyDashboardCredentialsMock(...args),
     verifyAdminCredentials: (...args: unknown[]) => verifyDashboardCredentialsMock(...args),
+    isDemoLoginRateLimited: (...args: unknown[]) => isDemoLoginRateLimitedMock(...args),
   }
 })
 
@@ -94,6 +96,59 @@ describe('adminLogin', () => {
     )
     expect(recordLoginAttemptMock).toHaveBeenCalledWith(
       expect.objectContaining({ success: true }),
+    )
+  })
+})
+
+describe('demoLogin', () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+    vi.resetModules()
+    process.env.ADMIN_SESSION_SECRET = 'test-admin-session-secret-min-32-chars!!'
+    process.env.DEMO_USERNAME = 'ProjectAPIDemo'
+    process.env.DEMO_PASSWORD_HASH = 'scrypt$16384$8$1$aaa$bbb'
+    isLoginLockedMock.mockResolvedValue({ locked: false })
+    isDemoLoginRateLimitedMock.mockResolvedValue(false)
+    recordLoginAttemptMock.mockResolvedValue(undefined)
+    auditInsertMock.mockResolvedValue({ error: null })
+  })
+
+  it('rejects when demo credentials are not configured', async () => {
+    delete process.env.DEMO_USERNAME
+    delete process.env.DEMO_PASSWORD_HASH
+    const { demoLogin } = await import('@/app/actions/adminLogin')
+    const result = await demoLogin()
+    expect(result).toEqual({
+      success: false,
+      error: 'Demo voyage is not fitted out on this ship.',
+    })
+  })
+
+  it('rejects when one-click demo success rate limit is hit', async () => {
+    isDemoLoginRateLimitedMock.mockResolvedValueOnce(true)
+    const { demoLogin } = await import('@/app/actions/adminLogin')
+    const result = await demoLogin()
+    expect(result.success).toBe(false)
+    if (!result.success) {
+      expect(result.locked).toBe(true)
+      expect(result.error).toMatch(/temporarily limited/)
+    }
+    expect(cookiesSetMock).not.toHaveBeenCalled()
+  })
+
+  it('creates a demo session and redirects into the voyage briefing', async () => {
+    const { demoLogin } = await import('@/app/actions/adminLogin')
+    await expect(demoLogin()).rejects.toThrow('REDIRECT:/admin?voyage=1')
+    expect(cookiesSetMock).toHaveBeenCalledWith(
+      'api_admin_session',
+      expect.any(String),
+      expect.objectContaining({ httpOnly: true }),
+    )
+    expect(auditInsertMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        action: 'demo_login',
+        metadata: expect.objectContaining({ via: 'one_click', role: 'demo' }),
+      }),
     )
   })
 })

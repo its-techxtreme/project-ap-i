@@ -86,6 +86,8 @@ DEMO_PASSWORD_HASH   # scrypt via scripts/hash-admin-password.mjs — never plai
 
 Demo sessions include `role: "demo"` in the signed cookie. Server actions call `requireAdminWrite()` and reject demo. UI hides destructive controls.
 
+The login page exposes a one-click **Demo voyage** button that calls `demoLogin()` — it creates a demo session server-side (no password in the browser) and redirects to `/admin?voyage=1` to start the interactive crew briefing. Failure lockout still applies. Successful one-click demo boarding is also capped per IP (8/hour) to limit audit/login-table write amplification.
+
 
 ### Public submission (anonymous)
 

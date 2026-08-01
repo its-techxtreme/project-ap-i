@@ -8,7 +8,10 @@ import { runCommand } from '../src/utils/runCommand'
 
 const FIXTURE_DIR = path.join(__dirname, 'fixtures')
 const SAMPLE_MP4 = path.join(FIXTURE_DIR, 'sample.mp4')
-const WATERMARK_PNG = path.join(FIXTURE_DIR, 'watermark.png')
+const BACKGROUND_MUSIC = path.join(
+  __dirname,
+  '../assets/bgm/absolutesound-background-guitar-no-copyright-561871.mp3',
+)
 
 async function ffmpegAvailable(): Promise<boolean> {
   try {
@@ -30,22 +33,7 @@ describe.skipIf(!runIntegration)('media pipeline integration (real ffmpeg)', () 
       throw new Error('ffmpeg not available — install ffmpeg before enabling integration tests')
     }
 
-    await fs.mkdir(FIXTURE_DIR, { recursive: true })
-
-    try {
-      await fs.access(WATERMARK_PNG)
-    } catch {
-      await runCommand('ffmpeg', [
-        '-y',
-        '-f',
-        'lavfi',
-        '-i',
-        'color=c=white:s=80x40',
-        '-frames:v',
-        '1',
-        WATERMARK_PNG,
-      ])
-    }
+    await fs.access(BACKGROUND_MUSIC)
 
     baseDir = await fs.mkdtemp(path.join(os.tmpdir(), 'media-pipeline-int-'))
     originalTmpDir = process.env.TMP_DIR
@@ -91,7 +79,7 @@ describe.skipIf(!runIntegration)('media pipeline integration (real ffmpeg)', () 
         jobId,
         sourcePath: download.localPath,
         tempDir,
-        watermarkPath: WATERMARK_PNG,
+        backgroundMusicPath: BACKGROUND_MUSIC,
       }),
     )
 
@@ -147,7 +135,7 @@ describe.skipIf(!runIntegration)('media pipeline integration (real ffmpeg)', () 
       jobId,
       sourcePath: audioSource,
       tempDir,
-      watermarkPath: WATERMARK_PNG,
+      backgroundMusicPath: BACKGROUND_MUSIC,
     })
 
     const probe = await runCommand('ffprobe', [

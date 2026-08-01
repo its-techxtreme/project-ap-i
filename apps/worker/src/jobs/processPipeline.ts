@@ -5,10 +5,13 @@ import type { Downloader } from '../downloaders/types'
 import type { DbJobRow } from '../db/jobsRepo'
 import { getNicheSlugById, updateJobStatus, writeJobEvent } from '../db/jobsRepo'
 import type { Processor } from '../processors/types'
-import { resolveWatermarkPath } from '../processors/resolveWatermarkPath'
+import { config } from '../config'
 import type { MetadataProvider } from '../metadata/types'
+import { assertMetadataQuality, MetadataQualityError } from '../metadata/quality'
+import { getFallbackMetadata } from '../metadata/fallbacks'
 import type { DriveStorage } from '../storage/types'
 
+import { assertJobNotAborted, JobAbortedError } from './jobAbort'
 import { TempFileManager } from './TempFileManager'
 
 const VALID_NICHE_SLUGS = ['memes', 'anime', 'sports'] as const
@@ -43,7 +46,11 @@ async function recordPipelineFailure(jobId: string, err: unknown): Promise<void>
         : ERROR_CODES.FFMPEG_FAILED)
   const failureMessage = err instanceof Error ? err.message : String(err)
 
-  await updateJobStatus(jobId, 'failed', {
+  // Auth failures are infra — park for manual review and stop burning the queue.
+  const status =
+    failureCode === ERROR_CODES.DRIVE_AUTH_FAILED ? 'needs_manual_review' : 'failed'
+
+  await updateJobStatus(jobId, status, {
     failure_code: failureCode,
     failure_reason: failureMessage,
     ...stageFailureFields(stage),
@@ -51,6 +58,7 @@ async function recordPipelineFailure(jobId: string, err: unknown): Promise<void>
   await writeJobEvent(jobId, stage, 'pipeline_failed', failureMessage, 'error', {
     code: failureCode,
     retryable: apiErr?.retryable ?? false,
+    status,
   })
 }
 
@@ -97,6 +105,20 @@ export async function runProcessPipeline(
   let tempCreated = false
 
   try {
+    await assertJobNotAborted(jobId)
+
+    // Fail fast before download/ffmpeg when Drive credentials are dead.
+    if (config.NODE_ENV !== 'test') {
+      const { isDriveAuthHealthy } = await import('../storage/driveAuth')
+      if (!(await isDriveAuthHealthy())) {
+        throw new ProjectApiError(
+          ERROR_CODES.DRIVE_AUTH_FAILED,
+          'Google Drive auth unhealthy — fix credentials before processing (see infra/google-drive/SETUP.md)',
+          { stage: 'staging_to_drive', retryable: false },
+        )
+      }
+    }
+
     const tempDir = await resolvedDeps.tempFileManager.createJobDir(jobId)
     tempCreated = true
 
@@ -109,6 +131,8 @@ export async function runProcessPipeline(
       tempDir,
       sourcePlatform: job.source_platform,
     })
+
+    await assertJobNotAborted(jobId)
 
     await updateJobStatus(jobId, 'downloaded', { download_status: 'succeeded' })
     await writeJobEvent(jobId, 'download', 'download_completed', 'Source download complete', 'info', {
@@ -127,12 +151,15 @@ export async function runProcessPipeline(
       )
     }
 
-    const watermarkPath = resolveWatermarkPath(nicheSlug)
+    await assertJobNotAborted(jobId)
+
+    const backgroundMusicPath = config.BACKGROUND_MUSIC_PATH
 
     await updateJobStatus(jobId, 'processing', { processing_status: 'running' })
     await writeJobEvent(jobId, 'process', 'processing_started', 'Starting FFmpeg processing', 'info', {
       nicheSlug,
-      watermarkPath,
+      backgroundMusicPath,
+      editPreset: '1.2x + stronger eq + bgm@5% (no IG watermark; YT brand c-text if needed)',
     })
 
     const processResult = await withFfmpegConcurrency(() =>
@@ -140,9 +167,11 @@ export async function runProcessPipeline(
         jobId,
         sourcePath: downloadResult.localPath,
         tempDir,
-        watermarkPath,
+        backgroundMusicPath,
       }),
     )
+
+    await assertJobNotAborted(jobId)
 
     await updateJobStatus(jobId, 'processed', {
       processing_status: 'succeeded',
@@ -150,7 +179,7 @@ export async function runProcessPipeline(
     })
     await writeJobEvent(jobId, 'process', 'processing_completed', 'FFmpeg processing complete', 'info', {
       outputSize: processResult.fileSize,
-      watermarkPath,
+      backgroundMusicPath,
     })
 
     await updateJobStatus(jobId, 'staging_to_drive')
@@ -166,9 +195,18 @@ export async function runProcessPipeline(
       driveFileId: driveResult.fileId,
     })
 
+    // Persist Drive IDs immediately so a later metadata write failure cannot lose staging.
+    await updateJobStatus(jobId, 'staging_to_drive', {
+      drive_file_id: driveResult.fileId,
+      drive_file_name: driveResult.fileName,
+      drive_view_url: driveResult.viewUrl ?? null,
+      drive_folder_state: driveResult.folderState,
+    })
+
+    await assertJobNotAborted(jobId)
     await writeJobEvent(jobId, 'metadata', 'metadata_generation_started', 'Starting metadata generation')
 
-    const metadata = await resolvedDeps.metadataProvider.generate({
+    let metadata = await resolvedDeps.metadataProvider.generate({
       jobId,
       sourceUrl: job.source_url,
       sourcePlatform: job.source_platform,
@@ -178,13 +216,34 @@ export async function runProcessPipeline(
       sourceChannel: downloadResult.uploader,
     })
 
+    try {
+      assertMetadataQuality(
+        {
+          youtubeTitle: metadata.youtubeTitle,
+          youtubeDescription: metadata.youtubeDescription,
+          instagramCaption: metadata.instagramCaption,
+          keywords: metadata.keywords ?? [],
+          instagramHashtags: metadata.instagramHashtags ?? [],
+          youtubeHashtags: metadata.youtubeHashtags ?? [],
+        },
+        nicheSlug,
+      )
+    } catch (err) {
+      if (!(err instanceof MetadataQualityError)) throw err
+      metadata = {
+        ...getFallbackMetadata(nicheSlug, {
+          title: downloadResult.title,
+          description: downloadResult.description,
+          sourceUrl: job.source_url,
+          sourcePlatform: job.source_platform,
+        }),
+        provider: 'fallback',
+      }
+    }
+
     const metadataStatus = metadata.generatedBy === 'ai' ? 'generated' : 'fallback_used'
 
     await updateJobStatus(jobId, 'ready_to_upload', {
-      drive_file_id: driveResult.fileId,
-      drive_file_name: driveResult.fileName,
-      drive_view_url: driveResult.viewUrl ?? null,
-      drive_folder_state: driveResult.folderState,
       youtube_title: metadata.youtubeTitle,
       youtube_description: metadata.youtubeDescription,
       instagram_caption: metadata.instagramCaption,
@@ -193,6 +252,11 @@ export async function runProcessPipeline(
     await writeJobEvent(jobId, 'metadata', 'metadata_generation_completed', 'Metadata generation complete', 'info', {
       generatedBy: metadata.generatedBy,
       model: metadata.model,
+      provider: metadata.provider,
+      keywordCount: metadata.keywords?.length ?? 0,
+      titleLen: metadata.youtubeTitle.length,
+      descriptionLen: metadata.youtubeDescription.length,
+      captionLen: metadata.instagramCaption.length,
     })
 
     await resolvedDeps.tempFileManager.cleanupJobDir(jobId)
@@ -202,6 +266,12 @@ export async function runProcessPipeline(
   } catch (err: unknown) {
     if (tempCreated) {
       await resolvedDeps.tempFileManager.cleanupJobDir(jobId)
+    }
+    if (err instanceof JobAbortedError) {
+      await writeJobEvent(jobId, 'admin', 'pipeline_aborted', err.message, 'warning', {
+        control: err.control,
+      })
+      return err.control === 'paused' ? 'paused' : 'cancelled'
     }
     await recordPipelineFailure(jobId, err)
     throw err

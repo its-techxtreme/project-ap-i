@@ -80,7 +80,10 @@ describe('web security checklist', () => {
       'utf8',
     )
     expect(loginForm).not.toMatch(/ADMIN_PASSWORD/)
+    expect(loginForm).not.toMatch(/DEMO_PASSWORD/)
     expect(loginForm).toMatch(/adminLogin/)
+    expect(loginForm).toMatch(/demoLogin/)
     expect(loginForm).toMatch(/Username/)
+    expect(loginForm).toMatch(/demo-login-button/)
   })
 })

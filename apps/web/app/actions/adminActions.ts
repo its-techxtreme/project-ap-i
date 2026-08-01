@@ -4,7 +4,19 @@ import { requireAdminWrite } from '@/lib/auth/requireAdmin'
 import { getAdminUsername } from '@/lib/auth/getUserRole'
 import { supabaseAdmin } from '@/lib/supabase/admin'
 
-type AdminCommandType = 'retry_upload' | 'delete_drive_file'
+type AdminCommandType = 'retry_upload' | 'delete_drive_file' | 'abort_job'
+
+const IN_FLIGHT_STATUSES = [
+  'locked',
+  'validating',
+  'downloading',
+  'downloaded',
+  'processing',
+  'processed',
+  'staging_to_drive',
+  'ready_to_upload',
+  'uploading',
+] as const
 
 async function enqueueAdminCommand(
   jobId: string,
@@ -101,6 +113,122 @@ export async function retryJobUpload(jobId: string) {
   }
 }
 
+/**
+ * One-shot admin bypass of the soft per-account daily upload cap for a single job.
+ * Does not bypass YouTube/Instagram hard platform limits.
+ */
+export async function forceStartDespiteDailyLimit(jobId: string) {
+  const writeGate = await requireAdminWrite()
+  if (writeGate.denied) return { success: false, error: writeGate.error }
+
+  const { data: job, error: jobError } = await supabaseAdmin
+    .from('jobs')
+    .select(
+      'id, status, failure_code, failure_reason, drive_file_id, drive_deleted_at, youtube_upload_status, instagram_upload_status',
+    )
+    .eq('id', jobId)
+    .single()
+
+  if (jobError || !job) {
+    return { success: false, error: 'Job not found' }
+  }
+
+  const reason = (job.failure_reason ?? '').toLowerCase()
+  const isDailyLimit =
+    job.failure_code === 'DAILY_UPLOAD_LIMIT_REACHED' || reason.includes('daily upload limit')
+
+  if (!isDailyLimit) {
+    return {
+      success: false,
+      error: 'Force start is only available when the job is parked for the daily upload limit.',
+    }
+  }
+
+  const allowed = ['queued', 'ready_to_upload', 'failed', 'needs_manual_review', 'awaiting_verification']
+  if (!allowed.includes(job.status)) {
+    return { success: false, error: `Cannot force-start job in status ${job.status}` }
+  }
+
+  // Put this job at the front of FIFO so claim picks it next.
+  const frontCreatedAt = new Date(Date.now() - 365 * 24 * 60 * 60 * 1000).toISOString()
+  const nowIso = new Date().toISOString()
+
+  const nextStatus =
+    job.status === 'ready_to_upload' ||
+    job.status === 'failed' ||
+    job.status === 'needs_manual_review' ||
+    job.status === 'awaiting_verification'
+      ? job.drive_file_id && !job.drive_deleted_at
+        ? 'ready_to_upload'
+        : 'queued'
+      : 'queued'
+
+  const patch: Record<string, unknown> = {
+    force_upload_override: true,
+    failure_code: null,
+    failure_reason: null,
+    status: nextStatus,
+    locked_by: null,
+    locked_at: null,
+    lock_expires_at: null,
+    updated_at: nowIso,
+  }
+  if (nextStatus === 'queued') {
+    patch.created_at = frontCreatedAt
+  }
+
+  const { error: updateError } = await supabaseAdmin.from('jobs').update(patch).eq('id', jobId)
+
+  if (updateError) {
+    return { success: false, error: updateError.message }
+  }
+
+  // If already staged, also enqueue upload retry so WF-07/process picks it up promptly.
+  let commandId: string | undefined
+  const needsUploadRetry =
+    Boolean(job.drive_file_id) && !job.drive_deleted_at && nextStatus === 'ready_to_upload'
+
+  if (needsUploadRetry) {
+    const queued = await enqueueAdminCommand(jobId, 'retry_upload', {
+      platform: 'both',
+      forceDailyLimitBypass: true,
+    })
+    if (queued.success) commandId = queued.commandId
+  }
+
+  const username = await getAdminUsername()
+  await supabaseAdmin.from('audit_logs').insert({
+    actor_type: 'admin',
+    action: 'force_start_despite_daily_limit',
+    target_type: 'job',
+    target_id: jobId,
+    metadata: {
+      username,
+      status_before: job.status,
+      commandId: commandId ?? null,
+      failure_code_before: job.failure_code,
+    },
+  })
+
+  await supabaseAdmin.from('job_events').insert({
+    job_id: jobId,
+    stage: 'admin',
+    event_type: 'force_start_despite_daily_limit',
+    message: 'Admin force-started job past soft daily upload limit',
+    severity: 'info',
+    metadata: { username, commandId: commandId ?? null },
+  })
+
+  return {
+    success: true,
+    jobId,
+    commandId,
+    message: needsUploadRetry
+      ? 'Force-start armed. Upload retry queued — runs when the local worker/n8n stack is up.'
+      : 'Force-start armed. Job moved to the front of the queue and will bypass the soft daily limit once.',
+  }
+}
+
 /** Queue Drive delete for local worker/n8n (does not call worker from Vercel). */
 export async function deleteDriveFile(jobId: string) {
   const writeGate = await requireAdminWrite()
@@ -120,7 +248,14 @@ export async function deleteDriveFile(jobId: string) {
     return { success: false, error: 'Job has no Drive file to delete' }
   }
 
-  const deletableStatuses = ['failed', 'needs_manual_review', 'completed']
+  const deletableStatuses = [
+    'failed',
+    'needs_manual_review',
+    'completed',
+    'cancelled',
+    'ignored',
+    'paused',
+  ]
   if (!deletableStatuses.includes(job.status)) {
     return { success: false, error: `Drive delete not allowed for job status: ${job.status}` }
   }
@@ -154,7 +289,7 @@ export async function deleteDriveFile(jobId: string) {
   }
 }
 
-/** Mark job cancelled (DB-only; stops auto retry/claim). */
+/** Mark job cancelled (DB-only + abort outbox when in-flight). */
 export async function cancelJob(jobId: string) {
   const writeGate = await requireAdminWrite()
   if (writeGate.denied) return { success: false, error: writeGate.error }
@@ -183,10 +318,13 @@ export async function cancelJob(jobId: string) {
     'awaiting_verification',
     'failed',
     'needs_manual_review',
+    'paused',
   ]
   if (!cancellable.includes(job.status)) {
     return { success: false, error: `Job status ${job.status} cannot be cancelled` }
   }
+
+  const wasInFlight = (IN_FLIGHT_STATUSES as readonly string[]).includes(job.status)
 
   const { error: updateError } = await supabaseAdmin
     .from('jobs')
@@ -205,13 +343,19 @@ export async function cancelJob(jobId: string) {
     return { success: false, error: updateError.message }
   }
 
+  let abortCommandId: string | undefined
+  if (wasInFlight) {
+    const queued = await enqueueAdminCommand(jobId, 'abort_job', { reason: 'cancel' })
+    if (queued.success) abortCommandId = queued.commandId
+  }
+
   const username = await getAdminUsername()
   await supabaseAdmin.from('audit_logs').insert({
     actor_type: 'admin',
     action: 'job_cancelled',
     target_type: 'job',
     target_id: jobId,
-    metadata: { username, status_before: job.status },
+    metadata: { username, status_before: job.status, abortCommandId },
   })
 
   await supabaseAdmin.from('job_events').insert({
@@ -220,16 +364,165 @@ export async function cancelJob(jobId: string) {
     event_type: 'job_cancelled',
     message: `Cancelled by admin (was ${job.status})`,
     severity: 'info',
+    metadata: { username, status_before: job.status, abortCommandId },
+  })
+
+  return {
+    success: true,
+    jobId,
+    message: wasInFlight
+      ? 'Job cancelled. Abort queued for the local worker to stop in-flight work.'
+      : 'Job cancelled.',
+  }
+}
+
+/** Pause job — skipped by claim; in-flight work gets abort_job. */
+export async function pauseJob(jobId: string) {
+  const writeGate = await requireAdminWrite()
+  if (writeGate.denied) return { success: false, error: writeGate.error }
+
+  const { data: job, error: jobError } = await supabaseAdmin
+    .from('jobs')
+    .select('id, status')
+    .eq('id', jobId)
+    .single()
+
+  if (jobError || !job) {
+    return { success: false, error: 'Job not found' }
+  }
+
+  const pausable = [
+    'queued',
+    'locked',
+    'validating',
+    'downloading',
+    'downloaded',
+    'processing',
+    'processed',
+    'staging_to_drive',
+    'ready_to_upload',
+    'uploading',
+    'awaiting_verification',
+    'failed',
+    'needs_manual_review',
+  ]
+  if (!pausable.includes(job.status)) {
+    return { success: false, error: `Job status ${job.status} cannot be paused` }
+  }
+
+  const wasInFlight = (IN_FLIGHT_STATUSES as readonly string[]).includes(job.status)
+
+  const { error: updateError } = await supabaseAdmin
+    .from('jobs')
+    .update({
+      status: 'paused',
+      failure_reason: `Paused by admin (was ${job.status})`,
+      locked_by: null,
+      locked_at: null,
+      lock_expires_at: null,
+      updated_at: new Date().toISOString(),
+    })
+    .eq('id', jobId)
+
+  if (updateError) {
+    return { success: false, error: updateError.message }
+  }
+
+  let abortCommandId: string | undefined
+  if (wasInFlight) {
+    const queued = await enqueueAdminCommand(jobId, 'abort_job', { reason: 'pause' })
+    if (queued.success) abortCommandId = queued.commandId
+  }
+
+  const username = await getAdminUsername()
+  await supabaseAdmin.from('audit_logs').insert({
+    actor_type: 'admin',
+    action: 'job_paused',
+    target_type: 'job',
+    target_id: jobId,
+    metadata: { username, status_before: job.status, abortCommandId },
+  })
+
+  await supabaseAdmin.from('job_events').insert({
+    job_id: jobId,
+    stage: 'admin',
+    event_type: 'job_paused',
+    message: `Paused by admin (was ${job.status})`,
+    severity: 'info',
     metadata: { username, status_before: job.status },
   })
 
-  return { success: true, jobId }
+  return {
+    success: true,
+    jobId,
+    message: wasInFlight
+      ? 'Job paused. Abort queued so the worker stops in-flight work; other jobs proceed.'
+      : 'Job paused. Other queued jobs will proceed ahead of it.',
+  }
+}
+
+/** Unpause → queued at end of FIFO (created_at = now). */
+export async function unpauseJob(jobId: string) {
+  const writeGate = await requireAdminWrite()
+  if (writeGate.denied) return { success: false, error: writeGate.error }
+
+  const { data: job, error: jobError } = await supabaseAdmin
+    .from('jobs')
+    .select('id, status')
+    .eq('id', jobId)
+    .single()
+
+  if (jobError || !job) {
+    return { success: false, error: 'Job not found' }
+  }
+
+  if (job.status !== 'paused') {
+    return { success: false, error: `Job status ${job.status} is not paused` }
+  }
+
+  const nowIso = new Date().toISOString()
+  const { error: updateError } = await supabaseAdmin
+    .from('jobs')
+    .update({
+      status: 'queued',
+      created_at: nowIso,
+      failure_code: null,
+      failure_reason: null,
+      locked_by: null,
+      locked_at: null,
+      lock_expires_at: null,
+      updated_at: nowIso,
+    })
+    .eq('id', jobId)
+
+  if (updateError) {
+    return { success: false, error: updateError.message }
+  }
+
+  const username = await getAdminUsername()
+  await supabaseAdmin.from('audit_logs').insert({
+    actor_type: 'admin',
+    action: 'job_unpaused',
+    target_type: 'job',
+    target_id: jobId,
+    metadata: { username, queue_rank: 'end' },
+  })
+
+  await supabaseAdmin.from('job_events').insert({
+    job_id: jobId,
+    stage: 'admin',
+    event_type: 'job_unpaused',
+    message: 'Unpaused by admin — requeued at end of queue',
+    severity: 'info',
+    metadata: { username },
+  })
+
+  return { success: true, jobId, message: 'Job unpaused and moved to the end of the queue.' }
 }
 
 /**
  * Permanently delete a job row from Supabase (cascades events/attempts/commands).
- * Does not remove YouTube/Instagram posts. Staged Drive files are not deleted —
- * remove those first from Failed Review when a Drive link still exists.
+ * Actively running jobs are cancelled+aborted first so admin is never stuck.
  */
 export async function deleteJobRecord(jobId: string) {
   const writeGate = await requireAdminWrite()
@@ -245,11 +538,14 @@ export async function deleteJobRecord(jobId: string) {
     return { success: false, error: 'Job not found' }
   }
 
-  const blocked = ['locked', 'downloading', 'processing', 'uploading', 'staging_to_drive']
+  const blocked = ['locked', 'downloading', 'downloaded', 'processing', 'processed', 'uploading', 'staging_to_drive', 'validating']
   if (blocked.includes(job.status)) {
-    return {
-      success: false,
-      error: `Job is actively ${job.status}. Cancel it or wait until it finishes, then delete.`,
+    const cancelled = await cancelJob(jobId)
+    if (!cancelled.success) {
+      return {
+        success: false,
+        error: `Job is actively ${job.status} and could not be cancelled first: ${cancelled.error}`,
+      }
     }
   }
 
@@ -291,6 +587,21 @@ export async function markJobIgnored(jobId: string) {
   const writeGate = await requireAdminWrite()
   if (writeGate.denied) return { success: false, error: writeGate.error }
 
+  const { data: job, error: jobError } = await supabaseAdmin
+    .from('jobs')
+    .select('id, status')
+    .eq('id', jobId)
+    .single()
+
+  if (jobError || !job) {
+    return { success: false, error: 'Job not found' }
+  }
+
+  const ignorable = ['failed', 'needs_manual_review', 'cancelled', 'paused', 'ignored']
+  if (!ignorable.includes(job.status)) {
+    return { success: false, error: `Job status ${job.status} cannot be ignored` }
+  }
+
   const { error: updateError } = await supabaseAdmin
     .from('jobs')
     .update({ status: 'ignored', updated_at: new Date().toISOString() })
@@ -310,6 +621,70 @@ export async function markJobIgnored(jobId: string) {
   })
 
   return { success: true, jobId }
+}
+
+/**
+ * Manually attach a real YouTube URL after capture-miss (DB-only).
+ * Does not re-publish.
+ */
+export async function setYoutubeUploadedUrl(jobId: string, youtubeUrl: string) {
+  const writeGate = await requireAdminWrite()
+  if (writeGate.denied) return { success: false, error: writeGate.error }
+
+  const trimmed = youtubeUrl.trim()
+  if (!/youtu\.be\/|youtube\.com\/(watch|shorts)/i.test(trimmed)) {
+    return { success: false, error: 'Provide a real YouTube watch/shorts/youtu.be URL' }
+  }
+
+  const { data: job, error: jobError } = await supabaseAdmin
+    .from('jobs')
+    .select('id, status, youtube_upload_status, instagram_upload_status')
+    .eq('id', jobId)
+    .single()
+
+  if (jobError || !job) {
+    return { success: false, error: 'Job not found' }
+  }
+
+  const allowed = ['needs_manual_review', 'failed', 'paused', 'awaiting_verification']
+  if (!allowed.includes(job.status)) {
+    return { success: false, error: `Cannot set YouTube URL for status ${job.status}` }
+  }
+
+  const { error: updateError } = await supabaseAdmin
+    .from('jobs')
+    .update({
+      youtube_upload_status: 'uploaded',
+      failure_code: null,
+      failure_reason: null,
+      updated_at: new Date().toISOString(),
+    })
+    .eq('id', jobId)
+
+  if (updateError) {
+    return { success: false, error: updateError.message }
+  }
+
+  await supabaseAdmin.from('upload_attempts').insert({
+    job_id: jobId,
+    platform: 'youtube',
+    attempt_number: 99,
+    status: 'uploaded',
+    platform_url: trimmed,
+    platform_media_id: trimmed,
+    finished_at: new Date().toISOString(),
+  })
+
+  const username = await getAdminUsername()
+  await supabaseAdmin.from('audit_logs').insert({
+    actor_type: 'admin',
+    action: 'youtube_url_set_manually',
+    target_type: 'job',
+    target_id: jobId,
+    metadata: { username, youtubeUrl: trimmed },
+  })
+
+  return { success: true, jobId, message: 'YouTube URL recorded as uploaded (no re-publish).' }
 }
 
 type BulkItemResult = { success: boolean; error?: string; message?: string }

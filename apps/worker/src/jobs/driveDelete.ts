@@ -9,6 +9,9 @@ const DRIVE_DELETE_ALLOWED_STATUSES: JobStatus[] = [
   'failed',
   'needs_manual_review',
   'completed',
+  'cancelled',
+  'ignored',
+  'paused',
 ]
 
 export async function deleteJobDriveFile(
@@ -60,5 +63,5 @@ export async function deleteJobDriveFile(
 export function shouldRetainDriveFile(job: DbJobRow): boolean {
   if (!job.drive_file_id) return false
   if (job.drive_folder_state === 'deleted') return false
-  return job.status === 'failed' || job.status === 'needs_manual_review'
+  return job.status === 'failed' || job.status === 'needs_manual_review' || job.status === 'paused'
 }

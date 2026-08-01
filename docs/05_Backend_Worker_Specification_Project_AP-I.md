@@ -86,6 +86,10 @@ Response:
 }
 ```
 
+While running, the worker also upserts `system_settings.worker_heartbeat` every ~20s
+(`at`, `ok`, Drive/upload flags, host). The hosted admin topbar reads that row to show
+Remote Laptop offline / ready / degraded — it never calls the private worker URL.
+
 ### Claim/process next job
 
 ```text
@@ -259,27 +263,40 @@ One URL per job
 ### Processing preset
 
 ```text
-Speed: 1.1x
-Watermark: niche-specific logo (memes / anime / sports), bottom-right, 70 percent opacity, small size
-Visual filter: mild standardization
-Audio: tempo adjusted to match speed
-Output: MP4/H.264/AAC
+Speed: 1.2x
+Watermark: none on Instagram export
+YouTube c-text: if source has no burned-in hard captions, burn niche brand
+  (anime=ShonenSnaps, memes=CrackleCrumb, sports=ScoreMorsel) with smooth
+  pulsing opacity 60%↔20% on the graphical content area before YT upload;
+  if hard captions already present, upload shared export unchanged
+Visual filter: stronger eq (saturation≈1.75, contrast≈1.4; ~7–8× prior mild deltas)
+Geometry: force 1080x1920 (9:16) via scale+center-crop so YouTube treats the
+  upload as a Short and Instagram Reels stay vertical (landscape sources are
+  cover-cropped; already-vertical reels stay full-bleed)
+Audio: original track tempo-matched + background music mixed at 5% volume (original kept)
+Output: MP4/H.264/AAC (yuv420p)
 ```
 
-Watermark assets live at `apps/worker/assets/watermarks/{memes,anime,sports}.png`.
-Optional override: `WATERMARKS_DIR`. Fallback: `WATERMARK_PATH` if a niche file is missing.
+Background music asset: `apps/worker/assets/bgm/absolutesound-background-guitar-no-copyright-561871.mp3`.
+Override with `BACKGROUND_MUSIC_PATH`.
 
 ### Conceptual FFmpeg flow
 
 ```text
-input video
-  -> setpts for video speed
-  -> atempo for audio speed
-  -> scale watermark
-  -> apply watermark opacity
-  -> overlay bottom-right
-  -> encode H.264/AAC
-output video
+input video + background music
+  -> setpts for 1.2x video speed + stronger visual eq
+  -> scale/crop to 1080x1920 (9:16 Shorts/Reels)
+  -> atempo for 1.2x original audio (when present)
+  -> volume=0.05 on background music
+  -> amix original + BGM (duration=first, normalize=0)
+  -> encode H.264/AAC (yuv420p)
+  -> assert output is exactly 1080x1920
+shared output (Drive / Instagram)
+
+YouTube upload path only:
+  -> detect burned-in hard captions (c-text) on shared export
+  -> if absent: drawtext niche brand with alpha='0.4+0.2*cos(2*PI*t/10)'
+  -> if present: use shared export as-is
 ```
 
 ### Output naming
@@ -331,18 +348,27 @@ AP-I_<nicheSlug>_<jobId>_<yyyyMMdd_HHmm>.mp4
 
 ## AI metadata module
 
+```text
+Primary: Google Gemini 3.5 Flash (@google/genai)
+Fallback: Groq OpenAI-compatible API (llama-3.3-70b-versatile by default)
+Optional: OpenRouter
+Safe fallback: cleaned source caption/title + niche tags (never crash the worker)
+```
+
+One request produces YouTube title, YouTube description, Instagram caption, keywords, and hashtag lists.
+
+Downloader writes `--write-info-json` and passes title/description into metadata generation.
+Optional transcript / creator notes / account style fields are supported when available.
+
 ### Inputs
 
 ```text
 source_url
 source_platform
 niche
-source title from yt-dlp info.json (when available)
-source caption/description from yt-dlp info.json (when available)
-optional source channel/uploader
+source title / caption from yt-dlp info.json
+optional transcript, creator notes, account name/style
 ```
-
-Downloader writes `--write-info-json` and passes title/description into metadata generation.
 
 ### Outputs
 
@@ -350,38 +376,37 @@ Downloader writes `--write-info-json` and passes title/description into metadata
 youtube_title
 youtube_description
 instagram_caption
-hashtags optional
+keywords / instagramHashtags / youtubeHashtags (logged; captions also include hashtags)
+provider + model for audit
 ```
 
 ### Requirements
 
-- Prefer rephrasing the original source caption/description (title as backup).
-- Keep the same topic/meaning; do not invent unrelated copy.
-- Add 3–5 niche hashtags on YouTube description and Instagram caption.
-- Keep YouTube title concise (max ~70 chars preferred).
-- Avoid fake claims.
-- Avoid misleading health/finance/legal claims if relevant.
-- Avoid spam-like hashtags.
-- Do not include internal job IDs.
-- Strip source promo CTAs, @mentions, and external URLs when rewriting.
-- Generate in the target language style configured later.
+- Use only details supported by supplied context; never invent facts.
+- Metadata must describe the **clip** (caption / on-screen subject). Never ship pipeline/product boilerplate (“publishing lane”, “originally submitted”, “metadata stays conservative”, Project AP-I internals).
+- Prefer IG/YT caption body over weak yt-dlp titles like `Video by username`.
+- Preferred lengths: YT title ~45–85 chars; YT description ~750–1,600 unique paragraphs (no repeated filler); IG caption ~420–1,200 (memes may be punchier).
+- Unrelated scraped source text (wrong-language gossip, multi-@ spam) is ignored so titles stay niche-relevant. Long non-junk captions are kept even without niche keywords.
+- Hard caps: title ≤100, description ≤5000, IG caption ≤2200.
+- Delimit untrusted source text so it cannot override system instructions.
+- Do not include internal job IDs or secrets.
 
 ### Failure behavior
 
 If metadata generation fails:
 
-- Prefer lightly cleaned original source caption/title + niche tags.
-- Otherwise use niche fallback template.
+- Prefer length-compliant fallbacks built from cleaned source **caption** (not weak “Video by …” titles) + niche-safe structure about the clip (must pass the same length floors as AI output).
 - Mark `metadata_status = fallback_used`.
 - Continue upload unless admin config says metadata is mandatory.
+- Pipeline re-asserts quality before persisting; short stubs and pipeline boilerplate never ship as `generated`.
 
-Fallback example (no source text):
+### Stale pipeline recovery
 
-```text
-Title: Latest update in <niche>
-Description: Watch this short update. Posted through Project AP-I.
-Instagram caption: New short update. #shorts #reels
-```
+`recoverStalePipelineJobs` requeues mid-pipeline jobs (`downloading`…`staging_to_drive`, locked `ready_to_upload`) when the lock expired or there is no progress for `PIPELINE_STALE_THRESHOLD_MS`. Repeated stalls escalate to `failed` / `PIPELINE_STALE`.
+
+### Admin abort / pause
+
+Hosted admin sets `paused` or `cancelled` in Supabase and may enqueue `admin_commands.command = abort_job`. The worker clears locks, fails in-flight upload attempts, and cooperative checks between stages stop Playwright without re-publishing. Unpause returns the job to `queued` with `created_at = now()` (end of FIFO).
 
 ## Upload modules
 
@@ -394,13 +419,15 @@ Each YouTube and Instagram `platform_accounts` row may publish at most **5** suc
 Root cause of niche-account spam loops: Playwright clicked YouTube Publish but failed to capture the share URL, the failure was treated as **transient**, and WF-08/verify scheduled full re-uploads while Instagram stayed `uploaded`.
 
 Guards now in place:
-- `no video url was captured` is **not** transient (no in-process re-publish).
+- After Publish, the uploader resolves a real public URL from Studio `/video/<id>` URLs, share dialog anchors/inputs, page HTML, Share/Copy-link controls, clipboard, and Studio content-list title match.
+- Captured Studio ids are normalized to `https://youtu.be/<id>` before success is recorded.
+- Capture miss uses `YOUTUBE_URL_CAPTURE_FAILED` (not a generic publish failure) and is **not** transient (no in-process re-publish).
 - `UploadCoordinator` skips Playwright when a successful `upload_attempts` row already has a real platform URL.
 - `platformsNeedingUpload()` never forces a platform that is already `uploaded`/`verified`.
 - `runUpload` does not fall back to uploading both platforms when both already succeeded.
 - Verify parks publish-without-URL cases to `needs_manual_review` instead of auto-retry.
 
-Admin can **cancel** jobs from the dashboard (`status=cancelled`) to stop claim/retry.
+Admin can **cancel** or **pause** jobs from the dashboard (`cancelled` / `paused`) and enqueue `abort_job` so the local worker stops in-flight Playwright.
 
 - Counted from distinct successful `upload_attempts` (`status=uploaded`) with `finished_at` in the last 24 hours, plus in-flight `uploading` jobs for that account.
 - When a niche’s needed account is at the cap:
@@ -408,6 +435,7 @@ Admin can **cancel** jobs from the dashboard (`status=cancelled`) to stop claim/
   - Already-processed jobs stay **`ready_to_upload`** (no Playwright attempt, no retry loop).
 - If YouTube returns “daily upload limit reached”, the job is parked the same way instead of failing into verify→retry loops.
 - Slots free as older uploads age out of the 24h window (not UTC midnight).
+- Admin **Force** (Ship's log Retries column) sets `jobs.force_upload_override` for one job so claim/upload skip the soft cap once; YouTube/Instagram hard caps still apply.
 
 ### Common uploader interface
 
@@ -590,7 +618,7 @@ Write to:
 - Worker cannot claim same job twice.
 - Invalid URL fails safely.
 - yt-dlp download success updates DB.
-- FFmpeg output created with watermark.
+- FFmpeg output created with 1.2x speed, stronger filter, forced 1080x1920 vertical, and quiet BGM mix (no IG watermark). YouTube may receive an additional niche brand c-text overlay when hard captions are absent.
 - Local temp files are deleted after Drive upload.
 - Drive file ID is stored.
 - Metadata generation updates job.
