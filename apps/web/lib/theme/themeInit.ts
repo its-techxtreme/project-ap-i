@@ -3,11 +3,13 @@ export type ThemeSurface = 'public' | 'admin'
 
 export const THEME_STORAGE_KEYS: Record<ThemeSurface, string> = {
   public: 'api-theme-public',
-  admin: 'api-theme-admin',
+  // v2: admin default flipped to light (day voyage); bump key so prior night preference isn't sticky.
+  admin: 'api-theme-admin-v2',
 }
 
-export function defaultThemeForSurface(surface: ThemeSurface): ThemeMode {
-  return surface === 'admin' ? 'dark' : 'light'
+export function defaultThemeForSurface(_surface: ThemeSurface): ThemeMode {
+  // Day voyage for both public submit and Captain's Deck; users can still toggle night.
+  return 'light'
 }
 
 /** Inline script string to prevent theme flash before hydration. Safe for server components. */

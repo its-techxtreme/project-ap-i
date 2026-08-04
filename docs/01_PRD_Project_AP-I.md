@@ -48,7 +48,7 @@ Project AP-I solves this by turning every submitted link into a tracked job with
 2. Require submitters to confirm that rights and permissions are available before submission.
 3. Route each submission by manually selected niche.
 4. Map each niche to exactly one YouTube account and one Instagram account.
-5. Process each video using a fixed MVP edit preset: 1.2x speed, stronger visual filter, forced 1080×1920 (9:16) vertical output, original audio retained, and a quiet background music bed mixed at ~5% volume (no burned-in watermark on the Instagram export). For YouTube only: if the reel has no existing burned-in hard captions (c-text), burn niche brand c-text (anime=`ShonenSnaps`, memes=`CrackleCrumb`, sports=`ScoreMorsel`) with pulsing 60%↔20% opacity on the graphical content area before upload; if c-text is already present, upload the shared edit export unchanged.
+5. Process each video using a fixed MVP edit preset: 1.2x speed, stronger visual filter, forced 1080×1920 (9:16) vertical output, original audio retained, and a background music bed mixed at 30% volume (no burned-in watermark on the Instagram export). For YouTube only: if the reel has no existing burned-in hard captions (c-text), burn niche brand c-text (anime=`ShonenSnaps`, memes=`CrackleCrumb`, sports=`ScoreMorsel`) with pulsing 60%↔20% opacity on the graphical content area before upload; if c-text is already present, upload the shared edit export unchanged.
 6. Generate YouTube title, YouTube description, and Instagram caption using a configured AI model provider.
 7. Upload each processed video to both platforms.
 8. Verify upload success around 5 minutes after upload.
@@ -279,7 +279,7 @@ youtube_ctext: if no burned-in hard captions on the reel, burn niche brand
   pulsing opacity 60%↔20% (10s cosine cycle) on the graphical content area;
   if hard captions already present, upload shared export to YouTube as-is
 filter: stronger standardized visual filter (~7–8× prior mild eq deltas)
-audio: original soundtrack tempo-matched + background music bed at 5% volume
+audio: original soundtrack tempo-matched + background music bed at 30% volume
 format: MP4/H.264
 no burned subtitles required (Instagram caption = post text, not on-video)
 ```

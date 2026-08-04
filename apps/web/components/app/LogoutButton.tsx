@@ -15,8 +15,22 @@ export function LogoutButton() {
   }
 
   return (
-    <Button variant="outline" size="sm" onClick={handleLogout} disabled={pending}>
-      {pending ? 'Logging out…' : 'Log out'}
+    <Button
+      variant="outline"
+      size="sm"
+      onClick={handleLogout}
+      disabled={pending}
+      className="h-8 shrink-0 px-2 font-mono text-[11px] uppercase tracking-[0.06em] sm:px-3"
+      aria-label={pending ? 'Logging out' : 'Log out'}
+    >
+      {pending ? (
+        '…'
+      ) : (
+        <>
+          <span className="sm:hidden">Out</span>
+          <span className="hidden sm:inline">Log out</span>
+        </>
+      )}
     </Button>
   )
 }

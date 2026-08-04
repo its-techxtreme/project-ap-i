@@ -16,6 +16,7 @@ export async function getRemoteLaptopStatus(): Promise<RemoteLaptopStatus> {
     return {
       state: 'offline',
       label: 'Remote laptop offline',
+      shortLabel: 'Laptop offline',
       detail: 'Not authorized',
       lastSeenAt: null,
       ok: null,
@@ -32,6 +33,7 @@ export async function getRemoteLaptopStatus(): Promise<RemoteLaptopStatus> {
     return {
       state: 'offline',
       label: 'Remote laptop offline',
+      shortLabel: 'Laptop offline',
       detail: 'Status unavailable',
       lastSeenAt: null,
       ok: null,

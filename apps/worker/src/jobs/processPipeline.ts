@@ -159,7 +159,7 @@ export async function runProcessPipeline(
     await writeJobEvent(jobId, 'process', 'processing_started', 'Starting FFmpeg processing', 'info', {
       nicheSlug,
       backgroundMusicPath,
-      editPreset: '1.2x + stronger eq + bgm@5% (no IG watermark; YT brand c-text if needed)',
+      editPreset: '1.2x + stronger eq + bgm@30% (no IG watermark; YT brand c-text if needed)',
     })
 
     const processResult = await withFfmpegConcurrency(() =>

@@ -12,12 +12,13 @@ const POLL_MS = 15_000
 const INITIAL: RemoteLaptopStatus = {
   state: 'offline',
   label: 'Remote laptop offline',
+  shortLabel: 'Laptop offline',
   detail: 'Checking…',
   lastSeenAt: null,
   ok: null,
 }
 
-export function RemoteLaptopSignal() {
+export function RemoteLaptopSignal({ compact = false }: { compact?: boolean }) {
   const [status, setStatus] = useState<RemoteLaptopStatus>(INITIAL)
 
   useEffect(() => {
@@ -32,6 +33,7 @@ export function RemoteLaptopSignal() {
           setStatus({
             state: 'offline',
             label: 'Remote laptop offline',
+            shortLabel: 'Laptop offline',
             detail: 'Status check failed',
             lastSeenAt: null,
             ok: null,
@@ -74,7 +76,8 @@ export function RemoteLaptopSignal() {
       title={status.detail}
       data-tutorial="remote-laptop"
       className={cn(
-        'inline-flex max-w-[min(100%,22rem)] items-center gap-2 rounded-full border px-3 py-1 font-mono text-[10px] uppercase tracking-[0.08em]',
+        'inline-flex w-full max-w-full items-center gap-2 rounded-full border px-2.5 py-1 font-mono text-[10px] uppercase tracking-[0.08em] sm:px-3',
+        !compact && 'lg:w-auto lg:max-w-[min(100%,22rem)]',
         tone.wrap,
       )}
     >
@@ -89,7 +92,7 @@ export function RemoteLaptopSignal() {
         <span className={cn('relative inline-flex size-2 rounded-full', tone.dot)} />
       </span>
       <Laptop className="size-3.5 shrink-0 opacity-80" aria-hidden />
-      <span className="truncate">{status.label}</span>
+      <span className="min-w-0 truncate">{compact ? status.shortLabel : status.label}</span>
     </div>
   )
 }

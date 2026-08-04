@@ -42,6 +42,7 @@ describe('parseRemoteLaptopStatus', () => {
     )
     expect(status.state).toBe('ready')
     expect(status.label).toBe('Laptop connected — ready for work')
+    expect(status.shortLabel).toBe('Laptop ready')
     expect(status.detail).toContain('uploads armed')
   })
 
@@ -58,6 +59,7 @@ describe('parseRemoteLaptopStatus', () => {
     )
     expect(status.state).toBe('degraded')
     expect(status.label).toBe('Laptop connected — not ready')
+    expect(status.shortLabel).toBe('Laptop not ready')
     expect(status.detail).toContain('Drive unhealthy')
   })
 })

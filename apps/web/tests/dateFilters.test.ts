@@ -26,4 +26,9 @@ describe('dateFilters', () => {
     expect(formatSettingValue({ enabled: true })).toBe('{"enabled":true}')
     expect(formatSettingValue(undefined)).toBe('Not configured')
   })
+
+  it('formatSettingValue formats background music volume as percent', () => {
+    expect(formatSettingValue(0.3, 'background_music_volume')).toBe('30% (0.3)')
+    expect(formatSettingValue('0.05', 'background_music_volume')).toBe('5% (0.05)')
+  })
 })

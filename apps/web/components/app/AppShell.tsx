@@ -28,14 +28,18 @@ export function AppShell({
           {themeInitScript('admin')}
         </Script>
         <AdminCapabilitiesProvider canWrite={canWrite} role={role}>
-          <div className="desk-shell relative flex min-h-screen flex-col overflow-hidden">
+          <div className="desk-shell relative flex min-h-screen flex-col overflow-x-hidden">
             <PirateSky className="opacity-40 dark:opacity-55" />
             <div className="relative z-10 flex min-h-screen flex-col">
-              <Topbar email={email} role={role} />
-              <MobileNav />
-              <div className="flex flex-1">
+              <div className="sticky top-0 z-40">
+                <Topbar email={email} role={role} />
+                <div className="relative z-40">
+                  <MobileNav />
+                </div>
+              </div>
+              <div className="flex min-w-0 flex-1">
                 <Sidebar />
-                <main className="flex-1 p-4 md:p-6 lg:p-7">
+                <main className="min-w-0 flex-1 overflow-x-auto p-3 sm:p-4 md:p-6 lg:p-7">
                   {!canWrite ? (
                     <p
                       data-tutorial="demo-banner"

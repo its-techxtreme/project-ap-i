@@ -13,8 +13,15 @@ export function sanitizePartialUuid(value: string): string | undefined {
   return trimmed
 }
 
-export function formatSettingValue(value: unknown): string {
+export function formatSettingValue(value: unknown, key?: string): string {
   if (value === undefined || value === null) return 'Not configured'
   if (typeof value === 'object') return JSON.stringify(value)
+  if (key === 'background_music_volume' && typeof value === 'number') {
+    return `${Math.round(value * 100)}% (${value})`
+  }
+  if (key === 'background_music_volume' && typeof value === 'string') {
+    const n = Number(value)
+    if (Number.isFinite(n)) return `${Math.round(n * 100)}% (${n})`
+  }
   return String(value)
 }

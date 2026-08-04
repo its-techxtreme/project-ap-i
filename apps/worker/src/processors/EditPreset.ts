@@ -9,8 +9,8 @@ export const EDIT_SPEED = 1.2
  */
 export const EDIT_VISUAL_FILTER = 'eq=saturation=1.75:contrast=1.4'
 
-/** Background bed under the original (sped) audio — keep very quiet. */
-export const BACKGROUND_MUSIC_VOLUME = 0.05
+/** Background guitar bed under the original (sped) audio — 30% of source BGM level. */
+export const BACKGROUND_MUSIC_VOLUME = 0.3
 
 /** Final Shorts/Reels frame — required so YouTube treats the upload as a Short. */
 export const OUTPUT_WIDTH = 1080
@@ -35,7 +35,7 @@ export interface FfmpegPresetOptions {
  * - 1.2x video + audio speed
  * - stronger visual eq (no Instagram watermark / brand overlay)
  * - force 1080x1920 vertical (YouTube Shorts / Instagram Reels)
- * - original audio kept + background music mixed at 5% volume
+ * - original audio kept + background music mixed at 30% volume
  * - Output: MP4/H.264/AAC
  *
  * YouTube-only niche brand c-text (when source has no hard captions) is applied
@@ -52,7 +52,7 @@ export function buildFfmpegArgs(opts: FfmpegPresetOptions): string[] {
   if (hasAudio) {
     filters.push(`[0:a]atempo=${EDIT_SPEED}[a_main]`)
     filters.push(`[1:a]volume=${BACKGROUND_MUSIC_VOLUME}[a_bg]`)
-    // normalize=0 keeps the 5% bed from being re-leveled against the main track
+    // normalize=0 keeps the BGM bed from being re-leveled against the main track
     filters.push(
       `[a_main][a_bg]amix=inputs=2:duration=first:dropout_transition=0:normalize=0[a_out]`,
     )

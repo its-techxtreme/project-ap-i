@@ -29,6 +29,11 @@ export function SignalBadge({
 
 function toneFor(status: string): { wrap: string; dot: string } {
   const map: Record<string, { wrap: string; dot: string }> = {
+    active: {
+      wrap:
+        'border-emerald-500/55 bg-emerald-500/25 text-emerald-900 dark:border-emerald-400/55 dark:bg-emerald-500/30 dark:text-emerald-200',
+      dot: 'bg-emerald-500 shadow-[0_0_6px_rgba(16,185,129,0.7)]',
+    },
     queued: { wrap: 'border-border/80 bg-muted/50 text-muted-foreground', dot: 'bg-muted-foreground' },
     paused: {
       wrap: 'border-amber-500/35 bg-amber-500/10 text-amber-900 dark:text-amber-300',

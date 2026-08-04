@@ -48,7 +48,7 @@ const configSchema = z.object({
   /** Hard timeout for a single platform Playwright upload (default 12m). */
   UPLOAD_PLATFORM_TIMEOUT_MS: z.string().default('720000').transform(Number),
 
-  /** Quiet guitar bed mixed under original audio (5% volume in EditPreset). */
+  /** Guitar bed mixed under original audio (30% volume in EditPreset). */
   BACKGROUND_MUSIC_PATH: z
     .string()
     .default('/app/assets/bgm/absolutesound-background-guitar-no-copyright-561871.mp3'),

@@ -2,66 +2,11 @@
 
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
-import {
-  AlertTriangle,
-  BookOpen,
-  Briefcase,
-  LayoutDashboard,
-  Map,
-  Settings,
-  Ship,
-  Users,
-} from 'lucide-react'
-import type { LucideIcon } from 'lucide-react'
+import { Ship } from 'lucide-react'
 
-import { emitTutorialAction, type TutorialAction } from '@/lib/demo/tutorial-bus'
+import { ADMIN_NAV_ITEMS, isAdminNavActive } from '@/lib/admin/navItems'
+import { emitTutorialAction } from '@/lib/demo/tutorial-bus'
 import { cn } from '@/lib/utils'
-
-const navItems: {
-  href: string
-  label: string
-  icon: LucideIcon
-  tutorial?: string
-  action?: TutorialAction
-}[] = [
-  { href: '/admin', label: "Crow's nest", icon: LayoutDashboard, tutorial: 'nav-overview' },
-  {
-    href: '/admin/jobs',
-    label: "Ship's log",
-    icon: Briefcase,
-    tutorial: 'nav-jobs',
-    action: 'visit-jobs',
-  },
-  {
-    href: '/admin/failed',
-    label: 'Lost cargo',
-    icon: AlertTriangle,
-    tutorial: 'nav-failed',
-    action: 'visit-failed',
-  },
-  {
-    href: '/admin/accounts',
-    label: 'Crew',
-    icon: Users,
-    tutorial: 'nav-accounts',
-    action: 'visit-accounts',
-  },
-  {
-    href: '/admin/niches',
-    label: 'Sea lanes',
-    icon: Map,
-    tutorial: 'nav-niches',
-    action: 'visit-niches',
-  },
-  {
-    href: '/admin/logs',
-    label: 'Logbook',
-    icon: BookOpen,
-    tutorial: 'nav-logs',
-    action: 'visit-logs',
-  },
-  { href: '/admin/settings', label: 'Chart room', icon: Settings, tutorial: 'nav-settings' },
-]
 
 export function Sidebar() {
   const pathname = usePathname()
@@ -80,9 +25,8 @@ export function Sidebar() {
         </div>
       </div>
       <nav className="flex flex-1 flex-col gap-0.5 p-2.5" aria-label="Admin navigation">
-        {navItems.map((item) => {
-          const isActive =
-            pathname === item.href || (item.href !== '/admin' && pathname.startsWith(item.href))
+        {ADMIN_NAV_ITEMS.map((item) => {
+          const isActive = isAdminNavActive(pathname, item.href)
           const Icon = item.icon
 
           return (

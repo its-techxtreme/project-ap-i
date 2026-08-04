@@ -273,7 +273,7 @@ Visual filter: stronger eq (saturation≈1.75, contrast≈1.4; ~7–8× prior mi
 Geometry: force 1080x1920 (9:16) via scale+center-crop so YouTube treats the
   upload as a Short and Instagram Reels stay vertical (landscape sources are
   cover-cropped; already-vertical reels stay full-bleed)
-Audio: original track tempo-matched + background music mixed at 5% volume (original kept)
+Audio: original track tempo-matched + background music mixed at 30% volume (original kept)
 Output: MP4/H.264/AAC (yuv420p)
 ```
 
@@ -287,7 +287,7 @@ input video + background music
   -> setpts for 1.2x video speed + stronger visual eq
   -> scale/crop to 1080x1920 (9:16 Shorts/Reels)
   -> atempo for 1.2x original audio (when present)
-  -> volume=0.05 on background music
+  -> volume=0.3 on background music
   -> amix original + BGM (duration=first, normalize=0)
   -> encode H.264/AAC (yuv420p)
   -> assert output is exactly 1080x1920

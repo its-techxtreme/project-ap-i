@@ -47,13 +47,13 @@ The frontend must be simple for submitters and powerful for admins. The submitte
   Fields: link, platform, niche, rights confirmation, submit
 
 /login
-  Admin-only Supabase Auth login (dark theme by default + theme toggle)
+  Admin-only auth login (light/day theme by default + theme toggle)
 
 /submit
   Redirects to / (legacy path)
 
 /admin
-  Admin overview (dark theme by default + theme toggle)
+  Admin overview (light/day theme by default + theme toggle)
 
 /admin/jobs
   All jobs table
@@ -71,7 +71,7 @@ The frontend must be simple for submitters and powerful for admins. The submitte
   Audit and job event logs
 
 /admin/settings
-  System settings
+  System settings (Chart room) — effective ops keys synced from laptop worker heartbeat
 ```
 
 Auth model note (product decision): the public form does not require signup or submitter login.
@@ -116,8 +116,7 @@ Sidebar (Captain's Deck):
 
 Topbar:
   Environment badge
-  Remote laptop signal (center): offline / connected-ready / connected-not-ready
-    — derived from worker heartbeat in system_settings (never exposes worker URLs)
+  Remote laptop signal (center on large screens; own row on narrow so it never overlaps brand/demo/actions)
   Cargo bay link (public form at `/`)
   Theme toggle (day / night)
   Current user
@@ -126,9 +125,10 @@ Topbar:
 Main content:
   Dense tables, compact filters, icon actions
   Day/night pirate sky wash behind chrome
+  Narrow viewports: sticky topbar + Deck menu panel listing every admin destination (Nest → Chart room); desktop keeps the left rail
 ```
 
-Login (`/login`): Captain's gate glass panel over pirate sky; admin theme by default.
+Login (`/login`): Captain's gate glass panel over pirate sky; **day voyage (light) theme by default**.
 
 ## Visual design
 
@@ -486,9 +486,9 @@ Fields:
 ```text
 Niche name
 Slug
-Active true/false
-Mapped YouTube account
-Mapped Instagram account
+Active true/false (green active signal / amber when paused)
+Mapped YouTube account — live profile card (handle, display name, avatar, description, profile link)
+Mapped Instagram account — live profile card (same fields)
 ```
 
 Rules:
@@ -496,6 +496,8 @@ Rules:
 - Submit page only shows active niches.
 - A niche is valid only if it has one active YouTube account and one active Instagram account.
 - Admin should see warnings for incomplete mappings.
+- Profile cards are fetched server-side from public Open Graph metadata using `platform_accounts.username_hint` (fallback: niche brand handles ShonenSnaps / CrackleCrumb / ScoreMorsel). Cached ~1 hour so the chart stays current without hammering platforms.
+- Read-only in MVP; editing lands later.
 
 ## Logs page
 

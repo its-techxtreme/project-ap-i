@@ -92,7 +92,7 @@ export function MetricTileGrid({ summary }: { summary: JobSummary }) {
             </div>
             <p
               className={cn(
-                'mt-2 font-display text-3xl font-semibold tabular-nums tracking-tight',
+                'mt-1.5 font-metric text-4xl font-semibold tabular-nums leading-none tracking-normal',
                 hot ? 'text-destructive' : 'text-foreground',
               )}
             >

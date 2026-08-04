@@ -108,7 +108,7 @@ create table public.platform_accounts (
   niche_id uuid not null references public.niches(id) on delete cascade,
   platform text not null check (platform in ('youtube', 'instagram')),
   account_label text not null,
-  username_hint text,
+  username_hint text,  -- public @handle for Sea lanes live profile cards (required for accurate links)
   browser_profile_path text,
   status text not null default 'active' check (status in ('active', 'paused', 'login_required', 'failing', 'disabled')),
   login_required boolean not null default false,
@@ -330,11 +330,23 @@ Example settings:
 ```json
 {
   "max_ffmpeg_concurrency": 1,
+  "max_download_concurrency": 2,
   "max_source_duration_seconds": 180,
   "max_source_file_size_mb": 500,
-  "verify_delay_minutes": 30
+  "verify_delay_minutes": 5,
+  "job_lock_minutes": 45,
+  "daily_upload_limit_per_account": 5,
+  "upload_stale_threshold_ms": 1500000,
+  "pipeline_stale_threshold_ms": 3000000,
+  "upload_platform_timeout_ms": 720000,
+  "background_music_volume": 0.3,
+  "real_uploads_enabled": false,
+  "youtube_uploads_enabled": false,
+  "instagram_uploads_enabled": false
 }
 ```
+
+Chart room (`/admin/settings`) displays these keys. When the native worker is online, heartbeat upserts the **effective** env/config values (including `VERIFY_DELAY_MINUTES` and BGM volume) so the dashboard stays current. `worker_heartbeat` is a separate presence blob and is not listed as a setting row.
 
 ## Indexes
 

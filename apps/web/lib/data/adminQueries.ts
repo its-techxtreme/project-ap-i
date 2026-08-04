@@ -574,15 +574,28 @@ export async function getActiveNiches(): Promise<{ id: string; name: string; slu
   return data ?? []
 }
 
+export type PlatformAccountCard = {
+  account_label: string
+  status: string | null
+  handle: string | null
+  profile_url: string | null
+  display_name: string | null
+  description: string | null
+  avatar_url: string | null
+}
+
 export type NicheMappingRow = {
   id: string
   name: string
   slug: string
   is_active: boolean
+  /** @deprecated Prefer youtube / instagram cards */
   youtube_label: string | null
   youtube_status: string | null
   instagram_label: string | null
   instagram_status: string | null
+  youtube: PlatformAccountCard | null
+  instagram: PlatformAccountCard | null
 }
 
 export async function getNicheAccountMappings(): Promise<NicheMappingRow[]> {
@@ -595,27 +608,67 @@ export async function getNicheAccountMappings(): Promise<NicheMappingRow[]> {
 
   const { data: accounts, error: accountsError } = await supabaseAdmin
     .from('platform_accounts')
-    .select('niche_id, platform, account_label, status')
+    .select('niche_id, platform, account_label, username_hint, status')
     .neq('status', 'disabled')
 
   if (accountsError) throw accountsError
 
-  return (niches ?? []).map((niche) => {
-    const yt = (accounts ?? []).find(
-      (a) => a.niche_id === niche.id && a.platform === 'youtube',
-    )
-    const ig = (accounts ?? []).find(
-      (a) => a.niche_id === niche.id && a.platform === 'instagram',
-    )
-    return {
-      id: niche.id,
-      name: niche.name,
-      slug: niche.slug,
-      is_active: niche.is_active,
-      youtube_label: yt?.account_label ?? null,
-      youtube_status: yt?.status ?? null,
-      instagram_label: ig?.account_label ?? null,
-      instagram_status: ig?.status ?? null,
-    }
-  })
+  const {
+    getLivePlatformProfile,
+    profileUrlFor,
+    resolveProfileHandle,
+  } = await import('@/lib/data/fetchPlatformProfile')
+
+  return Promise.all(
+    (niches ?? []).map(async (niche) => {
+      const yt = (accounts ?? []).find(
+        (a) => a.niche_id === niche.id && a.platform === 'youtube',
+      )
+      const ig = (accounts ?? []).find(
+        (a) => a.niche_id === niche.id && a.platform === 'instagram',
+      )
+
+      async function enrich(
+        platform: 'youtube' | 'instagram',
+        row:
+          | {
+              account_label: string
+              username_hint: string | null
+              status: string
+            }
+          | undefined,
+      ): Promise<PlatformAccountCard | null> {
+        if (!row) return null
+        const handle = resolveProfileHandle(platform, row.username_hint, niche.slug)
+        const live = handle ? await getLivePlatformProfile(platform, handle) : null
+        return {
+          account_label: row.account_label,
+          status: row.status,
+          handle: handle ?? null,
+          profile_url: handle ? profileUrlFor(platform, handle) : null,
+          display_name: live?.displayName ?? row.account_label,
+          description: live?.description ?? null,
+          avatar_url: live?.avatarUrl ?? null,
+        }
+      }
+
+      const [youtube, instagram] = await Promise.all([
+        enrich('youtube', yt),
+        enrich('instagram', ig),
+      ])
+
+      return {
+        id: niche.id,
+        name: niche.name,
+        slug: niche.slug,
+        is_active: niche.is_active,
+        youtube_label: youtube?.account_label ?? null,
+        youtube_status: youtube?.status ?? null,
+        instagram_label: instagram?.account_label ?? null,
+        instagram_status: instagram?.status ?? null,
+        youtube,
+        instagram,
+      }
+    }),
+  )
 }

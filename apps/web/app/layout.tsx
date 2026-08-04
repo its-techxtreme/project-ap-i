@@ -1,5 +1,5 @@
 import type { Metadata } from 'next'
-import { Pirata_One, Source_Sans_3 } from 'next/font/google'
+import { Chakra_Petch, Pirata_One, Source_Sans_3 } from 'next/font/google'
 
 import './globals.css'
 
@@ -7,6 +7,14 @@ const pirata = Pirata_One({
   weight: '400',
   subsets: ['latin'],
   variable: '--font-display',
+  display: 'swap',
+})
+
+/** Geometric condensed numerals — open circular 0s (Pirata zeros read like 8s). */
+const chakraPetch = Chakra_Petch({
+  weight: ['500', '600', '700'],
+  subsets: ['latin'],
+  variable: '--font-metric',
   display: 'swap',
 })
 
@@ -24,7 +32,11 @@ export const metadata: Metadata = {
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="en" suppressHydrationWarning>
-      <body className={`${pirata.variable} ${sourceSans.variable} font-sans`}>{children}</body>
+      <body
+        className={`${pirata.variable} ${chakraPetch.variable} ${sourceSans.variable} font-sans`}
+      >
+        {children}
+      </body>
     </html>
   )
 }

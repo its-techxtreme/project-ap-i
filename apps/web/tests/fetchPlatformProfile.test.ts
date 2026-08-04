@@ -1,0 +1,33 @@
+import { describe, expect, it } from 'vitest'
+
+import {
+  DEFAULT_NICHE_HANDLES,
+  profileUrlFor,
+  resolveProfileHandle,
+} from '@/lib/data/fetchPlatformProfile'
+
+describe('fetchPlatformProfile helpers', () => {
+  it('maps niche brand handles as fallbacks', () => {
+    expect(DEFAULT_NICHE_HANDLES.anime).toBe('ShonenSnaps')
+    expect(DEFAULT_NICHE_HANDLES.memes).toBe('CrackleCrumb')
+    expect(DEFAULT_NICHE_HANDLES.sports).toBe('ScoreMorsel')
+  })
+
+  it('prefers username_hint over niche fallback', () => {
+    expect(resolveProfileHandle('youtube', '@CustomHandle', 'anime')).toBe('CustomHandle')
+    expect(resolveProfileHandle('instagram', '  CustomIG  ', 'memes')).toBe('CustomIG')
+  })
+
+  it('falls back to niche brand when hint missing', () => {
+    expect(resolveProfileHandle('youtube', null, 'anime')).toBe('ShonenSnaps')
+    expect(resolveProfileHandle('instagram', '', 'sports')).toBe('ScoreMorsel')
+    expect(resolveProfileHandle('instagram', null, 'memes')).toBe('thecracklecrumb')
+  })
+
+  it('builds canonical profile URLs', () => {
+    expect(profileUrlFor('youtube', 'ShonenSnaps')).toBe('https://www.youtube.com/@ShonenSnaps')
+    expect(profileUrlFor('instagram', '@ScoreMorsel')).toBe(
+      'https://www.instagram.com/ScoreMorsel/',
+    )
+  })
+})

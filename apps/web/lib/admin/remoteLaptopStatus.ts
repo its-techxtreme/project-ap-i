@@ -6,6 +6,8 @@ export type RemoteLaptopState = 'offline' | 'ready' | 'degraded'
 export type RemoteLaptopStatus = {
   state: RemoteLaptopState
   label: string
+  /** Short label for narrow topbars (≤ ~sm). */
+  shortLabel: string
   detail: string
   lastSeenAt: string | null
   ok: boolean | null
@@ -27,6 +29,7 @@ export function parseRemoteLaptopStatus(
     return {
       state: 'offline',
       label: 'Remote laptop offline',
+      shortLabel: 'Laptop offline',
       detail: 'No worker heartbeat yet',
       lastSeenAt: null,
       ok: null,
@@ -41,6 +44,7 @@ export function parseRemoteLaptopStatus(
     return {
       state: 'offline',
       label: 'Remote laptop offline',
+      shortLabel: 'Laptop offline',
       detail: at ? `Last seen ${at}` : 'No worker heartbeat yet',
       lastSeenAt: at,
       ok: typeof hb.ok === 'boolean' ? hb.ok : null,
@@ -56,6 +60,7 @@ export function parseRemoteLaptopStatus(
     return {
       state: 'ready',
       label: 'Laptop connected — ready for work',
+      shortLabel: 'Laptop ready',
       detail: uploads ? `${host} · uploads armed` : `${host} · dry-run`,
       lastSeenAt: at,
       ok: true,
@@ -65,6 +70,7 @@ export function parseRemoteLaptopStatus(
   return {
     state: 'degraded',
     label: 'Laptop connected — not ready',
+    shortLabel: 'Laptop not ready',
     detail: !driveOk ? `${host} · Drive unhealthy` : `${host} · health degraded`,
     lastSeenAt: at,
     ok: false,
