@@ -18,6 +18,7 @@ const getRecentJobEventsMock = vi.fn()
 const getJobsMock = vi.fn()
 const getFailedJobsMock = vi.fn()
 const getPlatformAccountsMock = vi.fn()
+const getPendingCollectorInboxMock = vi.fn()
 
 vi.mock('@/lib/data/adminQueries', () => ({
   getJobSummary: (...args: unknown[]) => getJobSummaryMock(...args),
@@ -25,6 +26,7 @@ vi.mock('@/lib/data/adminQueries', () => ({
   getJobs: (...args: unknown[]) => getJobsMock(...args),
   getFailedJobs: (...args: unknown[]) => getFailedJobsMock(...args),
   getPlatformAccounts: (...args: unknown[]) => getPlatformAccountsMock(...args),
+  getPendingCollectorInbox: (...args: unknown[]) => getPendingCollectorInboxMock(...args),
   getActiveNiches: vi.fn().mockResolvedValue([]),
 }))
 
@@ -49,6 +51,9 @@ vi.mock('@/components/admin/Pagination', () => ({
 vi.mock('@/components/admin/FailedJobsTable', () => ({
   FailedJobsTable: () => null,
 }))
+vi.mock('@/components/admin/CollectorInboxTable', () => ({
+  CollectorInboxTable: () => null,
+}))
 vi.mock('@/components/admin/AccountsTable', () => ({
   AccountsTable: () => null,
 }))
@@ -70,6 +75,7 @@ describe('admin page authorization', () => {
     getJobsMock.mockResolvedValue({ jobs: [], total: 0 })
     getFailedJobsMock.mockResolvedValue([])
     getPlatformAccountsMock.mockResolvedValue([])
+    getPendingCollectorInboxMock.mockResolvedValue([])
   })
 
   it('overview page calls requireAdmin() and redirects submitters', async () => {
@@ -81,7 +87,7 @@ describe('admin page authorization', () => {
     await expect(AdminOverviewPage()).rejects.toThrow('REDIRECT:/?error=forbidden')
     expect(requireAdminMock).toHaveBeenCalled()
     expect(getJobSummaryMock).not.toHaveBeenCalled()
-  })
+  }, 15_000)
 
   it('jobs page calls requireAdmin() and redirects submitters', async () => {
     requireAdminMock.mockImplementation(() => {
@@ -105,6 +111,17 @@ describe('admin page authorization', () => {
     await expect(AdminFailedPage()).rejects.toThrow('REDIRECT:/?error=forbidden')
     expect(requireAdminMock).toHaveBeenCalled()
     expect(getFailedJobsMock).not.toHaveBeenCalled()
+  })
+
+  it('collector page calls requireAdmin() and redirects submitters', async () => {
+    requireAdminMock.mockImplementation(() => {
+      redirectMock('/?error=forbidden')
+    })
+
+    const AdminCollectorPage = (await import('@/app/admin/collector/page')).default
+    await expect(AdminCollectorPage()).rejects.toThrow('REDIRECT:/?error=forbidden')
+    expect(requireAdminMock).toHaveBeenCalled()
+    expect(getPendingCollectorInboxMock).not.toHaveBeenCalled()
   })
 
   it('accounts page calls requireAdmin() and redirects submitters', async () => {

@@ -116,6 +116,7 @@ See `docs/LOCAL_DEVELOPMENT.md` and `infra/n8n/README.md`.
 ```text
 Fill Supabase keys in .env and apps/web/.env.local
 Create playwright-profiles/ (gitignored)
+Login collector once: pnpm --filter @project-api/worker smoke:playwright -- --login --profile ig-collector
 Add watermark asset for worker
 Import n8n workflows
 Check http://localhost:3001/health

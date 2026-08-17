@@ -7,6 +7,8 @@ describe('ADMIN_NAV_ITEMS', () => {
     const hrefs = ADMIN_NAV_ITEMS.map((item) => item.href)
     expect(hrefs).toContain('/admin/logs')
     expect(hrefs).toContain('/admin/settings')
+    expect(hrefs).toContain('/admin/collector')
+    expect(ADMIN_NAV_ITEMS.find((i) => i.href === '/admin/collector')?.shortLabel).toBe('Inbox')
     expect(ADMIN_NAV_ITEMS.find((i) => i.href === '/admin/logs')?.shortLabel).toBe('Book')
     expect(ADMIN_NAV_ITEMS.find((i) => i.href === '/admin/settings')?.shortLabel).toBe('Charts')
   })

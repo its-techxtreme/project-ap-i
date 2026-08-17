@@ -19,6 +19,8 @@ const DISPLAY_KEYS = [
   'real_uploads_enabled',
   'youtube_uploads_enabled',
   'instagram_uploads_enabled',
+  'collector_enabled',
+  'collector_interval_ms',
 ] as const
 
 export default async function AdminSettingsPage() {

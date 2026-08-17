@@ -56,7 +56,10 @@ The frontend must be simple for submitters and powerful for admins. The submitte
   Admin overview (light/day theme by default + theme toggle)
 
 /admin/jobs
-  All jobs table
+  All jobs table (includes collector DMs). Clip column shows the source reel/short.
+
+/admin/collector
+  Unsorted cargo — collector DMs that arrived without a niche word
 
 /admin/failed
   Failed/manual review jobs
@@ -109,6 +112,7 @@ Sidebar (Captain's Deck):
   Crow's nest
   Ship's log
   Lost cargo
+  Unsorted cargo
   Crew
   Sea lanes
   Logbook
@@ -125,7 +129,7 @@ Topbar:
 Main content:
   Dense tables, compact filters, icon actions
   Day/night pirate sky wash behind chrome
-  Narrow viewports: sticky topbar + Deck menu panel listing every admin destination (Nest → Chart room); desktop keeps the left rail
+  Narrow viewports: sticky topbar + Deck menu panel listing every admin destination (Nest → Chart room, including Unsorted cargo); desktop keeps the left rail
 ```
 
 Login (`/login`): Captain's gate glass panel over pirate sky; **day voyage (light) theme by default**.
@@ -363,6 +367,10 @@ Delete job entry (permanent; does not remove platform posts)
 ```
 
 Drive file deletion remains on Failed Review (bulk + per-row).
+
+## Unsorted cargo (`/admin/collector`)
+
+Crew DMs that arrived without a niche word. Admin (write) watches the reel, picks Memes / Anime / Sports, and confirms. Demo is read-only. Confirm creates a normal queued job with rights assumed.
 
 ## Job details page/drawer
 

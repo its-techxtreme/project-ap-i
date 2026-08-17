@@ -312,6 +312,29 @@ Flow:
 3. Worker claims via `claim_next_admin_command` (FOR UPDATE SKIP LOCKED) and executes.
 4. Command marked `done` or `failed`; job events + existing worker audit paths apply.
 
+## Table: collector_inbox_items
+
+Purpose: Instagram collector DMs that are not yet jobs, or a record of collector ingest.
+
+```sql
+create table public.collector_inbox_items (
+  id uuid primary key default gen_random_uuid(),
+  normalized_source_url text not null unique,
+  source_url text not null,
+  sender_username text,
+  thread_id text,
+  niche_slug text check (niche_slug is null or niche_slug in ('memes', 'anime', 'sports')),
+  status text not null default 'pending_niche'
+    check (status in ('pending_niche', 'queued', 'duplicate', 'invalid')),
+  job_id uuid references public.jobs(id) on delete set null,
+  skip_reason text,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+```
+
+RLS: admin-only. `pending_niche` rows wait for Unsorted cargo confirm before `jobs` insert (`niche_id` remains required on jobs).
+
 ## Table: system_settings
 
 Purpose: lightweight key-value settings.
@@ -342,7 +365,9 @@ Example settings:
   "background_music_volume": 0.3,
   "real_uploads_enabled": false,
   "youtube_uploads_enabled": false,
-  "instagram_uploads_enabled": false
+  "instagram_uploads_enabled": false,
+  "collector_enabled": false,
+  "collector_interval_ms": 10800000
 }
 ```
 

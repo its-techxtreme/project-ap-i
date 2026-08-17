@@ -48,6 +48,8 @@ async function launchPersistentContextRaw(
     timezoneId: 'America/New_York',
     viewport: null,
     args: ['--no-first-run', '--no-default-browser-check'],
+    // Drops Chrome's "unsupported command-line flag: --enable-automation" banner.
+    ignoreDefaultArgs: ['--enable-automation'],
   }
 
   if (channel) {

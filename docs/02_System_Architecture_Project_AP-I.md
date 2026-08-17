@@ -93,6 +93,7 @@ The worker handles:
 - Google Drive upload/delete.
 - Metadata generation calls.
 - Playwright upload execution.
+- Instagram collector inbox scrape (dedicated profile, never used for uploads).
 - Upload verification.
 
 ### 4. Uploaders are adapters

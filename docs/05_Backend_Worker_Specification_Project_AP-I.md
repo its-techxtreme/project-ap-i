@@ -181,6 +181,25 @@ Rules:
 - Do not claim jobs with `needs_manual_review`.
 - Do not claim jobs for paused account mappings.
 - Recover stale locks separately.
+- Skip claim while the Instagram collector hold is on (current job is never aborted).
+
+## Instagram collector (same worker process)
+
+Enabled only when `COLLECTOR_ENABLED=true` on the laptop. On worker start and every `COLLECTOR_INTERVAL_MS` (default 3 hours):
+
+1. Set claim hold so n8n cannot lock a new queued job.
+2. Wait until FFmpeg/upload queues are empty and no in-flight / ready-to-upload job remains.
+3. Open the dedicated `ig-collector` Playwright profile (never a niche upload profile).
+4. Scrape unread Direct threads first (then other recent chats). Dismiss sleep-mode / notification / 2FA-upsell dialogs the same way Studio banners are dismissed — never enter a 2FA code. Collect every new reel preview in each thread, pairing the niche word in the following text bubble (`Anime` / `Sport` / `Meme`). Return to the inbox list after each chat so the next unread thread still opens.
+5. Close Chrome, clear hold, resume the queue.
+
+Rules:
+
+- Prefer the Instagram **New messages** section when present; otherwise collect visible reel cards. Persist dedupes already-queued URLs. All senders trusted. URL allowlist still rejects TikTok/localhost/etc.
+- One niche word per reel (the bubble under that preview). Whole-thread text with both `anime` and `sports` is not used — that would look ambiguous.
+- Soft Instagram dialogs (sleep mode OK, Not Now, Dismiss, Skip on security upsells) must not stop the collector. Real login/2FA/CAPTCHA: fail the collector pass only, set `loginRequired` on heartbeat, never bypass.
+- Collector scrape failure must not crash the worker process.
+- While collector Chrome is open, `runUpload` / `retryJob` defer instead of overlapping profiles.
 
 ## URL validation in worker
 

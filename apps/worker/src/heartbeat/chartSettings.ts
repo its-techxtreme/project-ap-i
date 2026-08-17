@@ -17,6 +17,8 @@ export const CHART_SETTING_KEYS = [
   'real_uploads_enabled',
   'youtube_uploads_enabled',
   'instagram_uploads_enabled',
+  'collector_enabled',
+  'collector_interval_ms',
 ] as const
 
 export type ChartSettingKey = (typeof CHART_SETTING_KEYS)[number]
@@ -41,5 +43,7 @@ export function buildChartSettingsSnapshot(): Record<ChartSettingKey, number | b
     real_uploads_enabled: config.REAL_UPLOADS_ENABLED,
     youtube_uploads_enabled: config.YOUTUBE_UPLOADS_ENABLED,
     instagram_uploads_enabled: config.INSTAGRAM_UPLOADS_ENABLED,
+    collector_enabled: config.COLLECTOR_ENABLED,
+    collector_interval_ms: config.COLLECTOR_INTERVAL_MS,
   }
 }

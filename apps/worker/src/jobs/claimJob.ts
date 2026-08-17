@@ -6,6 +6,7 @@ import { logger } from '../logging/logger'
 import { isDriveAuthHealthy } from '../storage/driveAuth'
 
 import { getUploadQueueStatus } from './ConcurrencyGuard'
+import { isCollectorHold } from '../collector/collectorHold'
 import {
   checkNicheDailyUploadLimits,
   dailyLimitDeferMessage,
@@ -20,6 +21,10 @@ import { recoverStaleUploadingJobs } from './recoverStaleUploads'
  * Also skips niches whose YouTube/Instagram accounts already hit the daily upload cap.
  */
 export async function claimJob(workerId: string): Promise<DbJobRow | null> {
+  if (isCollectorHold()) {
+    logger.info({ msg: 'Skipping job claim — collector hold is on', workerId })
+    return null
+  }
   // Heal crash zombies before backpressure checks so one hung IG upload cannot
   // freeze the queue forever after the worker restarts.
   try {

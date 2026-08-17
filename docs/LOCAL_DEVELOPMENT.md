@@ -152,7 +152,10 @@ Profiles live in `playwright-profiles/` (gitignored). Log in manually per niche/
 
 ```bash
 pnpm --filter @project-api/worker smoke:playwright -- --login --profile memes-yt
+pnpm --filter @project-api/worker smoke:playwright -- --login --profile ig-collector
 ```
+
+Collector uses a dedicated `ig-collector` Chrome profile (not a niche upload account). Set `COLLECTOR_ENABLED=true` on the laptop `.env` only, then restart the worker. If Instagram asks for 2FA or CAPTCHA, complete it yourself in the login window — never automate a bypass. Mark the collector pass as `loginRequired` and continue the upload queue.
 
 See `apps/worker/scripts/smoke-playwright.ts`. **Never commit profiles or cookies.**
 

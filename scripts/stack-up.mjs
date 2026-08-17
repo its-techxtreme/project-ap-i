@@ -87,7 +87,7 @@ function stopTrackedWorker() {
   fs.unlinkSync(PID_FILE)
 }
 
-async function waitForHealth(_token, attempts = 40) {
+async function waitForHealth(_token, attempts = 180) {
   for (let i = 0; i < attempts; i++) {
     try {
       const res = await fetch(`http://127.0.0.1:${PORT}/health`)

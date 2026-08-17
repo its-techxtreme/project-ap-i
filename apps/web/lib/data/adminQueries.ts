@@ -563,6 +563,32 @@ export async function getSystemSettings(): Promise<Record<string, unknown>> {
   return settings
 }
 
+export type CollectorInboxRow = {
+  id: string
+  source_url: string
+  normalized_source_url: string
+  sender_username: string | null
+  status: string
+  created_at: string
+  created_at_label: string
+}
+
+export async function getPendingCollectorInbox(): Promise<CollectorInboxRow[]> {
+  const { data, error } = await supabaseAdmin
+    .from('collector_inbox_items')
+    .select('id, source_url, normalized_source_url, sender_username, status, created_at')
+    .eq('status', 'pending_niche')
+    .order('created_at', { ascending: true })
+    .limit(100)
+
+  if (error) throw error
+
+  return (data ?? []).map((row) => ({
+    ...row,
+    created_at_label: formatRelativeTime(row.created_at),
+  }))
+}
+
 export async function getActiveNiches(): Promise<{ id: string; name: string; slug: string }[]> {
   const { data, error } = await supabaseAdmin
     .from('niches')

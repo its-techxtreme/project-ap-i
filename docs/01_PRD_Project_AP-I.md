@@ -157,6 +157,8 @@ Worker must authenticate with a server-side secret and must not use browser-expo
 18. If upload fails twice, the job becomes `needs_manual_review`, and the Drive file remains available.
 19. Admin reviews failed jobs and can retry or delete files.
 
+Trusted crew can also DM a dedicated collector Instagram account. The same worker, on start and every 3 hours, waits for the current pipeline job to finish (it never aborts mid-flight), then scrapes recent Direct threads (including already-read chats). A reel plus a niche word (`anime`, `memes`/`meme`, `sports`/`sport`) becomes a queued job with rights assumed. Reels without a niche stay in Unsorted cargo until an admin watches them and confirms a niche. All senders are trusted; unsupported URLs are still rejected.
+
 ## MVP scope
 
 ### Must have
@@ -175,6 +177,7 @@ Worker must authenticate with a server-side secret and must not use browser-expo
 - AI title/description/caption generation.
 - Playwright YouTube upload.
 - Playwright Instagram upload.
+- Instagram collector DMs (same worker, dedicated collector profile).
 - Upload verification workflow.
 - Failed job dashboard.
 - Manual retry button.

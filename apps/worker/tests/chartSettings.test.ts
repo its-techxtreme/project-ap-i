@@ -16,6 +16,8 @@ vi.mock('../src/config', () => ({
     REAL_UPLOADS_ENABLED: true,
     YOUTUBE_UPLOADS_ENABLED: true,
     INSTAGRAM_UPLOADS_ENABLED: true,
+    COLLECTOR_ENABLED: false,
+    COLLECTOR_INTERVAL_MS: 10_800_000,
   },
 }))
 

@@ -22,6 +22,7 @@ describe('MobileNav', () => {
 
     expect(screen.getByRole('link', { name: /logbook/i })).toBeTruthy()
     expect(screen.getByRole('link', { name: /chart room/i })).toBeTruthy()
+    expect(screen.getByRole('link', { name: /unsorted cargo/i })).toBeTruthy()
     expect(screen.getByRole('link', { name: /crow's nest/i })).toBeTruthy()
   })
 })

@@ -478,6 +478,7 @@ Even when content is client-approved, browser automation can be fragile and may 
 - Private IP/localhost URL blocked.
 - Secrets not logged.
 - Playwright profiles outside Git.
+- Collector profile is never used for niche uploads; never automate 2FA/CAPTCHA bypass.
 - Drive deletion requires admin and audit log.
 - Login-required flow works without CAPTCHA bypass.
 - n8n encryption key configured.

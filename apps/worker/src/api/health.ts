@@ -1,6 +1,7 @@
 import fs from 'node:fs/promises'
 import type { FastifyInstance } from 'fastify'
 
+import { getCollectorSnapshot } from '../collector/collectorState'
 import { config } from '../config'
 import { supabaseAdmin } from '../db/supabaseAdmin'
 import { probeDriveAuth } from '../storage/driveAuth'
@@ -122,6 +123,10 @@ export async function healthRoutes(app: FastifyInstance): Promise<void> {
       youtubeUploadsEnabled: config.YOUTUBE_UPLOADS_ENABLED,
       instagramUploadsEnabled: config.INSTAGRAM_UPLOADS_ENABLED,
       verifyDelayMinutes: config.VERIFY_DELAY_MINUTES,
+      collector: {
+        enabled: config.COLLECTOR_ENABLED,
+        ...getCollectorSnapshot(),
+      },
       checks: {
         supabase,
         ffmpeg,

@@ -3,6 +3,7 @@ import {
   AlertTriangle,
   BookOpen,
   Briefcase,
+  Inbox,
   LayoutDashboard,
   Map,
   Settings,
@@ -45,6 +46,13 @@ export const ADMIN_NAV_ITEMS: AdminNavItem[] = [
     icon: AlertTriangle,
     tutorial: 'nav-failed',
     action: 'visit-failed',
+  },
+  {
+    href: '/admin/collector',
+    label: 'Unsorted cargo',
+    shortLabel: 'Inbox',
+    icon: Inbox,
+    tutorial: 'nav-collector',
   },
   {
     href: '/admin/accounts',

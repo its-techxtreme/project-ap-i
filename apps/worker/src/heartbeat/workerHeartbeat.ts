@@ -3,6 +3,7 @@ import { supabaseAdmin } from '../db/supabaseAdmin'
 import { logger } from '../logging/logger'
 import { probeDriveAuth } from '../storage/driveAuth'
 
+import { getCollectorSnapshot } from '../collector/collectorState'
 import { buildChartSettingsSnapshot } from './chartSettings'
 
 export const WORKER_HEARTBEAT_KEY = 'worker_heartbeat'
@@ -18,6 +19,13 @@ export type WorkerHeartbeatValue = {
   instagramUploadsEnabled: boolean
   driveOk: boolean
   host: string
+  collector?: {
+    lastAt: string | null
+    lastQueued: number
+    lastPendingNiche: number
+    loginRequired: boolean
+    running: boolean
+  }
 }
 
 async function syncChartSettings(): Promise<void> {
@@ -49,6 +57,7 @@ async function writeHeartbeat(ok: boolean, driveOk: boolean): Promise<void> {
     instagramUploadsEnabled: config.INSTAGRAM_UPLOADS_ENABLED,
     driveOk,
     host: process.env.COMPUTERNAME || process.env.HOSTNAME || 'worker',
+    collector: getCollectorSnapshot(),
   }
 
   const { error } = await supabaseAdmin.from('system_settings').upsert(
@@ -79,7 +88,6 @@ export function startWorkerHeartbeat(): () => void {
   }
 
   let stopped = false
-  let timer: ReturnType<typeof setInterval> | undefined
 
   const tick = async () => {
     if (stopped) return
@@ -104,12 +112,12 @@ export function startWorkerHeartbeat(): () => void {
   }
 
   void tick()
-  timer = setInterval(() => {
+  const timer = setInterval(() => {
     void tick()
   }, WORKER_HEARTBEAT_INTERVAL_MS)
 
   return () => {
     stopped = true
-    if (timer) clearInterval(timer)
+    clearInterval(timer)
   }
 }

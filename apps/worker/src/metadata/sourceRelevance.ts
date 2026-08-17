@@ -10,10 +10,10 @@ const NICHE_HINTS: Record<MetadataNicheSlug, RegExp> = {
 export function isWeakSourceHook(text: string | undefined | null): boolean {
   const t = (text ?? '').replace(/\s+/g, ' ').trim()
   if (!t) return true
-  if (/^video by [@\w.\-]+$/i.test(t)) return true
-  if (/^reel by [@\w.\-]+$/i.test(t)) return true
+  if (/^video by [@\w.-]+$/i.test(t)) return true
+  if (/^reel by [@\w.-]+$/i.test(t)) return true
   if (/^instagram reel$/i.test(t)) return true
-  if (/^@[\w.\-]+$/i.test(t)) return true
+  if (/^@[\w.-]+$/i.test(t)) return true
   return false
 }
 

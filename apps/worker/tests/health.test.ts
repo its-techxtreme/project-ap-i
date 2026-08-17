@@ -24,6 +24,13 @@ describe('GET /health', () => {
     expect(response.json().realUploadsEnabled).toBe(false)
   })
 
+  it('includes collector snapshot without secrets', async () => {
+    const app = await buildServer()
+    const json = (await app.inject({ method: 'GET', url: '/health' })).json()
+    expect(json.collector).toMatchObject({ enabled: false, running: false })
+    expect(JSON.stringify(json.collector)).not.toMatch(/SECRET|TOKEN|KEY|PASSWORD/i)
+  })
+
   it('reports playwrightChannel from config', async () => {
     const app = await buildServer()
     const response = await app.inject({ method: 'GET', url: '/health' })

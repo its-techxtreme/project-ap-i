@@ -38,6 +38,8 @@ vi.mock('../src/jobs/dailyUploadLimit', () => ({
   checkNicheDailyUploadLimits: vi.fn().mockResolvedValue({ blocked: false, usages: {}, limit: 10 }),
   dailyLimitDeferMessage: vi.fn().mockReturnValue('daily limit'),
   isDailyUploadLimitError: vi.fn().mockReturnValue(false),
+  hasForceUploadOverride: vi.fn().mockReturnValue(false),
+  clearForceUploadOverride: vi.fn(),
 }))
 
 vi.mock('../src/jobs/uploadLocalFile', () => ({

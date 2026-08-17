@@ -2,6 +2,7 @@ import Link from 'next/link'
 import { notFound } from 'next/navigation'
 
 import { StatusBadge } from '@/components/app/StatusBadge'
+import { SourceClip } from '@/components/admin/SourceClip'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
@@ -99,6 +100,12 @@ export default async function AdminJobDetailPage({ params }: { params: Promise<{
               </a>
             }
           />
+          <div className="md:col-span-2 max-w-xs">
+            <dt className="text-xs uppercase tracking-wide text-muted-foreground">Source clip</dt>
+            <dd className="mt-2">
+              <SourceClip sourceUrl={job.source_url} sourcePlatform={job.source_platform} />
+            </dd>
+          </div>
           <Field label="Platform" value={<Badge variant="outline">{job.source_platform}</Badge>} />
           <Field label="Niche" value={niche?.name ?? 'Unknown'} />
           <Field label="Submitted by" value={submitter?.email ?? submitter?.full_name ?? '—'} />

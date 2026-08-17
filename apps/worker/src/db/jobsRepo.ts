@@ -76,7 +76,7 @@ export async function claimNextJob(workerId: string): Promise<DbJobRow | null> {
 /** Strip characters that break PostgREST/Postgres JSON payloads (e.g. NUL). */
 function sanitizeJobUpdateValue(value: unknown): unknown {
   if (typeof value === 'string') {
-    return value.replace(/\u0000/g, '').normalize('NFC')
+    return value.replaceAll('\u0000', '').normalize('NFC')
   }
   if (Array.isArray(value)) {
     return value.map(sanitizeJobUpdateValue)
