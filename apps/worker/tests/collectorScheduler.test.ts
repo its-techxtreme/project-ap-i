@@ -3,6 +3,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 const waitForPipelineIdle = vi.fn()
 const scrapeUnreadCollectorInbox = vi.fn()
 const persistCollectedReels = vi.fn()
+const rejectBogusCollectorInboxItems = vi.fn()
 const setCollectorHold = vi.fn()
 const setCollectorUsingChrome = vi.fn()
 
@@ -29,6 +30,7 @@ vi.mock('../src/collector/instagramDmCollector', () => ({
 
 vi.mock('../src/collector/persistCollectedReels', () => ({
   persistCollectedReels: (...args: unknown[]) => persistCollectedReels(...args),
+  rejectBogusCollectorInboxItems: (...args: unknown[]) => rejectBogusCollectorInboxItems(...args),
 }))
 
 vi.mock('../src/logging/logger', () => ({
@@ -41,6 +43,8 @@ describe('runCollectorCycle', () => {
     waitForPipelineIdle.mockReset()
     scrapeUnreadCollectorInbox.mockReset()
     persistCollectedReels.mockReset()
+    rejectBogusCollectorInboxItems.mockReset()
+    rejectBogusCollectorInboxItems.mockResolvedValue(0)
     waitForPipelineIdle.mockResolvedValue(true)
     scrapeUnreadCollectorInbox.mockResolvedValue({
       ok: true,
@@ -66,6 +70,7 @@ describe('runCollectorCycle', () => {
     expect(waitForPipelineIdle).toHaveBeenCalled()
     expect(setCollectorUsingChrome).toHaveBeenCalledWith(true)
     expect(scrapeUnreadCollectorInbox).toHaveBeenCalled()
+    expect(rejectBogusCollectorInboxItems).toHaveBeenCalled()
     expect(persistCollectedReels).toHaveBeenCalled()
     expect(setCollectorHold).toHaveBeenLastCalledWith(false)
     expect(setCollectorUsingChrome).toHaveBeenLastCalledWith(false)

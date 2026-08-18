@@ -128,7 +128,6 @@ describe('JobsTable', () => {
 
     const headers = screen.getAllByRole('columnheader').map((el) => el.textContent)
     expect(headers).toEqual([
-      'Clip',
       'Queue',
       'Job',
       'Created',

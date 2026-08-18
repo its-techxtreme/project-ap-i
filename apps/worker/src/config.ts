@@ -69,8 +69,10 @@ const configSchema = z.object({
     .transform((v) => v === 'true'),
   COLLECTOR_PROFILE: z.string().default('ig-collector'),
   COLLECTOR_INTERVAL_MS: z.string().default('10800000').transform(Number),
-  COLLECTOR_RUN_TIMEOUT_MS: z.string().default('720000').transform(Number),
+  COLLECTOR_RUN_TIMEOUT_MS: z.string().default('1200000').transform(Number),
   COLLECTOR_PRIORITY_CHAT: z.string().optional().default(''),
+  /** Comma-separated Instagram `/direct/t/{id}/` thread ids. Opens these chats when the inbox list click is unreliable. */
+  COLLECTOR_THREAD_IDS: z.string().optional().default(''),
 
   GOOGLE_DRIVE_CLIENT_ID: z.string().optional(),
   GOOGLE_DRIVE_CLIENT_SECRET: z.string().optional(),

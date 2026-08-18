@@ -47,6 +47,8 @@ export async function isPipelineIdle(): Promise<boolean> {
     .select('id', { count: 'exact', head: true })
     .in('status', [...IN_FLIGHT])
     .gt('lock_expires_at', new Date().toISOString())
+    // Stale locks from a killed worker shouldn't stall DM collection.
+    .gte('updated_at', new Date(Date.now() - 120_000).toISOString())
 
   if (error) {
     logger.warn({ msg: 'Collector idle check failed', error: error.message })

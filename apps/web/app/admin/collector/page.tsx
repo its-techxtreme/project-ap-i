@@ -12,7 +12,7 @@ export default async function AdminCollectorPage() {
       <DeskPageHeader
         kicker="Boarding party"
         title="Unsorted cargo"
-        description="Crew DMs that arrived without a niche. Watch the reel, pick Memes / Anime / Sports, then confirm to queue the job. Rights are assumed for collector DMs."
+        description="Crew DMs that arrived without a niche. Open the link on Instagram, pick Memes / Anime / Sports, then confirm to queue the job. Rights are assumed for collector DMs."
         meta={
           <span className="rounded-md border border-border/70 bg-card/50 px-2.5 py-1.5 font-mono text-[11px] text-muted-foreground">
             {items.length} waiting

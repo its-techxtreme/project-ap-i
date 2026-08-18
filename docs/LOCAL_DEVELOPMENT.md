@@ -155,7 +155,7 @@ pnpm --filter @project-api/worker smoke:playwright -- --login --profile memes-yt
 pnpm --filter @project-api/worker smoke:playwright -- --login --profile ig-collector
 ```
 
-Collector uses a dedicated `ig-collector` Chrome profile (not a niche upload account). Set `COLLECTOR_ENABLED=true` on the laptop `.env` only, then restart the worker. If Instagram asks for 2FA or CAPTCHA, complete it yourself in the login window — never automate a bypass. Mark the collector pass as `loginRequired` and continue the upload queue.
+Collector uses a dedicated `ig-collector` Chrome profile (not a niche upload account). Set `COLLECTOR_ENABLED=true` on the laptop `.env` only, then restart the worker. Optional `COLLECTOR_THREAD_IDS` is a comma-separated list of `/direct/t/{id}/` thread ids so the collector can open crew chats even when the inbox list click fails. If Instagram asks for 2FA or CAPTCHA, complete it yourself in the login window — never automate a bypass. Mark the collector pass as `loginRequired` and continue the upload queue.
 
 See `apps/worker/scripts/smoke-playwright.ts`. **Never commit profiles or cookies.**
 

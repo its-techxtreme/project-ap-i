@@ -21,7 +21,6 @@ import { cn } from '@/lib/utils'
 
 import { AdminAutoRefresh } from './AdminAutoRefresh'
 import { ConfirmDialog } from './ConfirmDialog'
-import { SourceClip } from './SourceClip'
 
 function ActionIcon({
   label,
@@ -204,10 +203,9 @@ export function JobsTable({ jobs }: { jobs: JobListRow[] }) {
 
       <div className="desk-panel overflow-hidden rounded-md border border-border/80">
         <div className="overflow-x-auto">
-          <table className="w-full min-w-[980px] text-left text-sm">
+          <table className="w-full min-w-[920px] text-left text-sm">
             <thead className="border-b border-border/70 bg-muted/35 font-mono text-[10px] uppercase tracking-[0.1em] text-muted-foreground">
               <tr>
-                <th className="px-2.5 py-2.5 font-medium">Clip</th>
                 <th className="px-2.5 py-2.5 font-medium">Queue</th>
                 <th className="px-2.5 py-2.5 font-medium">Job</th>
                 <th className="px-2.5 py-2.5 font-medium">Created</th>
@@ -228,13 +226,6 @@ export function JobsTable({ jobs }: { jobs: JobListRow[] }) {
                   key={job.id}
                   className="bg-row-hover border-b border-border/60 last:border-b-0 transition-colors"
                 >
-                  <td className="px-2.5 py-2">
-                    <SourceClip
-                      sourceUrl={job.source_url}
-                      sourcePlatform={job.source_platform}
-                      compact
-                    />
-                  </td>
                   <td className="px-2.5 py-2 font-mono text-xs text-muted-foreground">
                     {job.queue_position != null ? `#${job.queue_position}` : '—'}
                   </td>

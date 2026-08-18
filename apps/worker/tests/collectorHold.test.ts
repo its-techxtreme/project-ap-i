@@ -14,7 +14,9 @@ vi.mock('../src/db/supabaseAdmin', () => ({
     from: () => ({
       select: () => ({
         in: () => ({
-          gt: () => jobsCount(),
+          gt: () => ({
+            gte: () => jobsCount(),
+          }),
         }),
       }),
     }),

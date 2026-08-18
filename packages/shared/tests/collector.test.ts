@@ -3,6 +3,7 @@ import { describe, expect, it } from 'vitest'
 import {
   extractInstagramReelUrls,
   instagramEmbedUrl,
+  instagramShortcodeFromUrl,
   parseCollectorNiche,
   prepareSourceIngest,
   zipUrlsWithFollowingText,
@@ -27,11 +28,11 @@ describe('parseCollectorNiche', () => {
 describe('extractInstagramReelUrls', () => {
   it('dedupes reel permalinks from html', () => {
     const html =
-      '<a href="https://www.instagram.com/reel/AbC123/">x</a>' +
-      '<a href="https://instagram.com/reels/AbC123">y</a>' +
+      '<a href="https://www.instagram.com/reel/AbC123xyzAB/">x</a>' +
+      '<a href="https://instagram.com/reels/AbC123xyzAB">y</a>' +
       '<a href="https://www.instagram.com/p/Zz9AbCdeFgH/">z</a>'
     expect(extractInstagramReelUrls(html)).toEqual([
-      'https://www.instagram.com/reel/AbC123/',
+      'https://www.instagram.com/reel/AbC123xyzAB/',
       'https://www.instagram.com/reel/Zz9AbCdeFgH/',
     ])
   })
@@ -41,33 +42,49 @@ describe('extractInstagramReelUrls', () => {
   })
 
   it('accepts relative Instagram reel hrefs from DM html', () => {
-    expect(extractInstagramReelUrls('<a href="/reel/AbC123/">x</a>')).toEqual([
-      'https://www.instagram.com/reel/AbC123/',
+    expect(extractInstagramReelUrls('<a href="/reel/AbC123xyzAB/">x</a>')).toEqual([
+      'https://www.instagram.com/reel/AbC123xyzAB/',
     ])
   })
 
   it('pulls reel codes from escaped Instagram JSON used by share cards', () => {
-    expect(extractInstagramReelUrls('"url":"https:\\/\\/www.instagram.com\\/reel\\/AbC123xyzAB\\/"')).toEqual([
-      'https://www.instagram.com/reel/AbC123xyzAB/',
-    ])
-  })
-
-  it('pulls shortcodes from GraphQL-style JSON', () => {
-    expect(extractInstagramReelUrls('{"shortcode":"AbC123xyzAB"}')).toEqual([
-      'https://www.instagram.com/reel/AbC123xyzAB/',
-    ])
-  })
-
-  it('pulls media code from DM share JSON that never says reel', () => {
     expect(
-      extractInstagramReelUrls('{"clip":{"code":"AbC123xyzAB","product_type":"clips"}}'),
+      extractInstagramReelUrls('"url":"https:\\/\\/www.instagram.com\\/reel\\/AbC123xyzAB\\/"'),
     ).toEqual(['https://www.instagram.com/reel/AbC123xyzAB/'])
+  })
+
+  it('pulls media code from clips JSON, not generic GraphQL code fields', () => {
+    expect(
+      extractInstagramReelUrls('{"clip":{"product_type":"clips","code":"AbC123xyzAB"}}'),
+    ).toEqual(['https://www.instagram.com/reel/AbC123xyzAB/'])
+    expect(extractInstagramReelUrls('{"shortcode":"AbC123xyzAB"}')).toEqual([])
+  })
+
+  it('rejects concatenated profile-grid junk instead of inventing a shortcode', () => {
+    expect(
+      extractInstagramReelUrls(
+        'https://www.instagram.com/reel/DSsjXDoDX2vwbOB7apBYlBscOjI5izCC4crQzA0/',
+      ),
+    ).toEqual([])
+  })
+})
+
+describe('instagramShortcodeFromUrl', () => {
+  it('accepts 11-character reel codes only', () => {
+    expect(instagramShortcodeFromUrl('https://www.instagram.com/reel/AbC123xyzAB/')).toBe(
+      'AbC123xyzAB',
+    )
+    expect(
+      instagramShortcodeFromUrl(
+        'https://www.instagram.com/reel/DSsjXDoDX2vwbOB7apBYlBscOjI5izCC4crQzA0/',
+      ),
+    ).toBeNull()
   })
 })
 
 describe('prepareSourceIngest', () => {
   it('accepts instagram reels and rejects unsupported hosts', () => {
-    const ok = prepareSourceIngest('https://www.instagram.com/reel/AbC123/')
+    const ok = prepareSourceIngest('https://www.instagram.com/reel/AbC123xyzAB/')
     expect(ok.ok).toBe(true)
     if (ok.ok) expect(ok.platform).toBe('instagram')
 
@@ -78,8 +95,8 @@ describe('prepareSourceIngest', () => {
 
 describe('instagramEmbedUrl', () => {
   it('builds an embed path', () => {
-    expect(instagramEmbedUrl('https://www.instagram.com/reel/AbC123/')).toBe(
-      'https://www.instagram.com/reel/AbC123/embed/',
+    expect(instagramEmbedUrl('https://www.instagram.com/reel/AbC123xyzAB/')).toBe(
+      'https://www.instagram.com/reel/AbC123xyzAB/embed/',
     )
   })
 })

@@ -1,5 +1,6 @@
 import {
   extractInstagramReelUrls,
+  instagramShortcodeFromUrl,
   parseCollectorNiche,
   prepareSourceIngest,
   type NicheSlug,
@@ -24,6 +25,38 @@ export type PersistResult = {
   invalid: number
 }
 
+export function isCollectorDirectThread(threadId: string | null | undefined): boolean {
+  return typeof threadId === 'string' && /\/direct\/t\/\d{6,}/.test(threadId)
+}
+
+export async function rejectBogusCollectorInboxItems(): Promise<number> {
+  const { data, error } = await supabaseAdmin
+    .from('collector_inbox_items')
+    .select('id, normalized_source_url')
+    .eq('status', 'pending_niche')
+
+  if (error || !data?.length) return 0
+
+  let rejected = 0
+  for (const row of data) {
+    if (instagramShortcodeFromUrl(row.normalized_source_url)) continue
+    const { error: updateError } = await supabaseAdmin
+      .from('collector_inbox_items')
+      .update({
+        status: 'invalid',
+        skip_reason: 'implausible_shortcode',
+        updated_at: new Date().toISOString(),
+      })
+      .eq('id', row.id)
+    if (!updateError) rejected += 1
+  }
+
+  if (rejected > 0) {
+    logger.info({ msg: 'Collector rejected bogus inbox items', count: rejected })
+  }
+  return rejected
+}
+
 export async function persistCollectedReels(items: CollectedReel[]): Promise<PersistResult> {
   const result: PersistResult = { queued: 0, pendingNiche: 0, duplicate: 0, invalid: 0 }
 
@@ -34,18 +67,38 @@ export async function persistCollectedReels(items: CollectedReel[]): Promise<Per
       continue
     }
 
+    if (!instagramShortcodeFromUrl(prepared.normalizedUrl) || !isCollectorDirectThread(item.threadId)) {
+      result.invalid += 1
+      logger.info({
+        msg: 'Collector skipped non-DM or implausible reel URL',
+        url: prepared.normalizedUrl,
+        threadId: item.threadId,
+      })
+      continue
+    }
+
     const { data: existingItem } = await supabaseAdmin
       .from('collector_inbox_items')
       .select('id, status')
       .eq('normalized_source_url', prepared.normalizedUrl)
       .maybeSingle()
 
-    if (existingItem) {
+    const nicheSlug = parseCollectorNiche(item.nearbyText)
+
+    if (existingItem?.status === 'queued' || existingItem?.status === 'duplicate') {
       result.duplicate += 1
       continue
     }
 
-    const nicheSlug = parseCollectorNiche(item.nearbyText)
+    if (existingItem && existingItem.status !== 'pending_niche') {
+      result.duplicate += 1
+      continue
+    }
+
+    if (existingItem?.status === 'pending_niche' && !nicheSlug) {
+      result.duplicate += 1
+      continue
+    }
 
     if (nicheSlug) {
       const nicheId = await resolveActiveNicheIdBySlug(supabaseAdmin, nicheSlug)
@@ -69,25 +122,40 @@ export async function persistCollectedReels(items: CollectedReel[]): Promise<Per
       })
 
       if (!created.success) {
-        await insertInboxRow({
-          preparedUrl: prepared.normalizedUrl,
-          item,
-          status: created.duplicate ? 'duplicate' : 'invalid',
-          nicheSlug,
-          skipReason: created.error,
-        })
+        if (!existingItem) {
+          await insertInboxRow({
+            preparedUrl: prepared.normalizedUrl,
+            item,
+            status: created.duplicate ? 'duplicate' : 'invalid',
+            nicheSlug,
+            skipReason: created.error,
+          })
+        }
         if (created.duplicate) result.duplicate += 1
         else result.invalid += 1
         continue
       }
 
-      await insertInboxRow({
-        preparedUrl: prepared.normalizedUrl,
-        item,
-        status: 'queued',
-        nicheSlug,
-        jobId: created.jobId,
-      })
+      if (existingItem) {
+        await supabaseAdmin
+          .from('collector_inbox_items')
+          .update({
+            status: 'queued',
+            niche_slug: nicheSlug,
+            job_id: created.jobId,
+            skip_reason: null,
+            updated_at: new Date().toISOString(),
+          })
+          .eq('id', existingItem.id)
+      } else {
+        await insertInboxRow({
+          preparedUrl: prepared.normalizedUrl,
+          item,
+          status: 'queued',
+          nicheSlug,
+          jobId: created.jobId,
+        })
+      }
       result.queued += 1
       logger.info({
         msg: 'Collector queued reel',

@@ -56,7 +56,7 @@ The frontend must be simple for submitters and powerful for admins. The submitte
   Admin overview (light/day theme by default + theme toggle)
 
 /admin/jobs
-  All jobs table (includes collector DMs). Clip column shows the source reel/short.
+  All jobs table (includes collector DMs).
 
 /admin/collector
   Unsorted cargo — collector DMs that arrived without a niche word
@@ -370,7 +370,7 @@ Drive file deletion remains on Failed Review (bulk + per-row).
 
 ## Unsorted cargo (`/admin/collector`)
 
-Crew DMs that arrived without a niche word. Admin (write) watches the reel, picks Memes / Anime / Sports, and confirms. Demo is read-only. Confirm creates a normal queued job with rights assumed.
+Crew DMs that arrived without a niche word. Admin (write) opens the Instagram link, picks Memes / Anime / Sports, and confirms. Demo is read-only. Confirm creates a normal queued job with rights assumed. No in-dashboard reel preview.
 
 ## Job details page/drawer
 

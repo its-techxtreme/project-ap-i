@@ -9,7 +9,11 @@ import {
 } from './collectorHold'
 import { collectorSnapshot } from './collectorState'
 import { scrapeUnreadCollectorInbox } from './instagramDmCollector'
-import { persistCollectedReels, type PersistResult } from './persistCollectedReels'
+import {
+  persistCollectedReels,
+  rejectBogusCollectorInboxItems,
+  type PersistResult,
+} from './persistCollectedReels'
 
 export { getCollectorSnapshot } from './collectorState'
 export type { CollectorSnapshot } from './collectorState'
@@ -36,6 +40,7 @@ export async function runCollectorCycle(): Promise<void> {
     }
 
     logger.info({ msg: 'Collector cycle starting' })
+    await rejectBogusCollectorInboxItems()
     setCollectorUsingChrome(true)
     const scrape = await Promise.race([
       scrapeUnreadCollectorInbox(),

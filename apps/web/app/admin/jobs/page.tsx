@@ -55,7 +55,7 @@ export default async function AdminJobsPage({
       <DeskPageHeader
         kicker="Ship's log"
         title="Ship's log"
-        description="Collector DMs and website submits land here. Pause, unpause, cancel, and retry from the actions column. Clip is the source video. Refreshes every 45s."
+        description="Collector DMs and website submits land here. Pause, unpause, cancel, and retry from the actions column. Refreshes every 45s."
         meta={
           <span className="rounded-md border border-border/70 bg-card/50 px-2.5 py-1.5 font-mono text-[11px] text-muted-foreground">
             {total} rows

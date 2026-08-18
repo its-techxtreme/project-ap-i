@@ -3,7 +3,6 @@
 import { useState } from 'react'
 import { ExternalLink } from 'lucide-react'
 import { useRouter } from 'next/navigation'
-import { instagramEmbedUrl } from '@project-api/shared'
 
 import { confirmCollectorInboxItem } from '@/app/actions/confirmCollectorInbox'
 import { useAdminCapabilities } from '@/components/admin/AdminCapabilities'
@@ -60,78 +59,60 @@ export function CollectorInboxTable({
         </p>
       ) : null}
       <div className="space-y-4">
-        {items.map((item) => {
-          const embed = instagramEmbedUrl(item.normalized_source_url)
-          return (
+        {items.map((item) => (
             <article
               key={item.id}
-              className="desk-panel grid gap-4 rounded-md border border-border/80 p-4 md:grid-cols-[220px_1fr]"
+              className="desk-panel space-y-3 rounded-md border border-border/80 p-4"
             >
-              <div className="overflow-hidden rounded-md border border-border/70 bg-muted/30">
-                {embed ? (
-                  <iframe
-                    title={`Reel from ${item.sender_username ?? 'crew'}`}
-                    src={embed}
-                    className="aspect-[9/16] h-auto w-full max-h-[420px]"
-                    loading="lazy"
-                    allow="encrypted-media; clipboard-write"
-                  />
-                ) : (
-                  <p className="p-3 text-xs text-muted-foreground">Preview unavailable</p>
-                )}
+              <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
+                <span className="font-mono">@{item.sender_username ?? 'unknown'}</span>
+                <span>{item.created_at_label}</span>
               </div>
-              <div className="space-y-3">
-                <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
-                  <span className="font-mono">@{item.sender_username ?? 'unknown'}</span>
-                  <span>{item.created_at_label}</span>
-                </div>
-                <p className="break-all font-mono text-xs">{truncateText(item.source_url, 96)}</p>
-                <a
-                  href={item.source_url}
-                  target="_blank"
-                  rel="noreferrer"
-                  className="inline-flex items-center gap-1 text-sm text-primary hover:underline"
-                >
-                  Open on Instagram
-                  <ExternalLink className="size-3.5" />
-                </a>
-                <div className="flex flex-wrap items-end gap-2">
-                  <label className="space-y-1 text-xs">
-                    <span className="block font-mono uppercase tracking-wider text-muted-foreground">
-                      Niche
-                    </span>
-                    <select
-                      className="h-10 min-w-[160px] rounded-md border border-input bg-background px-3 text-sm"
-                      value={nicheById[item.id] ?? ''}
-                      disabled={!canWrite || busyId === item.id}
-                      onChange={(event) =>
-                        setNicheById((prev) => ({ ...prev, [item.id]: event.target.value }))
-                      }
-                    >
-                      <option value="">Select…</option>
-                      {niches.map((niche) => (
-                        <option key={niche.id} value={niche.slug}>
-                          {niche.name}
-                        </option>
-                      ))}
-                    </select>
-                  </label>
-                  <Button
-                    type="button"
-                    size="sm"
+              <p className="break-all font-mono text-xs">{truncateText(item.source_url, 96)}</p>
+              <a
+                href={item.source_url}
+                target="_blank"
+                rel="noreferrer"
+                className="inline-flex items-center gap-1 text-sm text-primary hover:underline"
+              >
+                Open on Instagram
+                <ExternalLink className="size-3.5" />
+              </a>
+              <div className="flex flex-wrap items-end gap-2">
+                <label className="space-y-1 text-xs">
+                  <span className="block font-mono uppercase tracking-wider text-muted-foreground">
+                    Niche
+                  </span>
+                  <select
+                    className="h-10 min-w-[160px] rounded-md border border-input bg-background px-3 text-sm"
+                    value={nicheById[item.id] ?? ''}
                     disabled={!canWrite || busyId === item.id}
-                    onClick={() => void confirm(item.id)}
+                    onChange={(event) =>
+                      setNicheById((prev) => ({ ...prev, [item.id]: event.target.value }))
+                    }
                   >
-                    {busyId === item.id ? 'Queuing…' : 'Confirm'}
-                  </Button>
-                </div>
-                {!canWrite ? (
-                  <p className="text-xs text-muted-foreground">Demo watch only — sign in as admin to confirm.</p>
-                ) : null}
+                    <option value="">Select…</option>
+                    {niches.map((niche) => (
+                      <option key={niche.id} value={niche.slug}>
+                        {niche.name}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+                <Button
+                  type="button"
+                  size="sm"
+                  disabled={!canWrite || busyId === item.id}
+                  onClick={() => void confirm(item.id)}
+                >
+                  {busyId === item.id ? 'Queuing…' : 'Confirm'}
+                </Button>
               </div>
+              {!canWrite ? (
+                <p className="text-xs text-muted-foreground">Demo watch only — sign in as admin to confirm.</p>
+              ) : null}
             </article>
-          )
-        })}
+        ))}
       </div>
     </div>
   )
