@@ -333,7 +333,7 @@ create table public.collector_inbox_items (
 );
 ```
 
-RLS: admin-only. `pending_niche` rows wait for Unsorted cargo confirm before `jobs` insert (`niche_id` remains required on jobs).
+RLS: admin-only. `pending_niche` rows wait for Unsorted cargo confirm before `jobs` insert (`niche_id` remains required on jobs). Admin reject sets `status=invalid` and `skip_reason=admin_rejected`.
 
 ## Table: system_settings
 

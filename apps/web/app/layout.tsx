@@ -10,7 +10,7 @@ const pirata = Pirata_One({
   display: 'swap',
 })
 
-/** Geometric condensed numerals — open circular 0s (Pirata zeros read like 8s). */
+/** Pirata's 0 looks like an 8, so metrics use Chakra instead. */
 const chakraPetch = Chakra_Petch({
   weight: ['500', '600', '700'],
   subsets: ['latin'],
@@ -26,7 +26,7 @@ const sourceSans = Source_Sans_3({
 
 export const metadata: Metadata = {
   title: 'Project AP-I',
-  description: 'Short-form content intake, processing, and publishing — set sail with the crew',
+  description: 'Paste a reel, pick a lane, we handle the rest.',
 }
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {

@@ -1,7 +1,7 @@
 import {
   extractInstagramReelUrls,
   instagramShortcodeFromUrl,
-  parseCollectorNiche,
+  pickNicheFromFollowingText,
   prepareSourceIngest,
   type NicheSlug,
 } from '@project-api/shared'
@@ -83,7 +83,7 @@ export async function persistCollectedReels(items: CollectedReel[]): Promise<Per
       .eq('normalized_source_url', prepared.normalizedUrl)
       .maybeSingle()
 
-    const nicheSlug = parseCollectorNiche(item.nearbyText)
+    const nicheSlug = pickNicheFromFollowingText(item.nearbyText)
 
     if (existingItem?.status === 'queued' || existingItem?.status === 'duplicate') {
       result.duplicate += 1
@@ -157,12 +157,13 @@ export async function persistCollectedReels(items: CollectedReel[]): Promise<Per
         })
       }
       result.queued += 1
-      logger.info({
-        msg: 'Collector queued reel',
-        jobId: created.jobId,
-        nicheSlug,
-        sender: item.senderUsername,
-      })
+    logger.info({
+      msg: 'Collector queued reel',
+      jobId: created.jobId,
+      nicheSlug,
+      sender: item.senderUsername,
+      nearbyText: item.nearbyText.slice(0, 120),
+    })
       continue
     }
 
@@ -177,6 +178,7 @@ export async function persistCollectedReels(items: CollectedReel[]): Promise<Per
       msg: 'Collector stored reel pending niche',
       url: prepared.normalizedUrl,
       sender: item.senderUsername,
+      nearbyText: item.nearbyText.slice(0, 120),
     })
   }
 

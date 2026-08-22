@@ -123,6 +123,19 @@ describe('persistCollectedReels', () => {
     )
   })
 
+  it('queues when Anime is on the next line under Sent a reel', async () => {
+    const { persistCollectedReels } = await import('../src/collector/persistCollectedReels')
+    const result = await persistCollectedReels([
+      {
+        sourceUrl: REEL,
+        nearbyText: 'You sent a reel\nAnime',
+        senderUsername: 'crew',
+        threadId: THREAD,
+      },
+    ])
+    expect(result.queued).toBe(1)
+  })
+
   it('stores reels without a niche for admin review', async () => {
     const { persistCollectedReels } = await import('../src/collector/persistCollectedReels')
     const result = await persistCollectedReels([

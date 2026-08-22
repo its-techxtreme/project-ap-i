@@ -5,6 +5,7 @@ import {
   instagramEmbedUrl,
   instagramShortcodeFromUrl,
   parseCollectorNiche,
+  pickNicheFromFollowingText,
   prepareSourceIngest,
   zipUrlsWithFollowingText,
 } from '../src/collector'
@@ -22,6 +23,21 @@ describe('parseCollectorNiche', () => {
     expect(parseCollectorNiche('')).toBeNull()
     expect(parseCollectorNiche('hello')).toBeNull()
     expect(parseCollectorNiche('anime and sports')).toBeNull()
+  })
+})
+
+describe('pickNicheFromFollowingText', () => {
+  it('finds Anime under a Sent-a-reel label', () => {
+    expect(pickNicheFromFollowingText('You sent a reel\nAnime')).toBe('anime')
+    expect(pickNicheFromFollowingText('Sent a reel\nSport')).toBe('sports')
+  })
+
+  it('uses the first clean line when two niche bubbles leak into one band', () => {
+    expect(pickNicheFromFollowingText('Anime\nSport')).toBe('anime')
+  })
+
+  it('still rejects a single ambiguous line', () => {
+    expect(pickNicheFromFollowingText('anime and sports')).toBeNull()
   })
 })
 

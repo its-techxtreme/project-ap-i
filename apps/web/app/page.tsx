@@ -42,13 +42,13 @@ export default async function HomePage({
           <CrewDoodles
             hero={
               <div className="animate-enter space-y-4 px-14 text-center sm:px-20 md:px-8">
-                <p className="font-mono text-[11px] uppercase tracking-[0.2em] text-primary drop-shadow-sm">
+                <p className="font-mono text-[11px] uppercase tracking-[0.18em] text-primary drop-shadow-sm">
                   Short-form voyage intake
                 </p>
-                <h1 className="font-display text-5xl tracking-wide text-foreground drop-shadow-sm md:text-7xl">
+                <h1 className="font-display text-5xl tracking-wide text-foreground drop-shadow-sm md:text-[4.35rem]">
                   Project AP-I
                 </h1>
-                <p className="mx-auto max-w-md text-base font-medium text-foreground/80 md:text-lg">
+                <p className="mx-auto max-w-[22rem] text-base font-medium text-foreground/80 md:text-lg">
                   Load the cargo. Pick the crew lane. Set sail.
                 </p>
               </div>

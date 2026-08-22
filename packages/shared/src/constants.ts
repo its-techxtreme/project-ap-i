@@ -1,6 +1,6 @@
 /**
  * Canonical niche definitions for Project AP-I.
- * These are the ONLY valid niches. Do not hardcode elsewhere.
+ * Keep in sync with the niches table check.
  */
 export const NICHES = [
   { slug: 'memes', label: 'Memes' },

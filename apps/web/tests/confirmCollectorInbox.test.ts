@@ -139,3 +139,61 @@ describe('confirmCollectorInboxItem', () => {
     expect(inboxUpdateEqMock).toHaveBeenCalledWith('id', INBOX_ID)
   })
 })
+
+describe('rejectCollectorInboxItem', () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+    vi.resetModules()
+    requireAdminWriteMock.mockResolvedValue({ denied: false })
+    getAdminUsernameMock.mockResolvedValue('captain')
+    inboxMaybeSingleMock.mockResolvedValue({
+      data: {
+        id: INBOX_ID,
+        status: 'pending_niche',
+        normalized_source_url: REEL_URL,
+      },
+      error: null,
+    })
+    inboxUpdateEqMock.mockResolvedValue({ error: null })
+    auditInsertMock.mockResolvedValue({ data: null, error: null })
+  })
+
+  it('denies demo writes', async () => {
+    requireAdminWriteMock.mockResolvedValueOnce({
+      denied: true,
+      error: 'Demo account is read-only. Sign in as admin to run this action.',
+    })
+    const { rejectCollectorInboxItem } = await import('@/app/actions/confirmCollectorInbox')
+    const result = await rejectCollectorInboxItem(INBOX_ID)
+    expect(result.success).toBe(false)
+    if (!result.success) {
+      expect(result.error).toMatch(/Demo/)
+    }
+  })
+
+  it('marks a pending reel invalid so it leaves Unsorted cargo', async () => {
+    const { rejectCollectorInboxItem } = await import('@/app/actions/confirmCollectorInbox')
+    const result = await rejectCollectorInboxItem(INBOX_ID)
+    expect(result).toEqual({ success: true })
+    expect(inboxUpdateEqMock).toHaveBeenCalled()
+    expect(auditInsertMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        action: 'collector_inbox_rejected',
+        target_id: INBOX_ID,
+      }),
+    )
+  })
+
+  it('refuses rows that are no longer pending', async () => {
+    inboxMaybeSingleMock.mockResolvedValue({
+      data: { id: INBOX_ID, status: 'queued', normalized_source_url: REEL_URL },
+      error: null,
+    })
+    const { rejectCollectorInboxItem } = await import('@/app/actions/confirmCollectorInbox')
+    const result = await rejectCollectorInboxItem(INBOX_ID)
+    expect(result).toEqual({
+      success: false,
+      error: 'This reel is no longer waiting for a niche.',
+    })
+  })
+})

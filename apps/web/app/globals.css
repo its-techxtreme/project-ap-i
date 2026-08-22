@@ -24,7 +24,7 @@
     --border: 30 22% 78%;
     --input: 30 22% 78%;
     --ring: 188 72% 28%;
-    --radius: 0.75rem;
+    --radius: 0.65rem;
     --atmosphere-from: 198 55% 88%;
     --atmosphere-to: 198 42% 92%;
     --surface-elevated: 40 45% 96%;
@@ -116,7 +116,7 @@
   }
 
   .animate-enter {
-    animation: enter 480ms cubic-bezier(0.22, 1, 0.36, 1) both;
+    animation: enter 430ms cubic-bezier(0.2, 0.9, 0.32, 1) both;
   }
 
   .animate-success {
@@ -148,8 +148,8 @@
 
   .desk-panel {
     background:
-      linear-gradient(180deg, hsl(var(--lantern) / 0.05), transparent 42%),
-      hsl(var(--panel) / 0.9);
+      linear-gradient(180deg, hsl(var(--lantern) / 0.04), transparent 38%),
+      hsl(var(--panel) / 0.92);
   }
 
   .desk-tile {
@@ -160,9 +160,9 @@
 
   .desk-shell main {
     background-image: radial-gradient(
-      ellipse 50% 30% at 100% 0%,
-      hsl(var(--lantern) / 0.06),
-      transparent 60%
+      ellipse 48% 28% at 96% 0%,
+      hsl(var(--lantern) / 0.07),
+      transparent 62%
     );
   }
 

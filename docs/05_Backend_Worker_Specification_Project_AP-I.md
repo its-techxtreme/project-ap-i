@@ -196,7 +196,7 @@ Enabled only when `COLLECTOR_ENABLED=true` on the laptop. On worker start and ev
 
 Rules:
 
-- Prefer permalinks from the open `/direct/t/` thread (preview card href, overlay, or `/reel/{11-char}/` request URLs). Scroll older messages in each chat and open every reel preview — not only the latest visible card. Persist rejects concatenated junk and anything not taken from a Direct thread. All senders trusted. URL allowlist still rejects TikTok/localhost/etc.
+- Prefer permalinks from the open `/direct/t/` thread (preview card href, overlay, or `/reel/{11-char}/` request URLs after a click). Scroll older messages in each chat and open every reel preview — not only the latest visible card. Pair each reel with the short text bubble under that card (`Anime` / `Sport` / `Meme`); do not steal the first `/reel/` link elsewhere on the page. Persist rejects concatenated junk and anything not taken from a Direct thread. All senders trusted. URL allowlist still rejects TikTok/localhost/etc.
 - One niche word per reel (the bubble under that preview). Whole-thread text with both `anime` and `sports` is not used — that would look ambiguous.
 - Soft Instagram dialogs (sleep mode OK, Not Now, Dismiss, Skip on security upsells) must not stop the collector. Real login/2FA/CAPTCHA: fail the collector pass only, set `loginRequired` on heartbeat, never bypass.
 - Collector scrape failure must not crash the worker process.

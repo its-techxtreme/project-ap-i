@@ -370,7 +370,7 @@ Drive file deletion remains on Failed Review (bulk + per-row).
 
 ## Unsorted cargo (`/admin/collector`)
 
-Crew DMs that arrived without a niche word. Admin (write) opens the Instagram link, picks Memes / Anime / Sports, and confirms. Demo is read-only. Confirm creates a normal queued job with rights assumed. No in-dashboard reel preview.
+Crew DMs that arrived without a niche word. Admin (write) opens the Instagram link, picks Memes / Anime / Sports, and confirms. Reject marks the row invalid (`admin_rejected`) so the collector does not put it back. Demo is read-only. Confirm creates a normal queued job with rights assumed. No in-dashboard reel preview.
 
 ## Job details page/drawer
 

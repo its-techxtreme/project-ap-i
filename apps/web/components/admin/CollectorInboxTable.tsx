@@ -4,7 +4,7 @@ import { useState } from 'react'
 import { ExternalLink } from 'lucide-react'
 import { useRouter } from 'next/navigation'
 
-import { confirmCollectorInboxItem } from '@/app/actions/confirmCollectorInbox'
+import { confirmCollectorInboxItem, rejectCollectorInboxItem } from '@/app/actions/confirmCollectorInbox'
 import { useAdminCapabilities } from '@/components/admin/AdminCapabilities'
 import { Button } from '@/components/ui/button'
 import type { CollectorInboxRow } from '@/lib/data/adminQueries'
@@ -22,6 +22,7 @@ export function CollectorInboxTable({
   const router = useRouter()
   const { canWrite } = useAdminCapabilities()
   const [busyId, setBusyId] = useState<string | null>(null)
+  const [busyKind, setBusyKind] = useState<'confirm' | 'reject' | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [nicheById, setNicheById] = useState<Record<string, string>>({})
 
@@ -32,9 +33,25 @@ export function CollectorInboxTable({
       return
     }
     setBusyId(id)
+    setBusyKind('confirm')
     setError(null)
     const result = await confirmCollectorInboxItem(id, slug)
     setBusyId(null)
+    setBusyKind(null)
+    if (!result.success) {
+      setError(result.error)
+      return
+    }
+    router.refresh()
+  }
+
+  async function reject(id: string) {
+    setBusyId(id)
+    setBusyKind('reject')
+    setError(null)
+    const result = await rejectCollectorInboxItem(id)
+    setBusyId(null)
+    setBusyKind(null)
     if (!result.success) {
       setError(result.error)
       return
@@ -60,10 +77,11 @@ export function CollectorInboxTable({
       ) : null}
       <div className="space-y-4">
         {items.map((item) => (
-            <article
-              key={item.id}
-              className="desk-panel space-y-3 rounded-md border border-border/80 p-4"
-            >
+          <article
+            key={item.id}
+            className="desk-panel flex flex-col gap-3 rounded-md border border-border/80 p-4 sm:flex-row sm:items-center sm:justify-between"
+          >
+            <div className="min-w-0 flex-1 space-y-3">
               <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
                 <span className="font-mono">@{item.sender_username ?? 'unknown'}</span>
                 <span>{item.created_at_label}</span>
@@ -105,12 +123,24 @@ export function CollectorInboxTable({
                   disabled={!canWrite || busyId === item.id}
                   onClick={() => void confirm(item.id)}
                 >
-                  {busyId === item.id ? 'Queuing…' : 'Confirm'}
+                  {busyId === item.id && busyKind === 'confirm' ? 'Queuing…' : 'Confirm'}
                 </Button>
               </div>
               {!canWrite ? (
                 <p className="text-xs text-muted-foreground">Demo watch only — sign in as admin to confirm.</p>
               ) : null}
+            </div>
+              <div className="flex shrink-0 sm:justify-end">
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="destructive"
+                  disabled={!canWrite || busyId === item.id}
+                  onClick={() => void reject(item.id)}
+                >
+                  {busyId === item.id && busyKind === 'reject' ? 'Rejecting…' : 'Reject'}
+                </Button>
+              </div>
             </article>
         ))}
       </div>

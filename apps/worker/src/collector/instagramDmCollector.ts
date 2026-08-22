@@ -1,6 +1,6 @@
 import path from 'node:path'
 
-import { extractInstagramReelUrls, zipUrlsWithFollowingText } from '@project-api/shared'
+import { extractInstagramReelUrls, pickNicheFromFollowingText, zipUrlsWithFollowingText } from '@project-api/shared'
 import type { Page, Response } from 'playwright'
 
 import { config } from '../config'
@@ -494,22 +494,19 @@ async function waitForReelPermalink(
   pendingExtras: string[],
 ): Promise<string | null> {
   for (let attempt = 0; attempt < 12; attempt++) {
-    const overlayHref = await page
-      .locator('a[href*="/reel/"], a[href*="/reels/"], a[href*="/p/"]')
-      .first()
-      .getAttribute('href')
-      .catch(() => null)
-
-    const found = uniqueUrls([
-      ...extractInstagramReelUrls(page.url()),
-      ...extractInstagramReelUrls(overlayHref ?? ''),
-      ...extractInstagramReelUrls(harvestedReelUrls.slice(mark).join('\n')),
-    ]).filter((url) => !used.has(url) && !pendingExtras.includes(url))
+    const found = uniqueUrls(harvestedReelUrls.slice(mark)).filter(
+      (url) => !used.has(url) && !pendingExtras.includes(url),
+    )
 
     if (found[0]) {
       pendingExtras.push(...found.slice(1))
       return found[0]
     }
+
+    const fromPage = uniqueUrls(extractInstagramReelUrls(page.url())).filter(
+      (url) => !used.has(url) && !pendingExtras.includes(url),
+    )
+    if (fromPage[0]) return fromPage[0]
     await humanPause(250, 450)
   }
   return pendingExtras.shift() ?? null
@@ -620,7 +617,7 @@ async function listPreviewCards(page: Page): Promise<PreviewCard[]> {
       })
       const media = mediaSized
         .map((el) => ({ el, r: el.getBoundingClientRect() }))
-        .filter((x) => x.r.width >= 70 && x.r.height >= 70 && x.r.x > 8)
+        .filter((x) => x.r.width >= 70 && x.r.height >= 70 && x.r.x > 160)
         .sort((a, b) => a.r.y - b.r.y)
 
       const cards: typeof media = []
@@ -631,13 +628,16 @@ async function listPreviewCards(page: Page): Promise<PreviewCard[]> {
       }
 
       const mapped = cards.map((item, i) => {
-        const nextY = cards[i + 1]?.r.y ?? item.r.bottom + 240
+        const nextY = cards[i + 1]?.r.y ?? item.r.bottom + 160
         const following: string[] = []
-        Array.from(g.document.querySelectorAll('[role="main"] span')).forEach((el) => {
+        Array.from(g.document.querySelectorAll('[role="main"] span, [role="main"] [dir="auto"]')).forEach((el) => {
           const r = el.getBoundingClientRect()
-          if (r.x < 8 || r.y < item.r.bottom - 4 || r.y >= nextY) return
+          if (r.x < 160 || r.y < item.r.bottom - 4 || r.y >= nextY) return
+          if (r.height > 48) return
           const t = (el.textContent || '').replace(/\s+/g, ' ').trim()
-          if (t && t.length < 80 && t !== 'New messages') following.push(t)
+          if (!t || t.length > 48) return
+          if (/^(like|reply|seen|sent|new messages|you sent a reel|sent a reel|watch more|instagram)$/i.test(t)) return
+          following.push(t)
         })
         let href = ''
         let cur: {
@@ -664,44 +664,34 @@ async function listPreviewCards(page: Page): Promise<PreviewCard[]> {
         }
       })
 
-      const shareTiles = Array.from(g.document.querySelectorAll('[role="main"] div'))
-        .map((el) => ({ el, r: el.getBoundingClientRect() }))
-        .filter(
-          (x) =>
-            x.r.x > 180 &&
-            x.r.y > minY &&
-            x.r.width >= 140 &&
-            x.r.width <= 440 &&
-            x.r.height >= 120 &&
-            x.r.height <= 560,
-        )
-        .sort((a, b) => a.r.y - b.r.y)
-
-      const tileCards: { x: number; y: number; followingText: string; href: string }[] = []
-      for (const item of shareTiles) {
-        const last = tileCards[tileCards.length - 1]
-        if (last && Math.abs(last.y - (item.r.y + item.r.height / 2)) < 50) continue
-        tileCards.push({
-          x: item.r.x + item.r.width / 2,
-          y: item.r.y + Math.min(item.r.height / 2, 90),
-          followingText: '',
-          href: '',
-        })
-      }
-
       const paneHrefs = Array.from(
         g.document.querySelectorAll('a[href*="/reel/"], a[href*="/reels/"], a[href*="/p/"]'),
       )
         .map((el) => {
           const r = el.getBoundingClientRect()
-          return { href: el.href || el.getAttribute?.('href') || '', x: r.x, y: r.y }
+          const following: string[] = []
+          const nextY = r.bottom + 140
+          Array.from(g.document.querySelectorAll('[role="main"] span, [role="main"] [dir="auto"]')).forEach((node) => {
+            const nr = node.getBoundingClientRect()
+            if (nr.x < 160 || nr.y < r.bottom - 4 || nr.y >= nextY) return
+            if (nr.height > 48) return
+            const t = (node.textContent || '').replace(/\s+/g, ' ').trim()
+            if (!t || t.length > 48) return
+            if (/^(like|reply|seen|sent|new messages|you sent a reel|sent a reel|watch more|instagram)$/i.test(t)) return
+            following.push(t)
+          })
+          return {
+            href: el.href || el.getAttribute?.('href') || '',
+            x: r.x,
+            y: r.y,
+            followingText: [...new Set(following)].join('\n'),
+          }
         })
-        .filter((x) => x.href && x.y > minY && x.x > 8)
+        .filter((x) => x.href && x.y > minY && x.x > 160)
 
       return {
         cards: mapped,
         paneHrefs,
-        tileCards,
         debug: {
           w,
           minX,
@@ -709,7 +699,6 @@ async function listPreviewCards(page: Page): Promise<PreviewCard[]> {
           mediaSized: mediaSized.length,
           mediaInPane: media.length,
           cardCount: mapped.length,
-          tileCount: tileCards.length,
           paneHrefCount: paneHrefs.length,
           sample: mediaSized.slice(0, 8).map((el) => {
             const r = el.getBoundingClientRect()
@@ -742,13 +731,9 @@ async function listPreviewCards(page: Page): Promise<PreviewCard[]> {
     merged.push({
       x: item.x + 40,
       y: item.y + 40,
-      followingText: '',
+      followingText: item.followingText ?? '',
       href,
     })
-  }
-  for (const tile of scanned.tileCards ?? []) {
-    if (merged.some((card) => Math.abs(card.y - tile.y) < 36 && Math.abs(card.x - tile.x) < 48)) continue
-    merged.push(tile)
   }
   merged.sort((a, b) => a.y - b.y)
   return merged
@@ -764,12 +749,16 @@ function uniqueUrls(urls: string[]): string[] {
 }
 
 function dedupeItems(items: CollectedReel[]): CollectedReel[] {
-  const seen = new Set<string>()
-  const out: CollectedReel[] = []
+  const byUrl = new Map<string, CollectedReel>()
   for (const item of items) {
-    if (seen.has(item.sourceUrl)) continue
-    seen.add(item.sourceUrl)
-    out.push(item)
+    const prev = byUrl.get(item.sourceUrl)
+    if (!prev) {
+      byUrl.set(item.sourceUrl, item)
+      continue
+    }
+    const prevHas = Boolean(pickNicheFromFollowingText(prev.nearbyText))
+    const nextHas = Boolean(pickNicheFromFollowingText(item.nearbyText))
+    if (nextHas && !prevHas) byUrl.set(item.sourceUrl, item)
   }
-  return out
+  return [...byUrl.values()]
 }

@@ -18,7 +18,7 @@ const ESCAPED_REEL_RE =
 const CLIP_CODE_RE =
   /"product_type"\s*:\s*"clips"[\s\S]{0,400}?"code"\s*:\s*"([A-Za-z0-9_-]{11})"/gi
 
-/** Instagram media shortcodes are 11 characters. Longer strings are concatenated junk. */
+/** IG shortcodes are 11 chars. Longer ones were concatenated junk from the profile grid. */
 export function isPlausibleInstagramShortcode(code: string): boolean {
   return /^[A-Za-z0-9_-]{11}$/.test(code)
 }
@@ -34,10 +34,7 @@ export function instagramShortcodeFromUrl(url: string): string | null {
   }
 }
 
-/**
- * Parse a collector DM for exactly one of memes / anime / sports.
- * Returns null when missing or when two different niches appear.
- */
+/** One of memes / anime / sports. Null if missing or if two niches show up. */
 export function parseCollectorNiche(text: string | null | undefined): NicheSlug | null {
   if (!text) return null
   const tokens = text.toLowerCase().match(/[a-z]+/g) ?? []
@@ -50,11 +47,23 @@ export function parseCollectorNiche(text: string | null | undefined): NicheSlug 
   return [...found][0] ?? null
 }
 
+// Bubble under the reel. "Sent a reel" sits in the same band so we take the first clean line.
+export function pickNicheFromFollowingText(text: string | null | undefined): NicheSlug | null {
+  if (!text?.trim()) return null
+  const direct = parseCollectorNiche(text)
+  if (direct) return direct
+  for (const line of text.split(/\n+/)) {
+    const niche = parseCollectorNiche(line)
+    if (niche) return niche
+  }
+  return null
+}
+
 export function isNicheSlug(value: string): value is NicheSlug {
   return (NICHE_SLUGS as readonly string[]).includes(value)
 }
 
-/** Pull Instagram reel/post permalinks from HTML or plain text. */
+/** Reel/post links out of html or leftover json. */
 export function extractInstagramReelUrls(raw: string): string[] {
   const seen = new Set<string>()
   const out: string[] = []
@@ -98,7 +107,7 @@ export function instagramEmbedUrl(normalizedUrl: string): string | null {
   }
 }
 
-/** Pair reel permalinks with the niche bubble that follows each preview card. */
+/** url[i] goes with the text sitting under that card */
 export function zipUrlsWithFollowingText(
   urls: string[],
   followingTexts: string[],
