@@ -7,7 +7,7 @@ import { persistCollectedReels } from '../src/collector/persistCollectedReels'
 import { logger } from '../src/logging/logger'
 
 async function main(): Promise<void> {
-  const scrape = await scrapeUnreadCollectorInbox()
+  const scrape = await scrapeUnreadCollectorInbox({ headless: false })
   if (!scrape.ok) {
     logger.warn({ msg: 'Collector backfill scrape failed', error: scrape.error, loginRequired: scrape.loginRequired })
     process.exitCode = 1

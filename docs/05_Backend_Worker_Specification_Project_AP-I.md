@@ -189,15 +189,16 @@ Enabled only when `COLLECTOR_ENABLED=true` on the laptop. On worker start and ev
 
 1. Set claim hold so n8n cannot lock a new queued job.
 2. Wait until FFmpeg/upload queues are empty and no in-flight / ready-to-upload job remains.
-3. Open the dedicated `ig-collector` Playwright profile (never a niche upload profile).
-4. Open `/direct/t/{id}/` for `COLLECTOR_THREAD_IDS` (and the inbox list only when those ids are unset). Dismiss sleep-mode / notification / 2FA-upsell dialogs the same way Studio banners are dismissed — never enter a 2FA code. Collect every reel preview in the message pane, pairing the niche word in the following text bubble (`Anime` / `Sport` / `Meme`). Never harvest profile-grid HTML or concatenated shortcodes.
-
-5. Close Chrome, clear hold, resume the queue.
+3. Open the dedicated `ig-collector` Playwright profile (never a niche upload profile). Chrome launches muted (`--mute-audio` plus per-tab mute) so collector and upload tabs do not play sound in the background.
+4. Open Instagram search results for sports, then anime, then memes (`/explore/search/keyword/` then the hashtag page if needed). Never click the left-nav Reels feed. For each niche, take up to three reel tiles that already have a `/reel/{shortcode}/` href on that results page. If search cannot find reels, log it and store nothing — do not invent URLs from the For You feed. Skip duplicates already in `collector_inbox_items`. Persist search rows with origin `collector:search:{slug}` and nearby niche text so they queue like DMs that already have a niche word.
+5. Then open Direct inbox. Open only conversations labeled unread / new messages. Harvest every unread reel in that chat: start at the latest messages, take new URLs, and wheel up only until already-stored reels appear (or a short unread cap). Do not loop already-read threads or crawl old history. Pair the niche bubble under each card (`Anime` / `Sport` / `Meme`). Dismiss sleep-mode / notification / 2FA-upsell dialogs the same way Studio banners are dismissed — never enter a 2FA code. Never harvest profile-grid HTML or concatenated shortcodes.
+6. Close Chrome, clear hold, resume the upload queue.
 
 Rules:
 
-- Prefer permalinks from the open `/direct/t/` thread (preview card href, overlay, or `/reel/{11-char}/` request URLs after a click). Scroll older messages in each chat and open every reel preview — not only the latest visible card. Pair each reel with the short text bubble under that card (`Anime` / `Sport` / `Meme`); do not steal the first `/reel/` link elsewhere on the page. Persist rejects concatenated junk and anything not taken from a Direct thread. All senders trusted. URL allowlist still rejects TikTok/localhost/etc.
-- One niche word per reel (the bubble under that preview). Whole-thread text with both `anime` and `sports` is not used — that would look ambiguous.
+- Search origin `collector:search:{memes|anime|sports}` and Direct `/direct/t/{id}/` are both allowed persist origins. URL allowlist still rejects TikTok/localhost/etc. All senders trusted.
+- DM harvest is unread-only. Take every new reel in that unread batch (five sent → five stored). Stop when already-stored history appears. Do not keep cycling the inbox for an hour.
+- One niche word per reel (the bubble under that preview, or the search niche). Whole-thread text with both `anime` and `sports` is not used — that would look ambiguous.
 - Soft Instagram dialogs (sleep mode OK, Not Now, Dismiss, Skip on security upsells) must not stop the collector. Real login/2FA/CAPTCHA: fail the collector pass only, set `loginRequired` on heartbeat, never bypass.
 - Collector scrape failure must not crash the worker process.
 - While collector Chrome is open, `runUpload` / `retryJob` defer instead of overlapping profiles.

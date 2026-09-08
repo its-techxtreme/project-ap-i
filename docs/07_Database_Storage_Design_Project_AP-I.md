@@ -314,7 +314,7 @@ Flow:
 
 ## Table: collector_inbox_items
 
-Purpose: Instagram collector DMs that are not yet jobs, or a record of collector ingest.
+Purpose: Instagram collector search harvest and DMs that are not yet jobs, or a record of collector ingest.
 
 ```sql
 create table public.collector_inbox_items (

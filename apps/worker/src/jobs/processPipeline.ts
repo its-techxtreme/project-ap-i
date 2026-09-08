@@ -6,6 +6,8 @@ import type { DbJobRow } from '../db/jobsRepo'
 import { getNicheSlugById, updateJobStatus, writeJobEvent } from '../db/jobsRepo'
 import type { Processor } from '../processors/types'
 import { config } from '../config'
+import { isCollectorHold } from '../collector/collectorHold'
+import { logger } from '../logging/logger'
 import type { MetadataProvider } from '../metadata/types'
 import { assertMetadataQuality, MetadataQualityError } from '../metadata/quality'
 import { getFallbackMetadata } from '../metadata/fallbacks'
@@ -98,6 +100,10 @@ export async function runProcessPipeline(
   job: DbJobRow,
   deps?: ProcessPipelineDeps,
 ): Promise<JobStatus> {
+  if (isCollectorHold()) {
+    logger.info({ msg: 'Process deferred — collector hold is on', jobId: job.id })
+    return job.status
+  }
   const resolvedDeps = deps ?? (await createDefaultPipelineDeps())
   const { withFfmpegConcurrency } = await import('./ConcurrencyGuard')
 

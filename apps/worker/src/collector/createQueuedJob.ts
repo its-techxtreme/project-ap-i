@@ -9,7 +9,7 @@ type SupabaseLike = {
 export type CreateQueuedJobInput = {
   sourceUrl: string
   nicheId: string
-  intake: 'website' | 'collector_dm' | 'collector_admin_confirm'
+  intake: 'website' | 'collector_dm' | 'collector_search' | 'collector_admin_confirm'
   senderUsername?: string | null
   extraAudit?: Record<string, unknown>
 }

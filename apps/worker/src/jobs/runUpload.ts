@@ -6,7 +6,7 @@ import { supabaseAdmin } from '../db/supabaseAdmin'
 import { createUploadCoordinator } from '../uploaders'
 import { logger } from '../logging/logger'
 
-import { isCollectorUsingChrome } from '../collector/collectorHold'
+import { isCollectorHold, isCollectorUsingChrome } from '../collector/collectorHold'
 import { withUploadConcurrency } from './ConcurrencyGuard'
 import {
   DAILY_UPLOAD_WINDOW_MS,
@@ -33,8 +33,8 @@ function isWithinDailyLimitDeferral(job: {
  * Uses MockUploader when REAL_UPLOADS_ENABLED is false; Playwright uploaders when enabled.
  */
 export async function runUpload(jobId: string): Promise<string> {
-  if (isCollectorUsingChrome()) {
-    logger.info({ msg: 'Upload deferred — collector is using Chrome', jobId })
+  if (isCollectorHold() || isCollectorUsingChrome()) {
+    logger.info({ msg: 'Upload deferred — collector hold is on', jobId })
     return 'ready_to_upload'
   }
   return withUploadConcurrency(() => runUploadInner(jobId))

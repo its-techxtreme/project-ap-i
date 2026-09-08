@@ -1,7 +1,7 @@
 import fs from 'node:fs/promises'
 import path from 'node:path'
 
-import { chromium, type BrowserContext } from 'playwright'
+import { chromium, type BrowserContext, type Page } from 'playwright'
 
 import { config } from '../config'
 import { logger } from '../logging/logger'
@@ -10,6 +10,7 @@ import {
   isPlaywrightProfileBusyError,
   withPlaywrightProfileLock,
 } from './playwrightProfileLock'
+import { chromeLaunchArgs } from './chromeLaunchArgs'
 
 /** Remove stale Chrome singleton locks left after crash/kill so relaunch can proceed. */
 async function clearStaleChromeSingletonLocks(profilePath: string): Promise<void> {
@@ -21,6 +22,39 @@ async function clearStaleChromeSingletonLocks(profilePath: string): Promise<void
       // absent is fine
     }
   }
+}
+
+async function muteContextAudio(context: BrowserContext): Promise<void> {
+  await context.addInitScript(`(() => {
+    const silence = (el) => {
+      try {
+        el.muted = true
+        el.volume = 0
+      } catch (e) {}
+    }
+    const proto = HTMLMediaElement.prototype
+    const origPlay = proto.play
+    proto.play = function () {
+      silence(this)
+      return origPlay.apply(this, arguments)
+    }
+  })()`)
+  const mutePage = async (page: Page) => {
+    try {
+      const session = await context.newCDPSession(page)
+      await (
+        session as { send: (method: string, params: { muted: boolean }) => Promise<unknown> }
+      ).send('Page.setAudioMuted', { muted: true })
+    } catch {
+      // Launch still includes --mute-audio.
+    }
+  }
+  for (const page of context.pages()) {
+    await mutePage(page)
+  }
+  context.on('page', (page) => {
+    void mutePage(page)
+  })
 }
 
 async function launchPersistentContextRaw(
@@ -47,7 +81,7 @@ async function launchPersistentContextRaw(
     locale: 'en-US',
     timezoneId: 'America/New_York',
     viewport: null,
-    args: ['--no-first-run', '--no-default-browser-check'],
+    args: chromeLaunchArgs(),
     // Drops Chrome's "unsupported command-line flag: --enable-automation" banner.
     ignoreDefaultArgs: ['--enable-automation'],
   }
@@ -61,13 +95,17 @@ async function launchPersistentContextRaw(
   }
 
   try {
-    return await chromium.launchPersistentContext(profilePath, launchOptions)
+    const context = await chromium.launchPersistentContext(profilePath, launchOptions)
+    await muteContextAudio(context)
+    return context
   } catch (err) {
     if (isPlaywrightProfileBusyError(err)) {
       // One more cleanup pass then single retry — common after hard kills.
       await clearStaleChromeSingletonLocks(profilePath)
       try {
-        return await chromium.launchPersistentContext(profilePath, launchOptions)
+        const context = await chromium.launchPersistentContext(profilePath, launchOptions)
+        await muteContextAudio(context)
+        return context
       } catch (retryErr) {
         const busy = new Error(
           `PROFILE_BUSY: Chrome profile already in use (${profilePath}). ` +

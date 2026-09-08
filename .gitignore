@@ -81,3 +81,6 @@ apps/web/.vercel
 .env.local
 apps/web/.env.local
 
+# Human-Coder (local; do not commit)
+.cursor/rules/human-coder.mdc
+.cursor/mcp.json

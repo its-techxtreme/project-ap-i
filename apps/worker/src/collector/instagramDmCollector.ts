@@ -7,15 +7,25 @@ import { config } from '../config'
 import { logger } from '../logging/logger'
 import { detectLoginOrChallenge } from '../uploaders/loginChallengeDetection'
 import { withAuthenticatedContext } from '../uploaders/playwrightContext'
-import { humanPause } from '../uploaders/playwrightHumanBehavior'
+import { humanPause, humanIdleMotion, randomInt } from '../uploaders/playwrightHumanBehavior'
 
-import { parseCollectorThreadIds } from './collectorThreadIds'
-import { orderConversationIndexes } from './conversationOrder'
-import type { CollectedReel } from './persistCollectedReels'
+import { isUnreadConversationLabel } from './conversationOrder'
+import { harvestSearchReels } from './instagramSearchCollector'
+import {
+  decideHarvestUrl,
+  EMPTY_NO_CARD_ROUNDS,
+  MAX_NEW_REELS_PER_THREAD,
+  MAX_SCROLL_UPS,
+  newestFirst,
+  shouldStopScrolling,
+} from './harvestPolicy'
+import {
+  loadKnownCollectorReelUrls,
+  type CollectedReel,
+} from './persistCollectedReels'
 
-const MAX_THREADS = 12
-const MAX_REELS = 80
-const MAX_REELS_PER_THREAD = 40
+const MAX_THREADS = 8
+const MAX_REELS = 40
 
 export { parseCollectorThreadIds } from './collectorThreadIds'
 
@@ -30,11 +40,13 @@ export type ScrapeResult =
   | { ok: true; items: CollectedReel[]; loginRequired: false }
   | { ok: false; items: []; loginRequired: boolean; error: string }
 
-export async function scrapeUnreadCollectorInbox(): Promise<ScrapeResult> {
+export async function scrapeUnreadCollectorInbox(opts?: { headless?: boolean }): Promise<ScrapeResult> {
   const profilePath = collectorProfilePath()
 
   try {
-    return await withAuthenticatedContext(profilePath, async (context) => {
+    return await withAuthenticatedContext(
+      profilePath,
+      async (context) => {
       const page = context.pages()[0] ?? (await context.newPage())
       const harvestedReelUrls: string[] = []
       const onRequestUrl = (req: { url: () => string }) => {
@@ -54,7 +66,9 @@ export async function scrapeUnreadCollectorInbox(): Promise<ScrapeResult> {
         page.off('request', onRequestUrl)
         context.off('response', onResponseUrl)
       }
-    })
+    },
+      opts?.headless === undefined ? undefined : { headless: opts.headless },
+    )
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err)
     logger.warn({ msg: 'Collector scrape failed', error: message })
@@ -64,11 +78,11 @@ export async function scrapeUnreadCollectorInbox(): Promise<ScrapeResult> {
 }
 
 async function scrapeInboxPage(page: Page, harvestedReelUrls: string[]): Promise<CollectedReel[]> {
-  await page.goto('https://www.instagram.com/direct/inbox/', {
+  await page.goto('https://www.instagram.com/', {
     waitUntil: 'domcontentloaded',
     timeout: 60_000,
   })
-  await humanPause(2_000, 4_000)
+  await humanPause(1_200, 2_200)
   await dismissInboxPrompts(page)
 
   const challenge = await detectLoginOrChallenge(page)
@@ -77,48 +91,35 @@ async function scrapeInboxPage(page: Page, harvestedReelUrls: string[]): Promise
   }
 
   const items: CollectedReel[] = []
-  const threadIds = parseCollectorThreadIds(config.COLLECTOR_THREAD_IDS)
+  const known = await loadKnownCollectorReelUrls()
+  const used = new Set<string>()
   logger.info({
-    msg: 'Collector configured threads',
-    threadCount: threadIds.length,
-    priorityChat: config.COLLECTOR_PRIORITY_CHAT || null,
+    msg: 'Collector starting search then unread DMs',
+    knownReelCount: known.size,
   })
 
-  for (const threadId of threadIds) {
-    if (items.length >= MAX_REELS) break
-    const mark = harvestedReelUrls.length
-    const opened = await openDirectThread(page, threadId)
-    if (!opened) continue
-    items.push(...(await extractFromOpenThread(page, harvestedReelUrls, mark)))
-  }
+  items.push(...(await harvestSearchReels(page, harvestedReelUrls, known, used)))
 
-  if (threadIds.length === 0) {
-    items.push(...(await scrapeInboxByConversationList(page, harvestedReelUrls, items.length)))
-  }
+  await page.goto('https://www.instagram.com/direct/inbox/', {
+    waitUntil: 'domcontentloaded',
+    timeout: 60_000,
+  })
+  await humanPause(1_200, 2_200)
+  await dismissInboxPrompts(page)
+
+  items.push(
+    ...(await scrapeUnreadChatsOnly(page, harvestedReelUrls, items.length, known, used)),
+  )
 
   return items
 }
 
-async function openDirectThread(page: Page, threadId: string): Promise<boolean> {
-  const url = `https://www.instagram.com/direct/t/${threadId}/`
-  await page.goto(url, { waitUntil: 'domcontentloaded', timeout: 60_000 }).catch(() => undefined)
-  await humanPause(1_500, 2_800)
-  await dismissInboxPrompts(page)
-  const challenge = await detectLoginOrChallenge(page)
-  if (challenge.loginRequired) {
-    throw new Error(challenge.reason ?? challenge.challengeType ?? 'login_required')
-  }
-  if (!page.url().includes('/direct/t/')) {
-    logger.warn({ msg: 'Collector thread did not open', threadId, pageUrl: page.url() })
-    return false
-  }
-  return true
-}
-
-async function scrapeInboxByConversationList(
+async function scrapeUnreadChatsOnly(
   page: Page,
   harvestedReelUrls: string[],
   already: number,
+  known: Set<string>,
+  used: Set<string>,
 ): Promise<CollectedReel[]> {
   const items: CollectedReel[] = []
   const visited = new Set<string>()
@@ -165,8 +166,23 @@ async function scrapeInboxByConversationList(
       break
     }
 
-    const order = orderConversationIndexes(labels, config.COLLECTOR_PRIORITY_CHAT)
-    const nextIndex = order.find((i) => {
+    const unreadIndexes = labels
+      .map((label, i) => i)
+      .filter((i) => isUnreadConversationLabel(labels[i]!))
+    if (pass === 0) {
+      logger.info({
+        msg: 'Collector inbox unread only',
+        url: page.url(),
+        rowCount: labels.length,
+        unreadCount: unreadIndexes.length,
+      })
+    }
+    if (unreadIndexes.length === 0) {
+      logger.info({ msg: 'Collector found no unread chats' })
+      break
+    }
+
+    const nextIndex = unreadIndexes.find((i) => {
       const key = labels[i]!.replace(/\s+/g, ' ').trim().toLowerCase()
       return !visited.has(key)
     })
@@ -185,7 +201,7 @@ async function scrapeInboxByConversationList(
       logger.warn({ msg: 'Collector click did not open a thread', label: labels[nextIndex] })
       continue
     }
-    items.push(...(await extractFromOpenThread(page, harvestedReelUrls, jsonMark)))
+    items.push(...(await extractFromOpenThread(page, harvestedReelUrls, jsonMark, known, used)))
 
     await page
       .goto('https://www.instagram.com/direct/inbox/', {
@@ -370,6 +386,8 @@ async function extractFromOpenThread(
   page: Page,
   harvestedReelUrls: string[],
   jsonMark: number,
+  known: Set<string>,
+  used: Set<string>,
 ): Promise<CollectedReel[]> {
   if (!page.url().includes('/direct/t/')) {
     logger.warn({ msg: 'Collector skipped non-thread page', pageUrl: page.url() })
@@ -378,34 +396,45 @@ async function extractFromOpenThread(
 
   const threadUrl = page.url()
   await dismissInboxPrompts(page)
-  await scrollOpenThread(page)
+  await settleOnLatestMessages(page)
+  await humanIdleMotion(page)
   await dismissInboxPrompts(page)
 
-  const used = new Set<string>()
   const urlsInOrder: string[] = []
   const followingTexts: string[] = []
-  const pendingExtras: string[] = []
   const attempted = new Set<string>()
-  let staleRounds = 0
+  let noCardStreak = 0
 
-  for (let round = 0; round < 40 && urlsInOrder.length < MAX_REELS_PER_THREAD; round++) {
-    await dismissInboxPrompts(page)
-    const before = urlsInOrder.length
-    await harvestVisibleCards(page, {
+  for (let round = 0; round <= MAX_SCROLL_UPS; round++) {
+    const takenBefore = urlsInOrder.length
+    const stats = await harvestVisibleCards(page, {
       threadUrl,
       harvestedReelUrls,
+      known,
       used,
       urlsInOrder,
       followingTexts,
-      pendingExtras,
       attempted,
     })
-    if (urlsInOrder.length === before) staleRounds += 1
-    else staleRounds = 0
-
-    await scrollThreadOlder(page)
-    await humanPause(700, 1_200)
-    if (staleRounds >= 8) break
+    const newThisRound = urlsInOrder.length - takenBefore
+    if (stats.cardCount === 0) noCardStreak += 1
+    else noCardStreak = 0
+    if (
+      shouldStopScrolling({
+        round,
+        maxScroll: MAX_SCROLL_UPS,
+        taken: urlsInOrder.length,
+        maxTaken: MAX_NEW_REELS_PER_THREAD,
+        cardCount: stats.cardCount,
+        noCardStreak,
+        noCardLimit: EMPTY_NO_CARD_ROUNDS,
+        newThisRound,
+        skippedKnownThisRound: stats.skippedKnown,
+      })
+    ) {
+      break
+    }
+    await nudgeOlderMessages(page)
   }
 
   const zipped = zipUrlsWithFollowingText(urlsInOrder, followingTexts)
@@ -437,53 +466,86 @@ async function harvestVisibleCards(
   state: {
     threadUrl: string
     harvestedReelUrls: string[]
+    known: Set<string>
     used: Set<string>
     urlsInOrder: string[]
     followingTexts: string[]
-    pendingExtras: string[]
     attempted: Set<string>
   },
-): Promise<void> {
-  const cards = await listPreviewCards(page)
+): Promise<{ cardCount: number; skippedKnown: number }> {
+  const cards = newestFirst(await listPreviewCards(page))
+  if (cards.length === 0) return { cardCount: 0, skippedKnown: 0 }
 
+  let skippedKnown = 0
   for (const card of cards) {
-    if (state.urlsInOrder.length >= MAX_REELS_PER_THREAD) break
+    if (state.urlsInOrder.length >= MAX_NEW_REELS_PER_THREAD) break
     const fromCardHref = extractInstagramReelUrls(card.href)[0]
     const fingerprint = `${Math.round(card.x / 10)}:${Math.round(card.y / 10)}`
-    if (fromCardHref && state.used.has(fromCardHref)) continue
-    if (!fromCardHref && state.attempted.has(fingerprint)) continue
+    const peek = decideHarvestUrl(fromCardHref, state.known, state.used)
+    if (peek === 'skip') {
+      if (fromCardHref && state.known.has(fromCardHref)) skippedKnown += 1
+      continue
+    }
+    if (state.attempted.has(fingerprint)) continue
 
     const mark = state.harvestedReelUrls.length
-    let assigned = fromCardHref && !state.used.has(fromCardHref) ? fromCardHref : undefined
-    if (!assigned) {
-      await clickPreviewAt(page, card)
-      assigned =
-        (await waitForReelPermalink(
-          page,
-          state.harvestedReelUrls,
-          mark,
-          state.used,
-          state.pendingExtras,
-        )) ?? undefined
-    }
-
-    state.attempted.add(fingerprint)
-    if (assigned && !state.used.has(assigned)) {
-      state.used.add(assigned)
-      state.urlsInOrder.push(assigned)
-      state.followingTexts.push(card.followingText)
-    }
-
-    if (!page.url().includes('/direct/')) {
+    const hrefsBefore = new Set(await visibleReelHrefs(page))
+    await clickPreviewAt(page, card)
+    await page.waitForURL(/\/(reel|reels|p)\//i, { timeout: 8_000 }).catch(() => undefined)
+    const assigned =
+      uniqueUrls(extractInstagramReelUrls(page.url())).find(
+        (url) => !state.used.has(url) && !state.known.has(url),
+      ) ??
+      (await waitForReelPermalink(
+        page,
+        state.harvestedReelUrls,
+        mark,
+        state.used,
+        state.known,
+        hrefsBefore,
+      )) ??
+      fromCardHref
+    if (!page.url().includes('/direct/t/')) {
       await page
         .goto(state.threadUrl, { waitUntil: 'domcontentloaded', timeout: 45_000 })
         .catch(() => undefined)
-      await humanPause(800, 1_400)
+      await humanPause(700, 1_300)
       await dismissInboxPrompts(page)
     } else {
       await page.keyboard.press('Escape').catch(() => undefined)
+      await humanPause(350, 800)
     }
+
+    const decided = decideHarvestUrl(assigned, state.known, state.used)
+    state.attempted.add(fingerprint)
+    if (decided === 'skip' || !assigned) continue
+
+    state.used.add(assigned)
+    state.urlsInOrder.push(assigned)
+    state.followingTexts.push(card.followingText)
+    await humanPause(500, 1_100)
   }
+
+  return { cardCount: cards.length, skippedKnown }
+}
+
+async function visibleReelHrefs(page: Page): Promise<string[]> {
+  const raw = await page
+    .evaluate(() => {
+      const g = globalThis as unknown as {
+        document: {
+          querySelectorAll: (s: string) => ArrayLike<{
+            href?: string
+            getAttribute?: (name: string) => string | null
+          }>
+        }
+      }
+      return Array.from(
+        g.document.querySelectorAll('a[href*="/reel/"], a[href*="/reels/"], a[href*="/p/"]'),
+      ).map((el) => el.href || el.getAttribute?.('href') || '')
+    })
+    .catch(() => [] as string[])
+  return uniqueUrls(raw.flatMap((href) => extractInstagramReelUrls(href)))
 }
 
 async function waitForReelPermalink(
@@ -491,89 +553,47 @@ async function waitForReelPermalink(
   harvestedReelUrls: string[],
   mark: number,
   used: Set<string>,
-  pendingExtras: string[],
+  known: Set<string>,
+  hrefsBefore: Set<string>,
 ): Promise<string | null> {
-  for (let attempt = 0; attempt < 12; attempt++) {
-    const found = uniqueUrls(harvestedReelUrls.slice(mark)).filter(
-      (url) => !used.has(url) && !pendingExtras.includes(url),
-    )
+  const fresh = (url: string) => !used.has(url) && !known.has(url)
+  for (let attempt = 0; attempt < 24; attempt++) {
+    const found = uniqueUrls(harvestedReelUrls.slice(mark)).filter(fresh)
+    if (found[0]) return found[0]
 
-    if (found[0]) {
-      pendingExtras.push(...found.slice(1))
-      return found[0]
+    if (/\/(reel|reels|p)\//i.test(page.url())) {
+      const fromPage = uniqueUrls(extractInstagramReelUrls(page.url()))
+      const freshOne = fromPage.find(fresh)
+      if (freshOne) return freshOne
+      return null
     }
 
-    const fromPage = uniqueUrls(extractInstagramReelUrls(page.url())).filter(
-      (url) => !used.has(url) && !pendingExtras.includes(url),
-    )
-    if (fromPage[0]) return fromPage[0]
-    await humanPause(250, 450)
+    const appeared = (await visibleReelHrefs(page)).filter((url) => fresh(url) && !hrefsBefore.has(url))
+    if (appeared[0]) return appeared[0]
+
+    await humanPause(280, 520)
   }
-  return pendingExtras.shift() ?? null
+  return null
 }
 
-async function scrollThreadOlder(page: Page): Promise<boolean> {
-  const moved = await page
-    .evaluate(() => {
-      const g = globalThis as unknown as {
-        innerWidth: number
-        innerHeight: number
-        document: {
-          elementFromPoint: (x: number, y: number) => {
-            scrollHeight: number
-            clientHeight: number
-            scrollTop: number
-            parentElement: unknown
-          } | null
-        }
-      }
-      const x = Math.round(g.innerWidth * 0.48)
-      const y = Math.round(g.innerHeight * 0.58)
-      let el = g.document.elementFromPoint(x, y)
-      let changed = false
-      for (let hop = 0; hop < 14 && el; hop++) {
-        if (el.scrollHeight > el.clientHeight + 20) {
-          const before = el.scrollTop
-          el.scrollTop = Math.max(0, el.scrollTop - Math.max(200, el.clientHeight * 0.75))
-          if (el.scrollTop < before - 4) changed = true
-        }
-        el = el.parentElement as typeof el
-      }
-      return changed
-    })
-    .catch(() => false)
-  const target = await page
-    .evaluate(() => {
-      const g = globalThis as unknown as { innerWidth: number; innerHeight: number }
-      return { x: Math.round(g.innerWidth * 0.48), y: Math.round(g.innerHeight * 0.58) }
-    })
-    .catch(() => ({ x: 380, y: 420 }))
-  await page.mouse.move(target.x, target.y)
-  await page.mouse.wheel(0, -1600)
-  await page.keyboard.press('PageUp').catch(() => undefined)
-  return Boolean(moved)
+async function settleOnLatestMessages(page: Page): Promise<void> {
+  const viewport = page.viewportSize() ?? { width: 800, height: 720 }
+  const x = Math.round(viewport.width * (0.46 + Math.random() * 0.08))
+  const y = Math.round(viewport.height * (0.58 + Math.random() * 0.1))
+  await page.mouse.move(x, y, { steps: randomInt(10, 22) })
+  await humanPause(350, 800)
+  await page.mouse.wheel(0, randomInt(120, 280))
+  await humanPause(500, 1_000)
 }
 
-async function scrollOpenThread(page: Page): Promise<void> {
-  for (let i = 0; i < 6; i++) {
-    await page
-      .evaluate(() => {
-        const g = globalThis as unknown as {
-          innerWidth: number
-          document: { querySelectorAll: (s: string) => ArrayLike<EvalNode & { clientHeight: number; scrollHeight: number; scrollTop: number }> }
-        }
-        const w = g.innerWidth
-        const minX = Math.min(320, Math.max(48, w * 0.22))
-        const panes = Array.from(g.document.querySelectorAll('[role="main"] div')).filter((el) => {
-          const r = el.getBoundingClientRect()
-          return r.x > minX && r.height > 180 && el.scrollHeight > el.clientHeight + 20
-        })
-        const pane = panes.sort((a, b) => b.clientHeight - a.clientHeight)[0]
-        if (pane) pane.scrollTop = pane.scrollHeight
-      })
-      .catch(() => undefined)
-    await humanPause(400, 800)
-  }
+async function nudgeOlderMessages(page: Page): Promise<void> {
+  const viewport = page.viewportSize() ?? { width: 800, height: 720 }
+  const x = Math.round(viewport.width * (0.46 + Math.random() * 0.08))
+  const y = Math.round(viewport.height * (0.52 + Math.random() * 0.1))
+  await page.mouse.move(x, y, { steps: randomInt(8, 18) })
+  await humanPause(200, 450)
+  await page.mouse.wheel(0, -randomInt(280, 420))
+  await humanPause(400, 700)
 }
 
 type PreviewCard = { x: number; y: number; followingText: string; href: string }
@@ -632,10 +652,10 @@ async function listPreviewCards(page: Page): Promise<PreviewCard[]> {
         const following: string[] = []
         Array.from(g.document.querySelectorAll('[role="main"] span, [role="main"] [dir="auto"]')).forEach((el) => {
           const r = el.getBoundingClientRect()
-          if (r.x < 160 || r.y < item.r.bottom - 4 || r.y >= nextY) return
-          if (r.height > 48) return
+          if (r.x < 140 || r.y < item.r.bottom - 12 || r.y >= nextY + 36) return
+          if (r.height > 72) return
           const t = (el.textContent || '').replace(/\s+/g, ' ').trim()
-          if (!t || t.length > 48) return
+          if (!t || t.length > 80) return
           if (/^(like|reply|seen|sent|new messages|you sent a reel|sent a reel|watch more|instagram)$/i.test(t)) return
           following.push(t)
         })
@@ -722,25 +742,14 @@ async function listPreviewCards(page: Page): Promise<PreviewCard[]> {
 
   if (!scanned) return []
   logger.info({ msg: 'Collector preview scan', ...scanned.debug })
-
-  const merged: PreviewCard[] = [...scanned.cards]
-  for (const item of scanned.paneHrefs) {
-    const href = item.href
-    if (!href) continue
-    if (merged.some((card) => card.href === href)) continue
-    merged.push({
-      x: item.x + 40,
-      y: item.y + 40,
-      followingText: item.followingText ?? '',
-      href,
-    })
-  }
-  merged.sort((a, b) => a.y - b.y)
-  return merged
+  return scanned.cards
 }
 
 async function clickPreviewAt(page: Page, card: PreviewCard): Promise<boolean> {
-  await page.mouse.click(card.x, card.y)
+  await page.mouse.move(card.x, card.y, { steps: randomInt(10, 22) })
+  await humanPause(200, 480)
+  await page.mouse.click(card.x, card.y, { delay: randomInt(60, 160) })
+  await humanPause(400, 900)
   return true
 }
 

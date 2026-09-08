@@ -25,6 +25,7 @@ vi.mock('../src/db/supabaseAdmin', () => ({
                 return Promise.resolve(inboxList()).then(onFulfilled, onRejected)
               },
             }),
+            limit: () => inboxList(),
           }),
           insert: inboxInsert,
           update: () => ({
@@ -212,6 +213,20 @@ describe('persistCollectedReels', () => {
     expect(inboxInsert).not.toHaveBeenCalled()
   })
 
+  it('queues search-harvest reels tagged with collector search origin', async () => {
+    const { persistCollectedReels } = await import('../src/collector/persistCollectedReels')
+    const result = await persistCollectedReels([
+      {
+        sourceUrl: REEL,
+        nearbyText: 'Sports',
+        senderUsername: 'instagram-search',
+        threadId: 'collector:search:sports',
+      },
+    ])
+    expect(result.queued).toBe(1)
+    expect(inboxInsert).toHaveBeenCalled()
+  })
+
   it('rejects reels that were not taken from a Direct thread', async () => {
     const { persistCollectedReels } = await import('../src/collector/persistCollectedReels')
     const result = await persistCollectedReels([
@@ -235,5 +250,15 @@ describe('persistCollectedReels', () => {
     const rejected = await rejectBogusCollectorInboxItems()
     expect(rejected).toBe(1)
     expect(inboxUpdateEq).toHaveBeenCalled()
+  })
+
+  it('loads already-stored reel URLs so a later scrape can skip duplicates', async () => {
+    inboxList.mockResolvedValue({
+      data: [{ normalized_source_url: REEL }],
+      error: null,
+    })
+    const { loadKnownCollectorReelUrls } = await import('../src/collector/persistCollectedReels')
+    const known = await loadKnownCollectorReelUrls()
+    expect(known.has(REEL)).toBe(true)
   })
 })

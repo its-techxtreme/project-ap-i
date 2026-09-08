@@ -10,6 +10,7 @@ import { supabaseAdmin } from '../db/supabaseAdmin'
 import { logger } from '../logging/logger'
 
 import { createQueuedJob, resolveActiveNicheIdBySlug } from './createQueuedJob'
+import { isCollectorSearchOrigin } from './searchNiches'
 
 export type CollectedReel = {
   sourceUrl: string
@@ -27,6 +28,20 @@ export type PersistResult = {
 
 export function isCollectorDirectThread(threadId: string | null | undefined): boolean {
   return typeof threadId === 'string' && /\/direct\/t\/\d{6,}/.test(threadId)
+}
+
+export function isCollectorAllowedOrigin(threadId: string | null | undefined): boolean {
+  return isCollectorDirectThread(threadId) || isCollectorSearchOrigin(threadId)
+}
+
+export async function loadKnownCollectorReelUrls(): Promise<Set<string>> {
+  const { data, error } = await supabaseAdmin
+    .from('collector_inbox_items')
+    .select('normalized_source_url')
+    .limit(3000)
+
+  if (error || !data?.length) return new Set()
+  return new Set(data.map((row) => row.normalized_source_url).filter(Boolean))
 }
 
 export async function rejectBogusCollectorInboxItems(): Promise<number> {
@@ -67,10 +82,11 @@ export async function persistCollectedReels(items: CollectedReel[]): Promise<Per
       continue
     }
 
-    if (!instagramShortcodeFromUrl(prepared.normalizedUrl) || !isCollectorDirectThread(item.threadId)) {
+    if (!instagramShortcodeFromUrl(prepared.normalizedUrl) || !isCollectorAllowedOrigin(item.threadId)) {
       result.invalid += 1
       logger.info({
-        msg: 'Collector skipped non-DM or implausible reel URL',
+        msg: 'Collector skipped disallowed origin or implausible reel URL',
+
         url: prepared.normalizedUrl,
         threadId: item.threadId,
       })
@@ -117,7 +133,7 @@ export async function persistCollectedReels(items: CollectedReel[]): Promise<Per
       const created = await createQueuedJob(supabaseAdmin, {
         sourceUrl: prepared.normalizedUrl,
         nicheId,
-        intake: 'collector_dm',
+        intake: isCollectorSearchOrigin(item.threadId) ? 'collector_search' : 'collector_dm',
         senderUsername: item.senderUsername,
       })
 

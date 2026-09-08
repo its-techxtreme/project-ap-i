@@ -3,7 +3,7 @@ import { getJobById, getNicheSlugById, updateJobStatus, writeJobEvent, writeAudi
 import { createUploadCoordinator } from '../uploaders'
 import { logger } from '../logging/logger'
 
-import { isCollectorUsingChrome } from '../collector/collectorHold'
+import { isCollectorHold, isCollectorUsingChrome } from '../collector/collectorHold'
 import { withUploadConcurrency } from './ConcurrencyGuard'
 import {
   DAILY_UPLOAD_WINDOW_MS,
@@ -26,8 +26,8 @@ function isWithinDailyLimitDeferral(job: {
 }
 
 export async function retryJob(jobId: string, platform?: 'youtube' | 'instagram'): Promise<void> {
-  if (isCollectorUsingChrome()) {
-    logger.info({ msg: 'Retry deferred — collector is using Chrome', jobId, platform })
+  if (isCollectorHold() || isCollectorUsingChrome()) {
+    logger.info({ msg: 'Retry deferred — collector hold is on', jobId, platform })
     return
   }
   return withUploadConcurrency(() => retryJobInner(jobId, platform))
