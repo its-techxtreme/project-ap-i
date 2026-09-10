@@ -25,6 +25,7 @@ import {
 } from './platformMediaIds'
 import type { PlatformUploader, SessionHealth, UploadInput, UploadResult } from './types'
 
+// YouTube Studio upload. Overlay dismiss must not Escape the whole dialog.
 function isLoginRelatedError(message: string): boolean {
   const lower = message.toLowerCase()
   return (
@@ -46,6 +47,7 @@ function loginRequiredResult(errorCode: string, errorMessage: string): UploadRes
 }
 
 async function saveDebugScreenshot(page: import('playwright').Page, jobId: string, label: string): Promise<void> {
+  // Debug PNG only. Never throw out of here.
   try {
     const dir = path.join(config.TMP_DIR, 'playwright-smoke')
     await fs.mkdir(dir, { recursive: true })
@@ -179,7 +181,7 @@ async function clickNotMadeForKidsRadio(page: import('playwright').Page): Promis
             (el.closest && el.closest('tp-yt-paper-radio-button')) ||
             (el.closest && el.closest('ytcp-radio-button')) ||
             el
-          ;(host as { click: () => void }).click()
+          ;(host as unknown as HTMLElement).click()
         })
         return true
       })

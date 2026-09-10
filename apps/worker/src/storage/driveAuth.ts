@@ -103,7 +103,9 @@ function cacheStillValid(probe: DriveAuthProbe): boolean {
 }
 
 /** Build googleapis auth client (service account preferred over user OAuth). */
-export function createDriveGoogleAuth() {
+export function createDriveGoogleAuth():
+  | InstanceType<typeof google.auth.GoogleAuth>
+  | InstanceType<typeof google.auth.OAuth2> {
   const saPath = resolveServiceAccountPath()
   if (saPath) {
     if (!fs.existsSync(saPath)) {

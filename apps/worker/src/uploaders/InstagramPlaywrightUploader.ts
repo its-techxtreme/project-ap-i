@@ -23,6 +23,7 @@ import {
 import { SessionHealthChecker } from './SessionHealthChecker'
 import type { PlatformUploader, SessionHealth, UploadInput, UploadResult } from './types'
 
+// Instagram Reels upload. Session health first; never bypass 2FA or CAPTCHA.
 function isLoginRelatedError(message: string): boolean {
   const lower = message.toLowerCase()
   return (
@@ -44,6 +45,7 @@ function loginRequiredResult(errorCode: string, errorMessage: string): UploadRes
 }
 
 async function saveDebugScreenshot(page: import('playwright').Page, jobId: string, label: string): Promise<void> {
+  // Debug PNG only. Never throw out of here.
   try {
     const dir = path.join(config.TMP_DIR, 'playwright-smoke')
     await fs.mkdir(dir, { recursive: true })
@@ -426,7 +428,7 @@ export class InstagramPlaywrightUploader implements PlatformUploader {
         const liveVideo = page.getByText('Live video', { exact: true }).first()
         if (await liveVideo.isVisible({ timeout: 5_000 }).catch(() => false)) {
           menuClicked = await page
-            .evaluate(() => {
+            .evaluate((): boolean => {
               const all = Array.from(document.querySelectorAll('div, span, a, button, li'))
               const liveEl = all.find((el) => (el.textContent || '').trim() === 'Live video')
               if (!liveEl) return false
@@ -434,8 +436,8 @@ export class InstagramPlaywrightUploader implements PlatformUploader {
               for (let i = 0; i < 8 && root; i++) {
                 const postEl = Array.from(root.querySelectorAll('div, span, a, button, li')).find(
                   (el) => (el.textContent || '').trim() === 'Post',
-                ) as HTMLElement | undefined
-                if (postEl) {
+                )
+                if (postEl instanceof HTMLElement) {
                   postEl.click()
                   return true
                 }
