@@ -2,7 +2,8 @@ import { instagramShortcodeFromUrl } from '@project-api/shared'
 import type { NicheSlug } from '@project-api/shared'
 
 export const SEARCH_REELS_PER_NICHE = 3
-export const MAX_SEARCH_CANDIDATES_PER_NICHE = 18
+export const MAX_SEARCH_CANDIDATES_PER_NICHE = 40
+export const SEARCH_RESULTS_WAIT_MS = 60_000
 
 export type SearchNicheTarget = {
   slug: NicheSlug
@@ -51,4 +52,14 @@ export function isSearchHarvestPage(url: string): boolean {
 export function isSearchResultReelHref(href: string): boolean {
   if (!href || isGlobalReelsFeedUrl(href)) return false
   return Boolean(instagramShortcodeFromUrl(href))
+}
+
+export function searchNicheShortfallMessage(
+  slug: string,
+  query: string,
+  taken: number,
+  needed: number,
+  pageUrl: string,
+): string {
+  return `Collector search failed for ${slug} (query "${query}"): needed ${needed} unique reels, got ${taken}. Page: ${pageUrl}`
 }

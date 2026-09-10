@@ -38,10 +38,11 @@ export function collectorProfilePath(): string {
 
 export type ScrapeResult =
   | { ok: true; items: CollectedReel[]; loginRequired: false }
-  | { ok: false; items: []; loginRequired: boolean; error: string }
+  | { ok: false; items: CollectedReel[]; loginRequired: boolean; error: string }
 
 export async function scrapeUnreadCollectorInbox(opts?: { headless?: boolean }): Promise<ScrapeResult> {
   const profilePath = collectorProfilePath()
+  // Search first, unread DMs second. Search errors still open the inbox.
 
   try {
     return await withAuthenticatedContext(
@@ -71,9 +72,10 @@ export async function scrapeUnreadCollectorInbox(opts?: { headless?: boolean }):
     )
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err)
-    logger.warn({ msg: 'Collector scrape failed', error: message })
+    const collected = (err as Error & { collectedItems?: CollectedReel[] }).collectedItems ?? []
+    logger.warn({ msg: 'Collector scrape failed', error: message, itemCount: collected.length })
     const loginRequired = /login|2fa|captcha|challenge|profile/i.test(message)
-    return { ok: false, items: [], loginRequired, error: message }
+    return { ok: false, items: collected, loginRequired, error: message }
   }
 }
 
@@ -98,7 +100,15 @@ async function scrapeInboxPage(page: Page, harvestedReelUrls: string[]): Promise
     knownReelCount: known.size,
   })
 
-  items.push(...(await harvestSearchReels(page, harvestedReelUrls, known, used)))
+  let searchError: string | null = null
+  try {
+    items.push(...(await harvestSearchReels(page, harvestedReelUrls, known, used)))
+  } catch (err) {
+    const failed = err as Error & { collectedItems?: CollectedReel[] }
+    if (failed.collectedItems?.length) items.push(...failed.collectedItems)
+    searchError = failed.message || String(err)
+    logger.error({ msg: 'Collector search failed', error: searchError, pageUrl: page.url() })
+  }
 
   await page.goto('https://www.instagram.com/direct/inbox/', {
     waitUntil: 'domcontentloaded',
@@ -107,9 +117,21 @@ async function scrapeInboxPage(page: Page, harvestedReelUrls: string[]): Promise
   await humanPause(1_200, 2_200)
   await dismissInboxPrompts(page)
 
-  items.push(
-    ...(await scrapeUnreadChatsOnly(page, harvestedReelUrls, items.length, known, used)),
-  )
+  try {
+    items.push(
+      ...(await scrapeUnreadChatsOnly(page, harvestedReelUrls, items.length, known, used)),
+    )
+  } catch (err) {
+    const inboxError = err instanceof Error ? err.message : String(err)
+    logger.error({ msg: 'Collector unread DM harvest failed', error: inboxError, pageUrl: page.url() })
+    searchError = searchError ? `${searchError} | ${inboxError}` : inboxError
+  }
+
+  if (searchError) {
+    const err = new Error(searchError) as Error & { collectedItems: CollectedReel[] }
+    err.collectedItems = items
+    throw err
+  }
 
   return items
 }
@@ -389,6 +411,7 @@ async function extractFromOpenThread(
   known: Set<string>,
   used: Set<string>,
 ): Promise<CollectedReel[]> {
+  // Stay in this thread. Newest first, then scroll up until history or the cap.
   if (!page.url().includes('/direct/t/')) {
     logger.warn({ msg: 'Collector skipped non-thread page', pageUrl: page.url() })
     return []
@@ -473,6 +496,7 @@ async function harvestVisibleCards(
     attempted: Set<string>
   },
 ): Promise<{ cardCount: number; skippedKnown: number }> {
+  // Click a preview, take a permalink, then come back to the thread.
   const cards = newestFirst(await listPreviewCards(page))
   if (cards.length === 0) return { cardCount: 0, skippedKnown: 0 }
 
@@ -556,6 +580,7 @@ async function waitForReelPermalink(
   known: Set<string>,
   hrefsBefore: Set<string>,
 ): Promise<string | null> {
+  // Prefer a URL that appeared after the click, not leftovers from the last reel.
   const fresh = (url: string) => !used.has(url) && !known.has(url)
   for (let attempt = 0; attempt < 24; attempt++) {
     const found = uniqueUrls(harvestedReelUrls.slice(mark)).filter(fresh)
@@ -577,6 +602,7 @@ async function waitForReelPermalink(
 }
 
 async function settleOnLatestMessages(page: Page): Promise<void> {
+  // Nudge the thread so the latest reel previews are actually on screen.
   const viewport = page.viewportSize() ?? { width: 800, height: 720 }
   const x = Math.round(viewport.width * (0.46 + Math.random() * 0.08))
   const y = Math.round(viewport.height * (0.58 + Math.random() * 0.1))
@@ -587,6 +613,7 @@ async function settleOnLatestMessages(page: Page): Promise<void> {
 }
 
 async function nudgeOlderMessages(page: Page): Promise<void> {
+  // Scroll toward older messages. Stop when harvestPolicy says we hit known history.
   const viewport = page.viewportSize() ?? { width: 800, height: 720 }
   const x = Math.round(viewport.width * (0.46 + Math.random() * 0.08))
   const y = Math.round(viewport.height * (0.52 + Math.random() * 0.1))
@@ -598,6 +625,7 @@ async function nudgeOlderMessages(page: Page): Promise<void> {
 
 type PreviewCard = { x: number; y: number; followingText: string; href: string }
 
+// Thread pane only: size the media, collapse stacked tiles, grab caption text under each.
 async function listPreviewCards(page: Page): Promise<PreviewCard[]> {
   const scanned = await page
     .evaluate(() => {
@@ -625,6 +653,7 @@ async function listPreviewCards(page: Page): Promise<PreviewCard[]> {
           }>
         }
       }
+      // Skip the inbox chrome; cards live below this.
       const headerBottom = 110
       const w = g.innerWidth
       const minX = Math.min(320, Math.max(48, w * 0.22))
@@ -640,6 +669,7 @@ async function listPreviewCards(page: Page): Promise<PreviewCard[]> {
         .filter((x) => x.r.width >= 70 && x.r.height >= 70 && x.r.x > 160)
         .sort((a, b) => a.r.y - b.r.y)
 
+      // One card per Y-band so a reel preview is not counted twice.
       const cards: typeof media = []
       for (const item of media) {
         const last = cards[cards.length - 1]
@@ -684,6 +714,7 @@ async function listPreviewCards(page: Page): Promise<PreviewCard[]> {
         }
       })
 
+      // Same pane, but from reel links if the img/video pass missed a card.
       const paneHrefs = Array.from(
         g.document.querySelectorAll('a[href*="/reel/"], a[href*="/reels/"], a[href*="/p/"]'),
       )
@@ -746,6 +777,7 @@ async function listPreviewCards(page: Page): Promise<PreviewCard[]> {
 }
 
 async function clickPreviewAt(page: Page, card: PreviewCard): Promise<boolean> {
+  // Human-ish move, then click the tile we already measured.
   await page.mouse.move(card.x, card.y, { steps: randomInt(10, 22) })
   await humanPause(200, 480)
   await page.mouse.click(card.x, card.y, { delay: randomInt(60, 160) })

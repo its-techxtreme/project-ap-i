@@ -185,7 +185,7 @@ Rules:
 
 ## Instagram collector (same worker process)
 
-Enabled only when `COLLECTOR_ENABLED=true` on the laptop. On worker start and every `COLLECTOR_INTERVAL_MS` (default 3 hours):
+Enabled only when `COLLECTOR_ENABLED=true` on the laptop. Admin can also set `collector_armed` false in Chart / Unsorted cargo so the worker stays up but Chrome does not scrape. On worker start and every `COLLECTOR_INTERVAL_MS` (default 3 hours), the collector may run **at most twice per local calendar day**. Further boots or 3-hour ticks that day are skipped. A scrape that actually starts (pipeline idle, Chrome opens) counts even if Instagram later fails. Pipeline-busy skips do not count.
 
 1. Set claim hold so n8n cannot lock a new queued job.
 2. Wait until FFmpeg/upload queues are empty and no in-flight / ready-to-upload job remains.

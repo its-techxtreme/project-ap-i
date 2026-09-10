@@ -12,10 +12,12 @@ import {
   COLLECTOR_SEARCH_TARGETS,
   MAX_SEARCH_CANDIDATES_PER_NICHE,
   SEARCH_REELS_PER_NICHE,
+  SEARCH_RESULTS_WAIT_MS,
   collectorSearchThreadId,
   isGlobalReelsFeedUrl,
   isSearchHarvestPage,
   isSearchResultReelHref,
+  searchNicheShortfallMessage,
   type SearchNicheTarget,
 } from './searchNiches'
 
@@ -26,22 +28,34 @@ export async function harvestSearchReels(
   used: Set<string>,
 ): Promise<CollectedReel[]> {
   const items: CollectedReel[] = []
+  const failures: string[] = []
+  // Sports, then anime, then memes. A shortfall is an error, not a skip.
   for (const target of COLLECTOR_SEARCH_TARGETS) {
     const found = await harvestOneSearchNiche(page, harvestedReelUrls, known, used, target)
     items.push(...found)
-    if (found.length === 0) {
-      logger.warn({
-        msg: 'Collector search found no reels for niche',
-        slug: target.slug,
-        query: target.query,
-      })
-    }
     logger.info({
       msg: 'Collector search niche done',
       slug: target.slug,
       query: target.query,
       taken: found.length,
+      needed: SEARCH_REELS_PER_NICHE,
     })
+    if (found.length < SEARCH_REELS_PER_NICHE) {
+      const detail = searchNicheShortfallMessage(
+        target.slug,
+        target.query,
+        found.length,
+        SEARCH_REELS_PER_NICHE,
+        page.url(),
+      )
+      logger.error({ msg: 'Collector search niche shortfall', detail, pageUrl: page.url() })
+      failures.push(detail)
+    }
+  }
+  if (failures.length > 0) {
+    const err = new Error(failures.join(' | ')) as Error & { collectedItems: CollectedReel[] }
+    err.collectedItems = items
+    throw err
   }
   return items
 }
@@ -55,133 +69,81 @@ async function harvestOneSearchNiche(
 ): Promise<CollectedReel[]> {
   const taken: CollectedReel[] = []
   const attempted = new Set<string>()
-  const opened = await openSearchReels(page, target.query)
-  if (!opened) return taken
+  await runKeywordSearch(page, target.query)
 
+  // Tile hrefs are enough. Opening each reel used to leave us on /reel/
+  // while the global Search box was still visible, so the next niche ran empty.
   for (let i = 0; i < MAX_SEARCH_CANDIDATES_PER_NICHE && taken.length < SEARCH_REELS_PER_NICHE; i++) {
-    if (!isSearchHarvestPage(page.url()) || isGlobalReelsFeedUrl(page.url())) {
-      logger.warn({
-        msg: 'Collector search left the results page — stopping this niche',
-        slug: target.slug,
-        pageUrl: page.url(),
-      })
-      break
-    }
-
     const hrefs = (await listSearchReelHrefs(page)).filter(
       (url) => !known.has(url) && !used.has(url) && !attempted.has(url),
     )
-    const next = hrefs[0]
-    if (!next) {
+    if (hrefs.length === 0) {
+      await waitForSearchReelTiles(page, SEARCH_REELS_PER_NICHE, 12_000)
       await page.mouse.wheel(0, randomInt(240, 480))
-      await humanPause(500, 900)
+      await humanPause(1_200, 2_000)
       continue
     }
-    attempted.add(next)
 
-    const code = instagramShortcodeFromUrl(next)
-    if (!code) continue
-    const tile = page.locator(`a[href*="/reel/${code}"], a[href*="/reels/${code}"], a[href*="/p/${code}"]`).first()
-    if (!(await tile.isVisible({ timeout: 2_000 }).catch(() => false))) continue
-
-    const resultsUrl = page.url()
-    await tile.click({ timeout: 8_000 }).catch(() => undefined)
-    await page.waitForURL(/\/(reel|reels|p)\/[A-Za-z0-9_-]{11}/i, { timeout: 8_000 }).catch(() => undefined)
-    await humanPause(400, 800)
-
-    const openedCode = instagramShortcodeFromUrl(page.url())
-    const stillOnResults = isSearchHarvestPage(page.url()) && !openedCode
-    const matchedTile = openedCode === code
-    const landedOnFeed = isGlobalReelsFeedUrl(page.url())
-    await page.goto(resultsUrl, { waitUntil: 'domcontentloaded', timeout: 45_000 }).catch(() => undefined)
-    await humanPause(500, 900)
-    await dismissSoftPrompts(page)
-
-    if (landedOnFeed || (!matchedTile && !stillOnResults)) continue
-    const assigned = `https://www.instagram.com/reel/${code}/`
-    if (known.has(assigned) || used.has(assigned)) continue
-    used.add(assigned)
-    known.add(assigned)
-    taken.push({
-      sourceUrl: assigned,
-      nearbyText: target.nearbyText,
-      senderUsername: 'instagram-search',
-      threadId: collectorSearchThreadId(target.slug),
-    })
+    for (const next of hrefs) {
+      if (taken.length >= SEARCH_REELS_PER_NICHE) break
+      attempted.add(next)
+      const code = instagramShortcodeFromUrl(next)
+      if (!code) continue
+      const assigned = `https://www.instagram.com/reel/${code}/`
+      if (known.has(assigned) || used.has(assigned)) continue
+      used.add(assigned)
+      known.add(assigned)
+      taken.push({
+        sourceUrl: assigned,
+        nearbyText: target.nearbyText,
+        senderUsername: 'instagram-search',
+        threadId: collectorSearchThreadId(target.slug),
+      })
+    }
   }
 
   return taken
 }
 
-async function openSearchReels(page: Page, query: string): Promise<boolean> {
-  await dismissSoftPrompts(page)
+async function runKeywordSearch(page: Page, query: string): Promise<void> {
   const encoded = encodeURIComponent(query)
-
-  await page
-    .goto(`https://www.instagram.com/explore/search/keyword/?q=${encoded}`, {
-      waitUntil: 'domcontentloaded',
-      timeout: 60_000,
-    })
-    .catch(() => undefined)
-  await humanPause(800, 1_400)
-  await dismissSoftPrompts(page)
-  if (isGlobalReelsFeedUrl(page.url())) return false
-  await clickReelsFilterInSearchMain(page)
-  if (isGlobalReelsFeedUrl(page.url())) {
-    logger.warn({ msg: 'Collector search hit the Reels feed, backing off', query, pageUrl: page.url() })
-    return false
-  }
-  if (isSearchHarvestPage(page.url()) && (await listSearchReelHrefs(page)).length > 0) return true
-
   const tag = encodeURIComponent(query.trim().replace(/^#/, '').replace(/\s+/g, ''))
-  await page
-    .goto(`https://www.instagram.com/explore/tags/${tag}/`, {
-      waitUntil: 'domcontentloaded',
-      timeout: 60_000,
-    })
-    .catch(() => undefined)
-  await humanPause(800, 1_400)
-  await dismissSoftPrompts(page)
-  await clickReelsFilterInSearchMain(page)
-  if (isGlobalReelsFeedUrl(page.url())) {
-    logger.warn({ msg: 'Collector search hit the Reels feed, backing off', query, pageUrl: page.url() })
-    return false
-  }
-
-  if (isSearchHarvestPage(page.url()) && (await listSearchReelHrefs(page)).length > 0) return true
-
-  await page
-    .goto(`https://www.instagram.com/popular/${tag}/`, {
-      waitUntil: 'domcontentloaded',
-      timeout: 60_000,
-    })
-    .catch(() => undefined)
-  await humanPause(800, 1_400)
-  await dismissSoftPrompts(page)
-  if (isGlobalReelsFeedUrl(page.url()) || !isSearchHarvestPage(page.url())) {
+  const urls = [
+    `https://www.instagram.com/explore/search/keyword/?q=${encoded}`,
+    `https://www.instagram.com/explore/tags/${tag}/`,
+    `https://www.instagram.com/popular/${tag}/`,
+  ]
+  for (const url of urls) {
+    await page.goto(url, { waitUntil: 'domcontentloaded', timeout: 60_000 }).catch(() => undefined)
+    await humanPause(1_800, 2_800)
+    await dismissSoftPrompts(page)
+    if (isGlobalReelsFeedUrl(page.url())) {
+      logger.error({ msg: 'Collector search hit the Reels feed', query, pageUrl: page.url() })
+      continue
+    }
+    await clickReelsFilterInSearchMain(page)
+    if (isGlobalReelsFeedUrl(page.url()) || !isSearchHarvestPage(page.url())) continue
+    const hrefs = await waitForSearchReelTiles(page, SEARCH_REELS_PER_NICHE, SEARCH_RESULTS_WAIT_MS)
+    if (hrefs.length >= SEARCH_REELS_PER_NICHE) {
+      logger.info({
+        msg: 'Collector search tiles ready',
+        query,
+        url,
+        tileCount: hrefs.length,
+      })
+      return
+    }
     logger.warn({
-      msg: 'Collector search never reached a results page',
+      msg: 'Collector search page still short of reel tiles after waiting',
       query,
+      url,
       pageUrl: page.url(),
+      tileCount: hrefs.length,
+      needed: SEARCH_REELS_PER_NICHE,
+      waitedMs: SEARCH_RESULTS_WAIT_MS,
     })
-    return false
   }
-  return (await listSearchReelHrefs(page)).length > 0
-}
-
-async function clickReelsFilterInSearchMain(page: Page): Promise<void> {
-  const main = page.locator('main')
-  const tabs = main.locator('[role="tab"], a, button').filter({ hasText: /^reels$/i })
-  const count = await tabs.count().catch(() => 0)
-  for (let i = 0; i < count; i++) {
-    const tab = tabs.nth(i)
-    if (!(await tab.isVisible({ timeout: 800 }).catch(() => false))) continue
-    const href = (await tab.getAttribute('href').catch(() => null)) ?? ''
-    if (href && isGlobalReelsFeedUrl(new URL(href, 'https://www.instagram.com').toString())) continue
-    await tab.click({ timeout: 4_000 }).catch(() => undefined)
-    await humanPause(700, 1_200)
-    return
-  }
+  logger.error({ msg: 'Collector search never found reel tiles', query, pageUrl: page.url() })
 }
 
 async function listSearchReelHrefs(page: Page): Promise<string[]> {
@@ -193,12 +155,50 @@ async function listSearchReelHrefs(page: Page): Promise<string[]> {
           querySelectorAll: (s: string) => ArrayLike<{ href?: string; getAttribute?: (n: string) => string | null }>
         }
       }
-      return Array.from(g.document.querySelectorAll('main a[href*="/reel/"], main a[href*="/reels/"], main a[href*="/p/"]')).map(
-        (el) => el.href || el.getAttribute?.('href') || '',
-      )
+      // Stay inside main so the left-nav Reels link never counts as a tile.
+      return Array.from(
+        g.document.querySelectorAll('main a[href*="/reel/"], main a[href*="/reels/"], main a[href*="/p/"]'),
+      ).map((el) => el.href || el.getAttribute?.('href') || '')
     })
     .catch(() => [] as string[])
   return uniqueUrls(raw.flatMap((href) => extractInstagramReelUrls(href))).filter(isSearchResultReelHref)
+}
+
+async function waitForSearchReelTiles(
+  page: Page,
+  minCount: number,
+  timeoutMs: number,
+): Promise<string[]> {
+  const deadline = Date.now() + timeoutMs
+  let hrefs = await listSearchReelHrefs(page)
+  while (Date.now() < deadline) {
+    if (hrefs.length >= minCount) return hrefs
+    await page
+      .locator('main a[href*="/reel/"]')
+      .first()
+      .waitFor({ state: 'visible', timeout: 4_000 })
+      .catch(() => undefined)
+    hrefs = await listSearchReelHrefs(page)
+    if (hrefs.length >= minCount) return hrefs
+    await page.mouse.wheel(0, randomInt(200, 400))
+    await humanPause(2_000, 3_200)
+    hrefs = await listSearchReelHrefs(page)
+  }
+  return hrefs
+}
+
+async function clickReelsFilterInSearchMain(page: Page): Promise<void> {
+  const tabs = page.locator('main [role="tab"], main a, main button').filter({ hasText: /^reels$/i })
+  const count = await tabs.count().catch(() => 0)
+  for (let i = 0; i < count; i++) {
+    const tab = tabs.nth(i)
+    if (!(await tab.isVisible({ timeout: 800 }).catch(() => false))) continue
+    const href = (await tab.getAttribute('href').catch(() => null)) ?? ''
+    if (href && isGlobalReelsFeedUrl(new URL(href, 'https://www.instagram.com').toString())) continue
+    await tab.click({ timeout: 4_000 }).catch(() => undefined)
+    await humanPause(2_000, 3_500)
+    return
+  }
 }
 
 async function dismissSoftPrompts(page: Page): Promise<void> {

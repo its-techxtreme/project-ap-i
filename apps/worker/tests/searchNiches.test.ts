@@ -8,6 +8,7 @@ import {
   isGlobalReelsFeedUrl,
   isSearchHarvestPage,
   isSearchResultReelHref,
+  searchNicheShortfallMessage,
 } from '../src/collector/searchNiches'
 
 describe('collector search niches', () => {
@@ -37,5 +38,17 @@ describe('collector search niches', () => {
     )
     expect(isSearchHarvestPage('https://www.instagram.com/explore/tags/anime/')).toBe(true)
     expect(isSearchResultReelHref('https://www.instagram.com/reel/AbC123xyzAB/')).toBe(true)
+  })
+
+  it('explains a niche shortfall without swallowing it', () => {
+    expect(
+      searchNicheShortfallMessage(
+        'sports',
+        'sport',
+        1,
+        3,
+        'https://www.instagram.com/explore/search/keyword/?q=sport',
+      ),
+    ).toContain('needed 3 unique reels, got 1')
   })
 })

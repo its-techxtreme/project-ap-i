@@ -155,7 +155,7 @@ pnpm --filter @project-api/worker smoke:playwright -- --login --profile memes-yt
 pnpm --filter @project-api/worker smoke:playwright -- --login --profile ig-collector
 ```
 
-Collector uses a dedicated `ig-collector` Chrome profile (not a niche upload account). Set `COLLECTOR_ENABLED=true` on the laptop `.env` only, then restart the worker. Each collector pass searches sports / anime / memes for three new unique reels each, then checks unread DMs only and closes Chrome. Playwright Chrome is muted. If Instagram asks for 2FA or CAPTCHA, complete it yourself in the login window — never automate a bypass. Mark the collector pass as `loginRequired` and continue the upload queue.
+Collector uses a dedicated `ig-collector` Chrome profile (not a niche upload account). Set `COLLECTOR_ENABLED=true` on the laptop `.env` only, then restart the worker. Unsorted cargo has an On/Off switch (`collector_armed`) to pause scraping without stopping the worker. Boot and 3-hour ticks still happen, but only two scrapes per local day actually open Chrome. Each collector pass searches sports / anime / memes for three new unique reels each, then checks unread DMs only and closes Chrome. Playwright Chrome is muted. If Instagram asks for 2FA or CAPTCHA, complete it yourself in the login window — never automate a bypass. Mark the collector pass as `loginRequired` and continue the upload queue.
 
 See `apps/worker/scripts/smoke-playwright.ts`. **Never commit profiles or cookies.**
 

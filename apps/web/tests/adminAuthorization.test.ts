@@ -27,6 +27,7 @@ vi.mock('@/lib/data/adminQueries', () => ({
   getFailedJobs: (...args: unknown[]) => getFailedJobsMock(...args),
   getPlatformAccounts: (...args: unknown[]) => getPlatformAccountsMock(...args),
   getPendingCollectorInbox: (...args: unknown[]) => getPendingCollectorInboxMock(...args),
+  getSystemSettings: vi.fn().mockResolvedValue({}),
   getActiveNiches: vi.fn().mockResolvedValue([]),
 }))
 
@@ -38,6 +39,9 @@ vi.mock('@/components/admin/RecentActivityTimeline', () => ({
 }))
 vi.mock('@/components/admin/AdminAutoRefresh', () => ({
   AdminAutoRefresh: () => null,
+}))
+vi.mock('@/components/admin/CollectorArmedToggle', () => ({
+  CollectorArmedToggle: () => null,
 }))
 vi.mock('@/components/admin/JobsTable', () => ({
   JobsTable: () => null,

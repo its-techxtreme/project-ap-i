@@ -7,6 +7,8 @@ export type CollectorSnapshot = {
   loginRequired: boolean
   lastError: string | null
   running: boolean
+  armed: boolean
+  runsToday: number
 }
 
 export const collectorSnapshot: CollectorSnapshot = {
@@ -18,6 +20,8 @@ export const collectorSnapshot: CollectorSnapshot = {
   loginRequired: false,
   lastError: null,
   running: false,
+  armed: true,
+  runsToday: 0,
 }
 
 export function getCollectorSnapshot(): CollectorSnapshot {

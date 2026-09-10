@@ -20,6 +20,7 @@ const DISPLAY_KEYS = [
   'youtube_uploads_enabled',
   'instagram_uploads_enabled',
   'collector_enabled',
+  'collector_armed',
   'collector_interval_ms',
 ] as const
 

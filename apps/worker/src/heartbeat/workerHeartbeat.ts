@@ -3,7 +3,8 @@ import { supabaseAdmin } from '../db/supabaseAdmin'
 import { logger } from '../logging/logger'
 import { probeDriveAuth } from '../storage/driveAuth'
 
-import { getCollectorSnapshot } from '../collector/collectorState'
+import { pullCollectorControl } from '../collector/collectorControl'
+import { collectorSnapshot, getCollectorSnapshot } from '../collector/collectorState'
 import { buildChartSettingsSnapshot } from './chartSettings'
 
 export const WORKER_HEARTBEAT_KEY = 'worker_heartbeat'
@@ -25,6 +26,8 @@ export type WorkerHeartbeatValue = {
     lastPendingNiche: number
     loginRequired: boolean
     running: boolean
+    armed?: boolean
+    runsToday?: number
   }
 }
 
@@ -47,6 +50,17 @@ async function syncChartSettings(): Promise<void> {
 }
 
 async function writeHeartbeat(ok: boolean, driveOk: boolean): Promise<void> {
+  try {
+    const control = await pullCollectorControl()
+    collectorSnapshot.armed = control.armed
+    collectorSnapshot.runsToday = control.daily.runs.length
+  } catch (err) {
+    logger.warn({
+      msg: 'Collector control refresh failed',
+      err: err instanceof Error ? err.message : String(err),
+    })
+  }
+
   const value: WorkerHeartbeatValue = {
     at: new Date().toISOString(),
     ok,
