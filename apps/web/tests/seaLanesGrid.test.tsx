@@ -17,8 +17,8 @@ const niches: NicheMappingRow[] = [
     youtube: {
       account_label: 'Anime YT',
       status: 'active',
-      handle: 'ShonenSnaps',
-      profile_url: 'https://www.youtube.com/@ShonenSnaps',
+      handle: 'theshonensnaps',
+      profile_url: 'https://www.youtube.com/@theshonensnaps',
       display_name: 'ShonenSnaps',
       description: 'Anime shorts channel',
       avatar_url: null,
@@ -26,8 +26,8 @@ const niches: NicheMappingRow[] = [
     instagram: {
       account_label: 'Anime IG',
       status: 'active',
-      handle: 'ShonenSnaps',
-      profile_url: 'https://www.instagram.com/ShonenSnaps/',
+      handle: 'theshonensnaps',
+      profile_url: 'https://www.instagram.com/theshonensnaps/',
       display_name: 'Manga',
       description: '1 Followers, 43 Following',
       avatar_url: null,
@@ -45,7 +45,7 @@ describe('SeaLanesGrid', () => {
     expect(screen.getByText(/slug · anime/i)).toBeTruthy()
     expect(screen.getByText('ShonenSnaps')).toBeTruthy()
     expect(screen.getByText('Manga')).toBeTruthy()
-    expect(screen.getAllByText('@ShonenSnaps').length).toBeGreaterThanOrEqual(1)
+    expect(screen.getAllByText('@theshonensnaps').length).toBeGreaterThanOrEqual(1)
     expect(screen.getByText('Anime shorts channel')).toBeTruthy()
     expect(screen.getAllByRole('link', { name: /open profile/i })).toHaveLength(2)
     expect(screen.getAllByText('active').length).toBeGreaterThanOrEqual(2)

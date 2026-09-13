@@ -8,7 +8,7 @@ import {
 
 describe('fetchPlatformProfile helpers', () => {
   it('maps niche brand handles as fallbacks', () => {
-    expect(DEFAULT_NICHE_HANDLES.anime).toBe('ShonenSnaps')
+    expect(DEFAULT_NICHE_HANDLES.anime).toBe('theshonensnaps')
     expect(DEFAULT_NICHE_HANDLES.memes).toBe('CrackleCrumb')
     expect(DEFAULT_NICHE_HANDLES.sports).toBe('ScoreMorsel')
   })
@@ -19,13 +19,13 @@ describe('fetchPlatformProfile helpers', () => {
   })
 
   it('falls back to niche brand when hint missing', () => {
-    expect(resolveProfileHandle('youtube', null, 'anime')).toBe('ShonenSnaps')
+    expect(resolveProfileHandle('youtube', null, 'anime')).toBe('theshonensnaps')
     expect(resolveProfileHandle('instagram', '', 'sports')).toBe('ScoreMorsel')
     expect(resolveProfileHandle('instagram', null, 'memes')).toBe('thecracklecrumb')
   })
 
   it('builds canonical profile URLs', () => {
-    expect(profileUrlFor('youtube', 'ShonenSnaps')).toBe('https://www.youtube.com/@ShonenSnaps')
+    expect(profileUrlFor('youtube', 'theshonensnaps')).toBe('https://www.youtube.com/@theshonensnaps')
     expect(profileUrlFor('instagram', '@ScoreMorsel')).toBe(
       'https://www.instagram.com/ScoreMorsel/',
     )

@@ -11,9 +11,9 @@ export type LivePlatformProfile = {
   fetched: boolean
 }
 
-/** Niche brand handles used when username_hint is empty (matches YT c-text brands). */
+/** Anime public @ is theshonensnaps. Overlay brand on YT is still ShonenSnaps. */
 export const DEFAULT_NICHE_HANDLES: Record<string, string> = {
-  anime: 'ShonenSnaps',
+  anime: 'theshonensnaps',
   memes: 'CrackleCrumb',
   sports: 'ScoreMorsel',
 }
