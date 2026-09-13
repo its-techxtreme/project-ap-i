@@ -4,9 +4,8 @@ import { revalidatePath } from 'next/cache'
 
 import { requireAdminWrite } from '@/lib/auth/requireAdmin'
 import { getAdminUsername } from '@/lib/auth/getUserRole'
+import { COLLECTOR_ARMED_KEY } from '@/lib/admin/collectorCrew'
 import { supabaseAdmin } from '@/lib/supabase/admin'
-
-export const COLLECTOR_ARMED_KEY = 'collector_armed'
 
 export type SetCollectorArmedResult =
   | { success: true; armed: boolean }

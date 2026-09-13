@@ -1,5 +1,6 @@
 export const COLLECTOR_CREW_ACCOUNT_ID = 'collector-ig'
 export const COLLECTOR_LOGIN_SETTING_KEY = 'collector_login_required'
+export const COLLECTOR_ARMED_KEY = 'collector_armed'
 
 export function parseCollectorLoginFlag(value: unknown): boolean {
   if (typeof value === 'boolean') return value
