@@ -43,6 +43,14 @@ export function profileUrlFor(platform: PlatformKind, handle: string): string {
   return `https://www.instagram.com/${clean}/`
 }
 
+/** Niche IG and YT are the same brand so Sea lanes reuses the YouTube pfp. */
+export function reuseYoutubeAvatar(
+  youtubeAvatar: string | null | undefined,
+  instagramAvatar: string | null | undefined,
+): string | null {
+  return youtubeAvatar ?? instagramAvatar ?? null
+}
+
 function decodeEntities(raw: string): string {
   return raw
     .replace(/&#x([0-9a-f]+);/gi, (_, hex: string) => String.fromCodePoint(parseInt(hex, 16)))

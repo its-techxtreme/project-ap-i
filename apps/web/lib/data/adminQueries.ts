@@ -686,6 +686,7 @@ export async function getNicheAccountMappings(): Promise<NicheMappingRow[]> {
     getLivePlatformProfile,
     profileUrlFor,
     resolveProfileHandle,
+    reuseYoutubeAvatar,
   } = await import('@/lib/data/fetchPlatformProfile')
 
   return Promise.all(
@@ -723,10 +724,16 @@ export async function getNicheAccountMappings(): Promise<NicheMappingRow[]> {
         }
       }
 
-      const [youtube, instagram] = await Promise.all([
+      const [youtube, instagramRaw] = await Promise.all([
         enrich('youtube', yt),
         enrich('instagram', ig),
       ])
+      const instagram = instagramRaw
+        ? {
+            ...instagramRaw,
+            avatar_url: reuseYoutubeAvatar(youtube?.avatar_url, instagramRaw.avatar_url),
+          }
+        : null
 
       return {
         id: niche.id,

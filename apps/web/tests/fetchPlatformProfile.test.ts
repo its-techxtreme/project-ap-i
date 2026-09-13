@@ -4,6 +4,7 @@ import {
   DEFAULT_NICHE_HANDLES,
   profileUrlFor,
   resolveProfileHandle,
+  reuseYoutubeAvatar,
 } from '@/lib/data/fetchPlatformProfile'
 
 describe('fetchPlatformProfile helpers', () => {
@@ -29,5 +30,13 @@ describe('fetchPlatformProfile helpers', () => {
     expect(profileUrlFor('instagram', '@ScoreMorsel')).toBe(
       'https://www.instagram.com/ScoreMorsel/',
     )
+  })
+
+  it('reuses the youtube pfp on instagram when both exist', () => {
+    expect(reuseYoutubeAvatar('https://yt.example/a.jpg', 'https://ig.example/b.jpg')).toBe(
+      'https://yt.example/a.jpg',
+    )
+    expect(reuseYoutubeAvatar(null, 'https://ig.example/b.jpg')).toBe('https://ig.example/b.jpg')
+    expect(reuseYoutubeAvatar(undefined, null)).toBe(null)
   })
 })
