@@ -4,7 +4,7 @@ import { SeaLanesGrid } from '@/components/desk/SeaLanesGrid'
 import { requireAdmin } from '@/lib/auth/requireAdmin'
 import { getCollectorLaneCard, getNicheAccountMappings } from '@/lib/data/adminQueries'
 
-export const revalidate = 3600
+export const dynamic = 'force-dynamic'
 
 export default async function AdminNichesPage() {
   await requireAdmin()
