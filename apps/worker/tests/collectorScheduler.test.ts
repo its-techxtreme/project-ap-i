@@ -40,6 +40,7 @@ vi.mock('../src/collector/collectorControl', () => ({
   pullCollectorControl: () => pullCollectorControl(),
   collectorMayRun: (control: unknown) => collectorMayRun(control),
   markCollectorRunUsed: (daily: unknown) => markCollectorRunUsed(daily),
+  persistCollectorLoginRequired: () => Promise.resolve(),
 }))
 
 vi.mock('../src/logging/logger', () => ({

@@ -10,6 +10,8 @@ import { getJobDetail } from '@/lib/data/adminQueries'
 import { formatRelativeTime, shortId } from '@/lib/format/relativeTime'
 import { pickLatestSuccessfulUpload, resolveUploadHref } from '@/lib/format/uploadRefs'
 
+// One job in Cargo bay. Timeline, upload URLs, Drive id.
+
 function Field({ label, value }: { label: string; value: React.ReactNode }) {
   return (
     <div>
@@ -41,7 +43,7 @@ function UploadReference({
 function EventMessage({ message }: { message: string | null }) {
   if (!message) return <p className="mt-1 text-muted-foreground">No message</p>
 
-  // Turn http(s) URLs in timeline messages into clickable links.
+  // Timeline text can include http(s) URLs. Make those clickable.
   const parts = message.split(/(https?:\/\/[^\s|]+)/g)
   return (
     <p className="mt-1 break-words text-muted-foreground">

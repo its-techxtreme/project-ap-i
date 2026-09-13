@@ -10,6 +10,7 @@ import {
 import {
   collectorMayRun,
   markCollectorRunUsed,
+  persistCollectorLoginRequired,
   pullCollectorControl,
 } from './collectorControl'
 import { COLLECTOR_MAX_RUNS_PER_DAY } from './collectorDailyBudget'
@@ -96,6 +97,7 @@ export async function runCollectorCycle(): Promise<void> {
 
     if (!scrape.ok) {
       collectorSnapshot.loginRequired = scrape.loginRequired
+      if (scrape.loginRequired) await persistCollectorLoginRequired(true)
       collectorSnapshot.lastError = scrape.error
       collectorSnapshot.lastAt = new Date().toISOString()
       logger.error({ msg: 'Collector cycle finished with errors', error: scrape.error })
@@ -103,6 +105,7 @@ export async function runCollectorCycle(): Promise<void> {
     }
 
     collectorSnapshot.loginRequired = false
+    await persistCollectorLoginRequired(false)
     collectorSnapshot.lastError = null
     logger.info({ msg: 'Collector cycle complete', itemCount: scrape.items.length })
   } catch (err) {

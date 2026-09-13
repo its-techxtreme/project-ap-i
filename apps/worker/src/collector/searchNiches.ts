@@ -38,11 +38,13 @@ export function isGlobalReelsFeedUrl(url: string): boolean {
 
 export function isSearchHarvestPage(url: string): boolean {
   try {
+    if (isGlobalReelsFeedUrl(url)) return false
     const path = new URL(url).pathname
     return (
       path.includes('/explore/search/') ||
       path.includes('/explore/tags/') ||
-      path.startsWith('/popular/')
+      path.startsWith('/popular/') ||
+      path.includes('/reels/search')
     )
   } catch {
     return false

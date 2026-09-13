@@ -12,6 +12,8 @@ import { logger } from '../logging/logger'
 import { createQueuedJob, resolveActiveNicheIdBySlug } from './createQueuedJob'
 import { isCollectorSearchOrigin } from './searchNiches'
 
+// Search + DM harvest into jobs or Unsorted cargo. Skip junk shortcodes.
+
 export type CollectedReel = {
   sourceUrl: string
   nearbyText: string
@@ -40,7 +42,10 @@ export async function loadKnownCollectorReelUrls(): Promise<Set<string>> {
     .select('normalized_source_url')
     .limit(3000)
 
-  if (error || !data?.length) return new Set()
+  if (error) {
+    throw new Error(`Collector known-url load failed: ${error.message}`)
+  }
+  if (!data?.length) return new Set()
   return new Set(data.map((row) => row.normalized_source_url).filter(Boolean))
 }
 

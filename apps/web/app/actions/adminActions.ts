@@ -2,6 +2,10 @@
 
 import { requireAdminWrite } from '@/lib/auth/requireAdmin'
 import { getAdminUsername } from '@/lib/auth/getUserRole'
+import {
+  COLLECTOR_CREW_ACCOUNT_ID,
+  COLLECTOR_LOGIN_SETTING_KEY,
+} from '@/lib/admin/collectorCrew'
 import { supabaseAdmin } from '@/lib/supabase/admin'
 
 type AdminCommandType = 'retry_upload' | 'delete_drive_file' | 'abort_job'
@@ -53,7 +57,7 @@ async function enqueueAdminCommand(
   return { success: true, commandId: data.id }
 }
 
-/** Queue upload retry for local worker/n8n (does not call worker from Vercel). */
+/** Vercel cannot reach the laptop. This only inserts admin_commands.retry_upload. */
 export async function retryJobUpload(jobId: string) {
   const writeGate = await requireAdminWrite()
   if (writeGate.denied) return { success: false, error: writeGate.error }
@@ -73,7 +77,7 @@ export async function retryJobUpload(jobId: string) {
     'needs_manual_review',
     'awaiting_verification',
     'ready_to_upload',
-    // Crash zombies: worker may leave status=uploading with one platform done.
+    // Worker died mid-upload. Status can sit on uploading even if YT already posted.
     'uploading',
   ]
   if (!retryableStatuses.includes(job.status)) {
@@ -113,10 +117,7 @@ export async function retryJobUpload(jobId: string) {
   }
 }
 
-/**
- * One-shot admin bypass of the soft per-account daily upload cap for a single job.
- * Does not bypass YouTube/Instagram hard platform limits.
- */
+/** Soft daily cap only. YouTube and Instagram still enforce their own hard limits. */
 export async function forceStartDespiteDailyLimit(jobId: string) {
   const writeGate = await requireAdminWrite()
   if (writeGate.denied) return { success: false, error: writeGate.error }
@@ -149,7 +150,7 @@ export async function forceStartDespiteDailyLimit(jobId: string) {
     return { success: false, error: `Cannot force-start job in status ${job.status}` }
   }
 
-  // Put this job at the front of FIFO so claim picks it next.
+  // Backdate created_at so FIFO claim grabs this row next.
   const frontCreatedAt = new Date(Date.now() - 365 * 24 * 60 * 60 * 1000).toISOString()
   const nowIso = new Date().toISOString()
 
@@ -183,7 +184,7 @@ export async function forceStartDespiteDailyLimit(jobId: string) {
     return { success: false, error: updateError.message }
   }
 
-  // If already staged, also enqueue upload retry so WF-07/process picks it up promptly.
+  // Already on Drive: also queue retry_upload so n8n does not wait for the next poll.
   let commandId: string | undefined
   const needsUploadRetry =
     Boolean(job.drive_file_id) && !job.drive_deleted_at && nextStatus === 'ready_to_upload'
@@ -229,7 +230,7 @@ export async function forceStartDespiteDailyLimit(jobId: string) {
   }
 }
 
-/** Queue Drive delete for local worker/n8n (does not call worker from Vercel). */
+/** Outbox delete. Hosted Next never talks to Drive itself. */
 export async function deleteDriveFile(jobId: string) {
   const writeGate = await requireAdminWrite()
   if (writeGate.denied) return { success: false, error: writeGate.error }
@@ -289,7 +290,7 @@ export async function deleteDriveFile(jobId: string) {
   }
 }
 
-/** Mark job cancelled (DB-only + abort outbox when in-flight). */
+/** Cancel in Supabase. If Chrome or FFmpeg is running, also enqueue abort_job. */
 export async function cancelJob(jobId: string) {
   const writeGate = await requireAdminWrite()
   if (writeGate.denied) return { success: false, error: writeGate.error }
@@ -376,7 +377,7 @@ export async function cancelJob(jobId: string) {
   }
 }
 
-/** Pause job — skipped by claim; in-flight work gets abort_job. */
+/** Claim skips paused rows. Abort if a worker step is already in flight. */
 export async function pauseJob(jobId: string) {
   const writeGate = await requireAdminWrite()
   if (writeGate.denied) return { success: false, error: writeGate.error }
@@ -461,7 +462,7 @@ export async function pauseJob(jobId: string) {
   }
 }
 
-/** Unpause → queued at end of FIFO (created_at = now). */
+/** Unpause. Stamp created_at now so it goes to the back of the queue. */
 export async function unpauseJob(jobId: string) {
   const writeGate = await requireAdminWrite()
   if (writeGate.denied) return { success: false, error: writeGate.error }
@@ -520,10 +521,7 @@ export async function unpauseJob(jobId: string) {
   return { success: true, jobId, message: 'Job unpaused and moved to the end of the queue.' }
 }
 
-/**
- * Permanently delete a job row from Supabase (cascades events/attempts/commands).
- * Actively running jobs are cancelled+aborted first so admin is never stuck.
- */
+/** Hard-delete the job row. Cancel+abort first if it is still running. */
 export async function deleteJobRecord(jobId: string) {
   const writeGate = await requireAdminWrite()
   if (writeGate.denied) return { success: false, error: writeGate.error }
@@ -582,7 +580,7 @@ export async function deleteJobRecord(jobId: string) {
   }
 }
 
-/** Mark job ignored (DB-only; no worker required). */
+/** Hide from Failed Review. Worker does not need to be up. */
 export async function markJobIgnored(jobId: string) {
   const writeGate = await requireAdminWrite()
   if (writeGate.denied) return { success: false, error: writeGate.error }
@@ -623,10 +621,7 @@ export async function markJobIgnored(jobId: string) {
   return { success: true, jobId }
 }
 
-/**
- * Manually attach a real YouTube URL after capture-miss (DB-only).
- * Does not re-publish.
- */
+/** Paste the YouTube URL we missed. Do not upload again. */
 export async function setYoutubeUploadedUrl(jobId: string, youtubeUrl: string) {
   const writeGate = await requireAdminWrite()
   if (writeGate.denied) return { success: false, error: writeGate.error }
@@ -732,17 +727,17 @@ async function runBulkJobAction(
   return { success: true, succeeded, failed, errors, message }
 }
 
-/** Bulk retry upload — queues one admin_command per eligible job. */
+/** One retry_upload command per selected job. */
 export async function bulkRetryJobUploads(jobIds: string[]) {
   return runBulkJobAction(jobIds, retryJobUpload, 'queued for retry')
 }
 
-/** Bulk Drive delete — queues one admin_command per eligible job. */
+/** One Drive delete command per selected job. */
 export async function bulkDeleteDriveFiles(jobIds: string[]) {
   return runBulkJobAction(jobIds, deleteDriveFile, 'queued for Drive delete')
 }
 
-/** Bulk mark ignored — DB-only. */
+/** Bulk ignore. Same as markJobIgnored, looped. */
 export async function bulkMarkJobsIgnored(jobIds: string[]) {
   return runBulkJobAction(jobIds, markJobIgnored, 'marked ignored')
 }
@@ -801,7 +796,7 @@ async function updatePlatformAccountStatus(
   return { success: true, accountId, message }
 }
 
-/** Clear login_required and set account active after manual browser login. */
+/** You logged in by hand. Clear login_required and mark the account active. */
 export async function markAccountLoginRecovered(accountId: string): Promise<AccountActionResult> {
   return updatePlatformAccountStatus(
     accountId,
@@ -811,7 +806,7 @@ export async function markAccountLoginRecovered(accountId: string): Promise<Acco
   )
 }
 
-/** Pause account so worker skips it for new uploads. */
+/** Pause so the worker will not pick this account for new uploads. */
 export async function pausePlatformAccount(accountId: string): Promise<AccountActionResult> {
   return updatePlatformAccountStatus(
     accountId,
@@ -821,7 +816,7 @@ export async function pausePlatformAccount(accountId: string): Promise<AccountAc
   )
 }
 
-/** Resume a paused (or previously failing) account to active. */
+/** Unpause a paused or failing account. */
 export async function resumePlatformAccount(accountId: string): Promise<AccountActionResult> {
   const writeGate = await requireAdminWrite()
   if (writeGate.denied) return { success: false, error: writeGate.error }
@@ -853,4 +848,34 @@ export async function resumePlatformAccount(accountId: string): Promise<AccountA
     'account_resumed',
     'Account resumed (active).',
   )
+}
+
+/** You logged the collector IG profile in by hand. */
+export async function markCollectorLoginRecovered(): Promise<AccountActionResult> {
+  const writeGate = await requireAdminWrite()
+  if (writeGate.denied) return { success: false, error: writeGate.error }
+
+  const { error } = await supabaseAdmin.from('system_settings').upsert(
+    {
+      key: COLLECTOR_LOGIN_SETTING_KEY,
+      value: false,
+      updated_at: new Date().toISOString(),
+    },
+    { onConflict: 'key' },
+  )
+  if (error) return { success: false, error: error.message }
+
+  await supabaseAdmin.from('audit_logs').insert({
+    actor_type: 'admin',
+    action: 'collector_login_recovered',
+    target_type: 'collector',
+    target_id: COLLECTOR_CREW_ACCOUNT_ID,
+    metadata: { username: await getAdminUsername() },
+  })
+
+  return {
+    success: true,
+    accountId: COLLECTOR_CREW_ACCOUNT_ID,
+    message: 'Collector login cleared. Next worker heartbeat will drop the login-required flag.',
+  }
 }

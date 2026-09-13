@@ -29,7 +29,7 @@ async function resolveDrawtextFont(): Promise<string | undefined> {
       await fs.access(candidate)
       return candidate
     } catch {
-      // try next
+      // missing, try the next font path
     }
   }
   return undefined
@@ -69,19 +69,16 @@ export function buildYoutubeBrandOverlayArgs(opts: {
 }
 
 export interface YoutubeUploadVariantResult {
-  /** Path to feed the YouTube uploader (source or branded overlay). */
+  /** File the YouTube uploader should send (shared edit or branded overlay). */
   localFilePath: string
-  /** True when niche brand c-text was burned in. */
+  /** True if we burned niche brand text onto this copy. */
   brandOverlayApplied: boolean
   detectionReason: string
 }
 
 /**
- * Prepares the local file used for YouTube upload:
- * - If burned-in captions (c-text) are already present → use the IG/edit export as-is.
- * - Otherwise → burn niche brand c-text with pulsing opacity onto the graphical area.
- *
- * Instagram continues to upload the unmodified edit export.
+ * File for YouTube only. If the reel already has burned-in captions, keep the shared edit.
+ * Otherwise burn niche brand text on the graphical area. Instagram still gets the plain export.
  */
 export async function prepareYoutubeUploadVariant(opts: {
   jobId: string
@@ -164,7 +161,7 @@ export async function prepareYoutubeUploadVariant(opts: {
       'warning',
       { label, error: message.slice(0, 500) },
     )
-    // Do not block the whole upload when branding fails — IG/YT still need the file.
+    // Brand overlay failed. Still upload the shared file so YT/IG are not blocked.
     return {
       localFilePath: sourcePath,
       brandOverlayApplied: false,

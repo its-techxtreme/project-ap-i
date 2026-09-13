@@ -62,16 +62,8 @@ tokens/
 .DS_Store
 Thumbs.db
 
-# Editor / local AI tooling — do not publish agent prompts or editor rules
-.idea/
-.cursor/
-.cursorrules
-prompts/
-docs/hackclub-ship-copy.md
-docs/hackclub-devlog-4.md
-docs/10_Cursor_Rules_Project_AP-I.md
-docs/11_Cursor_Detailed_Execution_Plan_Project_AP-I.md
-docs/12_Phase_Based_Delivery_Plan_Project_AP-I.md
+# Editor / local AI tooling — do not publish agent prompts or editor rule
+
 *.swp
 *.swo
 

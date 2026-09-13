@@ -6,6 +6,7 @@ import { useRouter } from 'next/navigation'
 
 import {
   markAccountLoginRecovered,
+  markCollectorLoginRecovered,
   pausePlatformAccount,
   resumePlatformAccount,
 } from '@/app/actions/adminActions'
@@ -13,6 +14,7 @@ import { useAdminCapabilities } from '@/components/admin/AdminCapabilities'
 import { StatusBadge } from '@/components/app/StatusBadge'
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
 import { Button } from '@/components/ui/button'
+import { COLLECTOR_CREW_ACCOUNT_ID } from '@/lib/admin/collectorCrew'
 import type { PlatformAccountRow } from '@/lib/data/adminQueries'
 import { truncateText } from '@/lib/format/relativeTime'
 
@@ -33,7 +35,9 @@ export function AccountsTable({ accounts }: { accounts: PlatformAccountRow[] }) 
     try {
       const result =
         action === 'recovered'
-          ? await markAccountLoginRecovered(accountId)
+          ? accountId === COLLECTOR_CREW_ACCOUNT_ID
+            ? await markCollectorLoginRecovered()
+            : await markAccountLoginRecovered(accountId)
           : action === 'pause'
             ? await pausePlatformAccount(accountId)
             : await resumePlatformAccount(accountId)
@@ -81,6 +85,7 @@ export function AccountsTable({ accounts }: { accounts: PlatformAccountRow[] }) 
             <tbody>
               {accounts.map((account) => {
                 const busy = busyId === account.id
+                const isCollector = account.id === COLLECTOR_CREW_ACCOUNT_ID
                 return (
                   <tr
                     key={account.id}
@@ -129,6 +134,8 @@ export function AccountsTable({ accounts }: { accounts: PlatformAccountRow[] }) 
                           >
                             Mark Login Recovered
                           </Button>
+                          {isCollector ? null : (
+                            <>
                           <Button
                             variant="outline"
                             size="sm"
@@ -147,6 +154,8 @@ export function AccountsTable({ accounts }: { accounts: PlatformAccountRow[] }) 
                           >
                             Resume
                           </Button>
+                            </>
+                          )}
                         </div>
                       ) : (
                         <span className="text-xs text-muted-foreground">Read-only</span>

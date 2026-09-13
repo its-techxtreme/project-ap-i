@@ -28,10 +28,7 @@ function isWithinDailyLimitDeferral(job: {
   return Number.isFinite(ageMs) && ageMs < DAILY_UPLOAD_WINDOW_MS
 }
 
-/**
- * Runs platform uploads for a job via UploadCoordinator.
- * Uses MockUploader when REAL_UPLOADS_ENABLED is false; Playwright uploaders when enabled.
- */
+/** Upload both platforms. Mock unless REAL_UPLOADS_ENABLED, then Playwright. */
 export async function runUpload(jobId: string): Promise<string> {
   if (isCollectorHold() || isCollectorUsingChrome()) {
     logger.info({ msg: 'Upload deferred — collector hold is on', jobId })
@@ -71,7 +68,7 @@ async function runUploadInner(jobId: string): Promise<string> {
     )
   }
 
-  // Only mark platforms that still need work as uploading (preserve verified/uploaded).
+  // Keep uploaded/verified as-is. Only flip the platforms that still need a pass.
   const ytNeeds =
     job.youtube_upload_status !== 'uploaded' && job.youtube_upload_status !== 'verified'
   const igNeeds =
@@ -117,8 +114,7 @@ async function runUploadInner(jobId: string): Promise<string> {
     )
   }
 
-  // Hold an upload lock so claim/stale-recovery cannot treat an in-flight
-  // Playwright session as abandoned (null lock used to look "expired").
+  // Keep a lock while Playwright is up. A null lock looked expired and stale-recovery killed the session.
   const lockExpiresAt = new Date(
     Date.now() + Math.max(1, config.JOB_LOCK_MINUTES) * 60_000,
   ).toISOString()
@@ -176,7 +172,7 @@ async function runUploadInner(jobId: string): Promise<string> {
       await parkForDailyLimit(jobId, latest, ytNeeds, igNeeds, err.message)
       return 'ready_to_upload'
     }
-    // Unexpected failure mid-upload: settle inflight platforms so the queue unblocks.
+    // Crash mid-upload. Settle inflight platforms so claim is not stuck forever.
     const latest = await getJobById(jobId)
     if (latest?.status === 'uploading') {
       const msg = err instanceof Error ? err.message : String(err)
@@ -274,5 +270,5 @@ async function parkForDailyLimit(
   await writeJobEvent(jobId, 'upload', 'daily_upload_limit_deferred', message, 'warning')
 }
 
-/** @deprecated Use runUpload — kept for existing imports during Phase 10 transition */
+/** Old name. Call runUpload. */
 export { runUpload as runMockUpload }

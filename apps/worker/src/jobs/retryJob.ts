@@ -39,7 +39,7 @@ async function retryJobInner(jobId: string, platform?: 'youtube' | 'instagram'):
     throw new ProjectApiError(ERROR_CODES.JOB_NOT_FOUND, `Job not found: ${jobId}`)
   }
 
-  // Never clobber a finished / cancelled job (late WF-08 retries after verify+Drive cleanup).
+  // Do not smash completed/cancelled/ignored. Late n8n retries after Drive cleanup hit this.
   if (job.status === 'completed' || job.status === 'cancelled' || job.status === 'ignored') {
     logger.info({
       msg: 'Retry skipped — job already in terminal status',
@@ -49,7 +49,7 @@ async function retryJobInner(jobId: string, platform?: 'youtube' | 'instagram'):
     return
   }
 
-  // Include `uploading` so crash-stuck retries can recover (retry_scheduled + no active work).
+  // Also allow uploading: worker died, retry_scheduled, nothing actually running.
   const retryableStatuses = [
     'failed',
     'needs_manual_review',
@@ -81,10 +81,10 @@ async function retryJobInner(jobId: string, platform?: 'youtube' | 'instagram'):
   )
 
   if (targets.length === 0) {
-    // Both sides already uploaded/verified — do not require Drive (may already be cleaned up).
+    // Both platforms already posted. Drive may already be deleted.
     logger.info({ msg: 'Retry upload skipped — no platforms need upload', jobId, platform })
     if (job.status === 'needs_manual_review') {
-      // Heal false DRIVE_FILE_MISSING after a successful upload+verify race.
+      // Upload+verify won the race vs Drive missing. Mark completed.
       const bothVerified =
         (job.youtube_upload_status === 'uploaded' || job.youtube_upload_status === 'verified') &&
         (job.instagram_upload_status === 'uploaded' || job.instagram_upload_status === 'verified')

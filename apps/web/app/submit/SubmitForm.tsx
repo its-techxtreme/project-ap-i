@@ -1,5 +1,7 @@
 'use client'
 
+// Public submit. Link, platform, niche, rights, send. Nothing else.
+
 import { useState, useTransition } from 'react'
 import { Loader2 } from 'lucide-react'
 import { detectPlatform, validateSourceUrl } from '@project-api/shared'

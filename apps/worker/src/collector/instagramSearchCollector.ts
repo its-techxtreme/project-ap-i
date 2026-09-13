@@ -195,7 +195,8 @@ async function clickReelsFilterInSearchMain(page: Page): Promise<void> {
     if (!(await tab.isVisible({ timeout: 800 }).catch(() => false))) continue
     const href = (await tab.getAttribute('href').catch(() => null)) ?? ''
     if (href && isGlobalReelsFeedUrl(new URL(href, 'https://www.instagram.com').toString())) continue
-    await tab.click({ timeout: 4_000 }).catch(() => undefined)
+    const clicked = await tab.click({ timeout: 4_000 }).then(() => true).catch(() => false)
+    if (!clicked) continue
     await humanPause(2_000, 3_500)
     return
   }

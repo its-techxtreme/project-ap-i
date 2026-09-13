@@ -1,5 +1,7 @@
 'use client'
 
+// Ship's log. Icon buttons hit server actions. Demo login cannot write.
+
 import Link from 'next/link'
 import { useState, type ReactNode } from 'react'
 import { Ban, ExternalLink, Eye, Pause, Play, RotateCcw, Trash2, Zap } from 'lucide-react'
@@ -16,6 +18,7 @@ import {
 import { useAdminCapabilities } from '@/components/admin/AdminCapabilities'
 import { StatusBadge } from '@/components/app/StatusBadge'
 import type { JobListRow } from '@/lib/data/adminQueries'
+import { displayFailureReason, isActiveDailyUploadLimit } from '@/lib/jobs/dailyLimitDisplay'
 import { shortId, truncateText } from '@/lib/format/relativeTime'
 import { cn } from '@/lib/utils'
 
@@ -74,12 +77,6 @@ function ActionIcon({
 
 function SoftChip({ children }: { children: ReactNode }) {
   return <span className="soft-chip">{children}</span>
-}
-
-function isDailyUploadLimitJob(job: JobListRow): boolean {
-  if (job.failure_code === 'DAILY_UPLOAD_LIMIT_REACHED') return true
-  const reason = (job.failure_reason ?? '').toLowerCase()
-  return reason.includes('daily upload limit')
 }
 
 export function JobsTable({ jobs }: { jobs: JobListRow[] }) {
@@ -289,7 +286,7 @@ export function JobsTable({ jobs }: { jobs: JobListRow[] }) {
                     </div>
                   </td>
                   <td className="px-2.5 py-2 text-xs tabular-nums">
-                    {isDailyUploadLimitJob(job) && canWrite ? (
+                    {isActiveDailyUploadLimit(job) && canWrite ? (
                       <button
                         type="button"
                         disabled={busy}
@@ -307,9 +304,9 @@ export function JobsTable({ jobs }: { jobs: JobListRow[] }) {
                   </td>
                   <td
                     className="max-w-[10rem] truncate px-2.5 py-2 text-xs text-muted-foreground"
-                    title={job.failure_reason ?? undefined}
+                    title={displayFailureReason(job) ?? undefined}
                   >
-                    {job.failure_reason ? truncateText(job.failure_reason, 36) : '—'}
+                    {displayFailureReason(job) ? truncateText(displayFailureReason(job)!, 36) : '—'}
                   </td>
                   <td className="px-2.5 py-2">
                     <div className="flex items-center gap-0.5">

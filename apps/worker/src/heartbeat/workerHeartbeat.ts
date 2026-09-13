@@ -28,6 +28,7 @@ export type WorkerHeartbeatValue = {
     running: boolean
     armed?: boolean
     runsToday?: number
+    profile?: string
   }
 }
 
@@ -52,8 +53,11 @@ async function syncChartSettings(): Promise<void> {
 async function writeHeartbeat(ok: boolean, driveOk: boolean): Promise<void> {
   try {
     const control = await pullCollectorControl()
-    collectorSnapshot.armed = control.armed
-    collectorSnapshot.runsToday = control.daily.runs.length
+    if (!control.unavailable) {
+      collectorSnapshot.armed = control.armed
+      collectorSnapshot.runsToday = control.daily.runs.length
+      collectorSnapshot.loginRequired = control.loginRequired === true
+    }
   } catch (err) {
     logger.warn({
       msg: 'Collector control refresh failed',
@@ -71,7 +75,10 @@ async function writeHeartbeat(ok: boolean, driveOk: boolean): Promise<void> {
     instagramUploadsEnabled: config.INSTAGRAM_UPLOADS_ENABLED,
     driveOk,
     host: process.env.COMPUTERNAME || process.env.HOSTNAME || 'worker',
-    collector: getCollectorSnapshot(),
+    collector: {
+      ...getCollectorSnapshot(),
+      profile: config.COLLECTOR_PROFILE,
+    },
   }
 
   const { error } = await supabaseAdmin.from('system_settings').upsert(

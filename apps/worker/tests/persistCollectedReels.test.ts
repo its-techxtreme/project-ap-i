@@ -261,4 +261,13 @@ describe('persistCollectedReels', () => {
     const known = await loadKnownCollectorReelUrls()
     expect(known.has(REEL)).toBe(true)
   })
+
+  it('fails closed when known reel urls cannot be loaded', async () => {
+    inboxList.mockResolvedValue({
+      data: null,
+      error: { message: 'db down' },
+    })
+    const { loadKnownCollectorReelUrls } = await import('../src/collector/persistCollectedReels')
+    await expect(loadKnownCollectorReelUrls()).rejects.toThrow('Collector known-url load failed')
+  })
 })

@@ -37,6 +37,8 @@ describe('collector search niches', () => {
       true,
     )
     expect(isSearchHarvestPage('https://www.instagram.com/explore/tags/anime/')).toBe(true)
+    expect(isSearchHarvestPage('https://www.instagram.com/reels/search/?q=sport')).toBe(true)
+    expect(isSearchHarvestPage('https://www.instagram.com/reels/')).toBe(false)
     expect(isSearchResultReelHref('https://www.instagram.com/reel/AbC123xyzAB/')).toBe(true)
   })
 

@@ -1,5 +1,7 @@
 'use client'
 
+// Ship's log filters. Query string is the source of truth.
+
 import Link from 'next/link'
 import { usePathname, useRouter, useSearchParams } from 'next/navigation'
 import { Filter, X } from 'lucide-react'
@@ -78,7 +80,7 @@ export function JobFilters({ niches }: { niches: NicheOption[] }) {
       if (value === null || value === '') params.delete(key)
       else params.set(key, value)
     }
-    // Drop unused legacy date params if present in the URL
+    // Old from/to query keys. Drop them so the URL stays clean.
     params.delete('dateFrom')
     params.delete('dateTo')
     params.delete('page')

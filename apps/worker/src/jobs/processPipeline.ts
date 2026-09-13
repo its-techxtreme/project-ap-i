@@ -48,7 +48,7 @@ async function recordPipelineFailure(jobId: string, err: unknown): Promise<void>
         : ERROR_CODES.FFMPEG_FAILED)
   const failureMessage = err instanceof Error ? err.message : String(err)
 
-  // Auth failures are infra — park for manual review and stop burning the queue.
+  // Drive auth died. Park for review instead of failing every following job.
   const status =
     failureCode === ERROR_CODES.DRIVE_AUTH_FAILED ? 'needs_manual_review' : 'failed'
 
@@ -92,10 +92,7 @@ export async function createDefaultPipelineDeps(): Promise<ProcessPipelineDeps> 
   }
 }
 
-/**
- * Runs download → FFmpeg → Drive upload → temp cleanup for a claimed job.
- * Returns final status (ready_to_upload on success).
- */
+/** Download, FFmpeg, Drive, then wipe temps. Success lands on ready_to_upload. */
 export async function runProcessPipeline(
   job: DbJobRow,
   deps?: ProcessPipelineDeps,
@@ -113,7 +110,7 @@ export async function runProcessPipeline(
   try {
     await assertJobNotAborted(jobId)
 
-    // Fail fast before download/ffmpeg when Drive credentials are dead.
+    // Check Drive before yt-dlp/ffmpeg so a dead refresh token does not waste a download.
     if (config.NODE_ENV !== 'test') {
       const { isDriveAuthHealthy } = await import('../storage/driveAuth')
       if (!(await isDriveAuthHealthy())) {
@@ -201,7 +198,7 @@ export async function runProcessPipeline(
       driveFileId: driveResult.fileId,
     })
 
-    // Persist Drive IDs immediately so a later metadata write failure cannot lose staging.
+    // Write Drive ids now. If metadata fails later we still know the file is staged.
     await updateJobStatus(jobId, 'staging_to_drive', {
       drive_file_id: driveResult.fileId,
       drive_file_name: driveResult.fileName,

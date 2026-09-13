@@ -9,7 +9,7 @@ import type { ContentCrop } from './youtubeBrandCText'
 
 export interface HardCaptionDetectionResult {
   hasCText: boolean
-  /** Mean caption-likelihood score across sampled frames (0–1-ish scale). */
+  /** Average caption-likelihood across sampled frames, roughly 0 to 1. */
   meanScore: number
   framesSampled: number
   framesAboveThreshold: number
@@ -20,21 +20,18 @@ export interface HardCaptionDetectionResult {
 const BAND_WIDTH = 320
 const BAND_HEIGHT = 120
 
-/** Rows with this many strong horizontal edges look like subtitle lines. */
+/** Lots of strong horizontal edges in a row looks like a subtitle line. */
 const ROW_EDGE_SPIKE_THRESHOLD = 18
-/** Fraction of caption-band rows that must look "texty" for a frame hit. */
+/** Share of caption-band rows that must look like text for the frame to count. */
 const FRAME_TEXT_ROW_RATIO = 0.08
-/** Absolute mean luminance gradient needed so quiet frames don't false-positive. */
+/** Quiet frames stay below this luminance gradient so we do not false-positive. */
 const MIN_MEAN_ABS_GRAD = 6
-/** A frame counts as having c-text when its score exceeds this. */
+/** Frame scores above this count as having burned-in captions. */
 export const HARD_CAPTION_FRAME_SCORE_THRESHOLD = 0.55
-/** Need this many positive frames (of those sampled) to declare c-text present. */
+/** Need this many hitting frames among the samples before we say c-text is there. */
 const MIN_POSITIVE_FRAMES = 2
 
-/**
- * Scores a grayscale caption-band buffer for burned-in text likelihood.
- * Exported for unit tests — pure, no FFmpeg.
- */
+/** Score a grayscale caption band. Exported for tests. No FFmpeg. */
 export function scoreCaptionBandGray(pixels: Buffer, width: number, height: number): number {
   if (width < 8 || height < 4 || pixels.length < width * height) {
     return 0
@@ -91,9 +88,7 @@ async function probeDurationSeconds(videoPath: string): Promise<number> {
   return Number.isFinite(duration) && duration > 0 ? duration : 5
 }
 
-/**
- * Best-effort letterbox crop via ffmpeg cropdetect (last reported crop=W:H:X:Y).
- */
+/** ffmpeg cropdetect, last crop=W:H:X:Y if it found letterboxing. */
 export async function detectContentCrop(videoPath: string): Promise<ContentCrop | null> {
   try {
     const result = await runCommand(
@@ -184,10 +179,7 @@ async function extractCaptionBandGray(opts: {
   }
 }
 
-/**
- * Detects burned-in hard captions (c-text) by sampling caption-band frames and
- * scoring edge/contrast patterns typical of outlined subtitle glyphs.
- */
+/** Sample caption-band frames and look for outlined subtitle edges. */
 export async function detectHardCaptions(
   videoPath: string,
 ): Promise<HardCaptionDetectionResult> {

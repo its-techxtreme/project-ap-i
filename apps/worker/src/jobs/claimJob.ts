@@ -9,6 +9,7 @@ import { getUploadQueueStatus } from './ConcurrencyGuard'
 import { isCollectorHold } from '../collector/collectorHold'
 import {
   checkNicheDailyUploadLimits,
+  clearStaleDailyLimitDeferrals,
   dailyLimitDeferMessage,
   hasForceUploadOverride,
 } from './dailyUploadLimit'
@@ -51,6 +52,12 @@ export async function claimJob(workerId: string): Promise<DbJobRow | null> {
     }
   } catch (err) {
     logger.warn({ msg: 'Stale pipeline recovery failed before claim', workerId, err: String(err) })
+  }
+
+  try {
+    await clearStaleDailyLimitDeferrals()
+  } catch (err) {
+    logger.warn({ msg: 'Stale daily limit cleanup failed before claim', workerId, err: String(err) })
   }
 
   // Dead Drive credentials must not claim/fail every queued job.

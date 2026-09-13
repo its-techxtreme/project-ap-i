@@ -19,7 +19,7 @@ export const DEFAULT_GROQ_MODEL = 'llama-3.3-70b-versatile'
 export const DEFAULT_GROQ_BASE_URL = 'https://api.groq.com/openai/v1'
 export const DEFAULT_OPENROUTER_BASE_URL = 'https://openrouter.ai/api/v1'
 
-/** @deprecated Prefer DEFAULT_GEMINI_MODEL — kept for older imports. */
+/** Old name. Use DEFAULT_GEMINI_MODEL. */
 export const DEFAULT_AI_MODEL = DEFAULT_GEMINI_MODEL
 
 function hasUsableKey(key: string | undefined): boolean {
@@ -113,7 +113,7 @@ export class AiMetadataProvider implements MetadataProvider {
     })
     const filteredInput: MetadataInput = {
       ...input,
-      // Prefer a real subject line over weak "Video by …" titles
+      // Skip empty "Video by …" titles. Use a real subject if we have one.
       sourceTitle: filtered.contentHook ?? filtered.title,
       sourceDescription: filtered.description,
     }

@@ -12,27 +12,31 @@ import {
 
 export const COLLECTOR_ARMED_KEY = 'collector_armed'
 export const COLLECTOR_DAILY_RUNS_KEY = 'collector_daily_runs'
+export const COLLECTOR_LOGIN_KEY = 'collector_login_required'
 
 export type CollectorControl = {
   armed: boolean
   daily: CollectorDailyRuns
+  unavailable?: boolean
+  loginRequired?: boolean
 }
 
 export async function pullCollectorControl(): Promise<CollectorControl> {
   const { data, error } = await supabaseAdmin
     .from('system_settings')
     .select('key, value')
-    .in('key', [COLLECTOR_ARMED_KEY, COLLECTOR_DAILY_RUNS_KEY])
+    .in('key', [COLLECTOR_ARMED_KEY, COLLECTOR_DAILY_RUNS_KEY, COLLECTOR_LOGIN_KEY])
 
   if (error) {
     logger.warn({ msg: 'Collector control read failed', error: error.message })
-    return { armed: true, daily: normalizeCollectorDailyRuns(null) }
+    return { armed: true, daily: normalizeCollectorDailyRuns(null), unavailable: true, loginRequired: false }
   }
 
   const map = new Map((data ?? []).map((row) => [row.key, row.value]))
   return {
     armed: parseSettingFlag(map.get(COLLECTOR_ARMED_KEY), true),
     daily: normalizeCollectorDailyRuns(map.get(COLLECTOR_DAILY_RUNS_KEY)),
+    loginRequired: parseSettingFlag(map.get(COLLECTOR_LOGIN_KEY), false),
   }
 }
 
@@ -58,7 +62,22 @@ export async function markCollectorRunUsed(
   return { ok: true, daily: next }
 }
 
+export async function persistCollectorLoginRequired(loginRequired: boolean): Promise<void> {
+  const { error } = await supabaseAdmin.from('system_settings').upsert(
+    {
+      key: COLLECTOR_LOGIN_KEY,
+      value: loginRequired,
+      updated_at: new Date().toISOString(),
+    },
+    { onConflict: 'key' },
+  )
+  if (error) {
+    logger.warn({ msg: 'Collector login flag persist failed', error: error.message })
+  }
+}
+
 export function collectorMayRun(control: CollectorControl): { ok: true } | { ok: false; reason: string } {
+  if (control.unavailable) return { ok: false, reason: 'Collector settings could not be read' }
   if (!control.armed) return { ok: false, reason: 'Collector switch is off' }
   if (collectorRunsRemaining(control.daily) <= 0) {
     return {

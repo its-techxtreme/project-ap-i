@@ -102,7 +102,7 @@ function cacheStillValid(probe: DriveAuthProbe): boolean {
   return age < (probe.ok ? TTL_OK_MS : TTL_FAIL_MS)
 }
 
-/** Build googleapis auth client (service account preferred over user OAuth). */
+/** Service account first, then user OAuth. */
 export function createDriveGoogleAuth():
   | InstanceType<typeof google.auth.GoogleAuth>
   | InstanceType<typeof google.auth.OAuth2> {
@@ -143,8 +143,8 @@ export function createDriveApiClient(): drive_v3.Drive {
 }
 
 /**
- * Lightweight credential probe (token refresh / about.get).
- * Results are cached so a dead token does not hammer Google or fail the whole queue.
+ * Cheap Drive check (token refresh / about.get).
+ * Cached so a dead token does not hammer Google or stall the queue.
  */
 export async function probeDriveAuth(force = false): Promise<DriveAuthProbe> {
   if (!force && cachedProbe && cacheStillValid(cachedProbe)) {
@@ -184,7 +184,7 @@ export async function probeDriveAuth(force = false): Promise<DriveAuthProbe> {
   }
 }
 
-/** True when Drive auth is known-good. */
+/** True if the last probe said Drive auth is good. */
 export async function isDriveAuthHealthy(force = false): Promise<boolean> {
   const probe = await probeDriveAuth(force)
   return probe.ok

@@ -113,7 +113,7 @@ export class UploadCoordinator {
     const attemptNumber =
       platform === 'youtube' ? job.youtubeRetryCount + 1 : job.instagramRetryCount + 1
 
-    // Idempotency: never re-publish if a real platform URL was already recorded.
+    // If we already saved a real YT/IG URL, do not post again.
     const existing = await findSuccessfulUploadAttempt(job.id, platform)
     if (existing) {
       const statusField = platform === 'youtube' ? 'youtube_upload_status' : 'instagram_upload_status'
@@ -177,8 +177,7 @@ export class UploadCoordinator {
       errorMessage: 'Upload did not run',
     }
 
-    // Instagram uses the shared edit export. YouTube may get a niche brand
-    // c-text overlay when the reel has no existing burned-in captions.
+    // IG keeps the shared edit. YT can get niche brand text if the reel has no burned-in captions.
     let localFilePath = job.localFilePath
     if (platform === 'youtube' && job.localFilePath) {
       const ytVariant = await prepareYoutubeUploadVariant({
@@ -231,7 +230,7 @@ export class UploadCoordinator {
       }
     }
 
-    // Defense in depth: never persist "uploaded" with synthetic / missing media IDs.
+    // Do not mark uploaded unless we have a real media id, not a fake one.
     let effective = result
     if (
       result.success &&

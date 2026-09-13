@@ -11,7 +11,7 @@ export function decideHarvestUrl(
   known: Set<string>,
   takenThisRun: Set<string>,
 ): HarvestDecision {
-  if (!url) return 'take'
+  if (!url) return 'skip'
   if (takenThisRun.has(url) || known.has(url)) return 'skip'
   return 'take'
 }

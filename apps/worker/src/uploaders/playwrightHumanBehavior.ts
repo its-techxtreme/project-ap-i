@@ -13,7 +13,7 @@ export async function humanPause(minMs?: number, maxMs?: number): Promise<void> 
   await new Promise((resolve) => setTimeout(resolve, delay))
 }
 
-/** Longer pause simulating a user reading the page before acting. */
+/** Sit for a bit like someone actually reading the page. */
 export async function humanReadingPause(): Promise<void> {
   await humanPause(config.PLAYWRIGHT_READING_DELAY_MIN_MS, config.PLAYWRIGHT_READING_DELAY_MAX_MS)
 }
@@ -52,11 +52,8 @@ export async function humanClick(page: Page, locator: Locator): Promise<void> {
 }
 
 /**
- * Type into textarea/input OR contenteditable (#textbox in YouTube Studio / IG caption).
- *
- * IMPORTANT: never type the full string twice. A previous bug used pressSequentially
- * then fell back to keyboard.type(fullText) on any error — that appended a second
- * copy mid-caption (e.g. "...comments bWhen you finally...").
+ * Type into a textarea, input, or contenteditable (Studio / IG caption).
+ * One pass only. An old fallback typed the whole string again and doubled captions.
  */
 export async function humanType(
   locator: Locator,
@@ -83,13 +80,13 @@ export async function humanType(
   const isNativeInput = tagName === 'input' || tagName === 'textarea'
 
   if (isNativeInput) {
-    // Atomic replace — no mid-type restart risk.
+    // fill() replaces the whole value. Safer than typing on native inputs.
     await locator.fill(value)
     await humanPause(400, 900)
     return
   }
 
-  // Contenteditable (YT Studio / IG caption): one keyboard pass only.
+  // YT Studio / IG caption boxes. Keyboard once, never a second full type.
   const delay = randomInt(
     Math.max(30, Math.min(config.PLAYWRIGHT_TYPING_DELAY_MIN_MS, 80)),
     Math.max(50, Math.min(config.PLAYWRIGHT_TYPING_DELAY_MAX_MS, 140)),
@@ -98,7 +95,7 @@ export async function humanType(
   try {
     await page.keyboard.type(value, { delay })
   } catch {
-    // Do not append — clear and set once.
+    // Do not append. Clear, then set the value once.
     await clearEditableField(locator)
     await setContentEditableText(locator, value)
   }
@@ -158,13 +155,13 @@ async function readEditableText(locator: Locator): Promise<string> {
     .catch(() => '')
 }
 
-/** Detect caption/title that was typed twice (partial + full restart). */
+/** True if the field looks like we typed the title/caption twice. */
 export function isDuplicatedMetadataText(actual: string, expected: string): boolean {
   const a = actual.replace(/\s+/g, ' ').trim()
   const e = expected.replace(/\s+/g, ' ').trim()
   if (!e || a === e) return false
 
-  // Exact expected substring appears more than once.
+  // Expected text shows up twice in a row.
   let from = 0
   let hits = 0
   while (from <= a.length) {
@@ -175,7 +172,7 @@ export function isDuplicatedMetadataText(actual: string, expected: string): bool
     if (hits >= 2) return true
   }
 
-  // Prefix of expected restarts after a near-complete first pass (the screenshot case).
+  // Started over after almost finishing the first pass.
   const probe = e.slice(0, Math.min(48, e.length))
   if (probe.length >= 12) {
     const first = a.indexOf(probe)
@@ -187,15 +184,12 @@ export function isDuplicatedMetadataText(actual: string, expected: string): bool
 }
 
 
-/**
- * Pause before setInputFiles.
- * Do NOT scrollIntoView — file inputs are often hidden/opacity:0 and scroll fails.
- */
+/** Pause before setInputFiles. Hidden file inputs break if we scrollIntoView. */
 export async function humanSetFiles(_locator?: Locator): Promise<void> {
   await humanPause(800, 1800)
 }
 
-/** First attached+usable locator from a list of CSS/text selectors. */
+/** First selector that is actually attached and usable. */
 export async function firstAttached(
   page: Page,
   selectors: string[],

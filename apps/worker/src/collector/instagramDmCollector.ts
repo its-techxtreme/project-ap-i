@@ -23,6 +23,8 @@ import {
   loadKnownCollectorReelUrls,
   type CollectedReel,
 } from './persistCollectedReels'
+import { isCollectorLoginFailure } from './collectorLoginFailure'
+import { mergePreviewCards, type PreviewCard } from './mergePreviewCards'
 
 const MAX_THREADS = 8
 const MAX_REELS = 40
@@ -74,7 +76,7 @@ export async function scrapeUnreadCollectorInbox(opts?: { headless?: boolean }):
     const message = err instanceof Error ? err.message : String(err)
     const collected = (err as Error & { collectedItems?: CollectedReel[] }).collectedItems ?? []
     logger.warn({ msg: 'Collector scrape failed', error: message, itemCount: collected.length })
-    const loginRequired = /login|2fa|captcha|challenge|profile/i.test(message)
+    const loginRequired = isCollectorLoginFailure(message)
     return { ok: false, items: collected, loginRequired, error: message }
   }
 }
@@ -108,6 +110,15 @@ async function scrapeInboxPage(page: Page, harvestedReelUrls: string[]): Promise
     if (failed.collectedItems?.length) items.push(...failed.collectedItems)
     searchError = failed.message || String(err)
     logger.error({ msg: 'Collector search failed', error: searchError, pageUrl: page.url() })
+  }
+
+  const midChallenge = await detectLoginOrChallenge(page)
+  if (midChallenge.loginRequired) {
+    const err = new Error(midChallenge.reason ?? midChallenge.challengeType ?? 'login_required') as Error & {
+      collectedItems: CollectedReel[]
+    }
+    err.collectedItems = items
+    throw err
   }
 
   await page.goto('https://www.instagram.com/direct/inbox/', {
@@ -145,6 +156,7 @@ async function scrapeUnreadChatsOnly(
 ): Promise<CollectedReel[]> {
   const items: CollectedReel[] = []
   const visited = new Set<string>()
+  let consecutiveMisses = 0
 
   for (let pass = 0; pass < MAX_THREADS; pass++) {
     if (already + items.length >= MAX_REELS) break
@@ -211,18 +223,27 @@ async function scrapeUnreadChatsOnly(
     if (nextIndex === undefined) break
 
     const labelKey = labels[nextIndex]!.replace(/\s+/g, ' ').trim().toLowerCase()
-    visited.add(labelKey)
 
     const jsonMark = harvestedReelUrls.length
     const opened = await clickConversationRow(page, nextIndex)
-    if (!opened) continue
+    if (!opened) {
+      consecutiveMisses += 1
+      if (consecutiveMisses >= 3) {
+        logger.warn({ msg: 'Collector inbox clicks missed three times in a row' })
+        break
+      }
+      continue
+    }
+    consecutiveMisses = 0
     await page.waitForURL(/\/direct\/t\//, { timeout: 8_000 }).catch(() => undefined)
     await humanPause(1_200, 2_200)
     await dismissInboxPrompts(page)
     if (!page.url().includes('/direct/t/')) {
       logger.warn({ msg: 'Collector click did not open a thread', label: labels[nextIndex] })
+      visited.add(labelKey)
       continue
     }
+    visited.add(labelKey)
     items.push(...(await extractFromOpenThread(page, harvestedReelUrls, jsonMark, known, used)))
 
     await page
@@ -623,8 +644,6 @@ async function nudgeOlderMessages(page: Page): Promise<void> {
   await humanPause(400, 700)
 }
 
-type PreviewCard = { x: number; y: number; followingText: string; href: string }
-
 // Thread pane only: size the media, collapse stacked tiles, grab caption text under each.
 async function listPreviewCards(page: Page): Promise<PreviewCard[]> {
   const scanned = await page
@@ -773,7 +792,7 @@ async function listPreviewCards(page: Page): Promise<PreviewCard[]> {
 
   if (!scanned) return []
   logger.info({ msg: 'Collector preview scan', ...scanned.debug })
-  return scanned.cards
+  return mergePreviewCards(scanned.cards, scanned.paneHrefs)
 }
 
 async function clickPreviewAt(page: Page, card: PreviewCard): Promise<boolean> {

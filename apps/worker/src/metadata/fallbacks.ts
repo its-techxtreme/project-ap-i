@@ -98,10 +98,7 @@ function buildTitle(niche: MetadataNicheSlug, hook: string | undefined, salt: nu
   return clipTitle(h)
 }
 
-/**
- * Expand a real caption into YouTube-length copy about the CLIP — never about
- * the publishing pipeline, metadata policy, or "Project AP-I".
- */
+/** Stretch a real caption to YouTube length. Talk about the clip, not the factory. */
 function buildDescriptionFromSource(
   niche: MetadataNicheSlug,
   hook: string | undefined,
@@ -271,7 +268,7 @@ function buildCaption(
     caption = uniqueJoin([caption, captionExpanders[ci]])
     ci += 1
   }
-  // Last-resort unique pads (still about the clip, never pipeline talk)
+  // Still short. Pad with clip talk, not "Project AP-I" or pipeline notes.
   let pad = 0
   while (caption.length < targets.minCaption && pad < 4) {
     caption = uniqueJoin([
@@ -283,10 +280,7 @@ function buildCaption(
   return caption.slice(0, 2200)
 }
 
-/**
- * High-quality fallback when AI is down — copy about the reel/clip, never about
- * the internal publishing system.
- */
+/** AI is down. Write about the reel itself, not the internal stack. */
 export function getFallbackMetadata(
   nicheSlug: string,
   source?: { title?: string; description?: string; sourceUrl?: string; sourcePlatform?: string },

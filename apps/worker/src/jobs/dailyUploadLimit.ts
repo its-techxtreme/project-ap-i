@@ -7,7 +7,7 @@ import { resolveNicheAccounts } from '../uploaders/accountResolver'
 
 export type DailyLimitPlatform = 'youtube' | 'instagram'
 
-/** Rolling window matching platform daily caps (not calendar/UTC midnight). */
+/** Rolling 24h window, same idea as platform daily caps. Not calendar midnight. */
 export const DAILY_UPLOAD_WINDOW_MS = 24 * 60 * 60 * 1000
 
 export interface DailyUploadUsage {
@@ -26,12 +26,12 @@ export interface DailyUploadLimitCheck {
   usages: DailyUploadUsage[]
 }
 
-/** Start of the rolling 24-hour window (platform daily limits reset ~24h after uploads). */
+/** Start of that 24h window. Caps reset about a day after an upload, not at UTC 00:00. */
 export function rollingWindowStartIso(now = new Date()): string {
   return new Date(now.getTime() - DAILY_UPLOAD_WINDOW_MS).toISOString()
 }
 
-/** @deprecated Use rollingWindowStartIso — kept for older test imports. */
+/** Old name. Use rollingWindowStartIso. */
 export function utcDayStartIso(now = new Date()): string {
   return rollingWindowStartIso(now)
 }
@@ -42,7 +42,7 @@ export function getDailyUploadLimit(): number {
   return Math.floor(n)
 }
 
-/** Detect platform UI / error copy for daily upload quota. */
+/** True if the error text looks like a daily upload quota wall. */
 export function isDailyUploadLimitError(message?: string | null): boolean {
   if (!message) return false
   const m = message.toLowerCase()
@@ -55,10 +55,7 @@ export function isDailyUploadLimitError(message?: string | null): boolean {
   )
 }
 
-/**
- * Count distinct successful uploads for an account in the last 24 hours,
- * plus in-flight uploads currently marked uploading for that account.
- */
+/** Successful uploads in the last 24h, plus jobs still marked uploading for that account. */
 export async function countAccountUploadsToday(
   accountId: string,
   platform: DailyLimitPlatform,
@@ -118,7 +115,7 @@ export async function countAccountUploadsToday(
     const updatedAt = (row as { updated_at?: string | null }).updated_at
     const lockActive = typeof lockExpiresAt === 'string' && lockExpiresAt > nowIso
     const recentlyUpdated = typeof updatedAt === 'string' && updatedAt > staleCutoff
-    // Ignore crash zombies so they cannot permanently consume daily quota.
+    // Dead uploading rows should not hold a quota slot forever.
     if (lockActive || recentlyUpdated) {
       successJobIds.add(id)
     }
@@ -170,7 +167,7 @@ export async function checkDailyUploadLimitsForAccounts(
   }
 }
 
-/** Resolve niche accounts and check whether any needed platform is at the daily cap. */
+/** Look up the niche accounts and see if YT or IG is already at the cap. */
 export async function checkNicheDailyUploadLimits(
   nicheId: string,
   needed: { youtube?: boolean; instagram?: boolean } = { youtube: true, instagram: true },
@@ -201,7 +198,7 @@ export function hasForceUploadOverride(job: {
   return job.force_upload_override === true
 }
 
-/** Clears the one-shot admin bypass after the upload path accepts the job. */
+/** Drop the one-shot admin bypass after upload actually takes the job. */
 export async function clearForceUploadOverride(jobId: string): Promise<void> {
   const { error } = await supabaseAdmin
     .from('jobs')
@@ -218,4 +215,30 @@ export async function clearForceUploadOverride(jobId: string): Promise<void> {
       error: error.message,
     })
   }
+}
+
+/** Drop parked daily-limit stamps after the rolling window so queued jobs are not stuck. */
+export async function clearStaleDailyLimitDeferrals(): Promise<number> {
+  const cutoff = rollingWindowStartIso()
+  const { data, error } = await supabaseAdmin
+    .from('jobs')
+    .update({
+      failure_code: null,
+      failure_reason: null,
+      updated_at: new Date().toISOString(),
+    })
+    .in('status', ['queued', 'ready_to_upload'])
+    .eq('failure_code', ERROR_CODES.DAILY_UPLOAD_LIMIT_REACHED)
+    .lt('updated_at', cutoff)
+    .select('id')
+
+  if (error) {
+    logger.warn({ msg: 'Failed to clear stale daily upload limit marks', error: error.message })
+    return 0
+  }
+  const count = data?.length ?? 0
+  if (count > 0) {
+    logger.info({ msg: 'Cleared stale daily upload limit marks', count, cutoff })
+  }
+  return count
 }

@@ -1,12 +1,8 @@
 /**
- * Playwright uploader smoke / debug script (no upload unless flags enabled).
+ * Headed Chrome smoke. Does not upload unless REAL_UPLOADS_ENABLED is on.
  *
- * Examples:
  *   pnpm --filter @project-api/worker smoke:playwright -- --check-install
- *   pnpm --filter @project-api/worker smoke:playwright -- --launch-headed
  *   pnpm --filter @project-api/worker smoke:playwright -- --login --profile memes-yt
- *   pnpm --filter @project-api/worker smoke:playwright -- --session --profile memes-yt
- *   pnpm --filter @project-api/worker smoke:playwright -- --navigate youtube --profile memes-yt --screenshot
  */
 
 import fs from 'node:fs/promises'
@@ -24,7 +20,7 @@ import { launchAuthenticatedContext } from '../src/uploaders/playwrightContext'
 import { humanPause, humanReadingPause, humanScroll } from '../src/uploaders/playwrightHumanBehavior'
 import { SessionHealthChecker } from '../src/uploaders/SessionHealthChecker'
 
-/** Repo root — profiles live at <repo>/playwright-profiles/, not inside apps/worker. */
+/** Profiles sit in <repo>/playwright-profiles, not under apps/worker. */
 const REPO_ROOT = path.resolve(__dirname, '../../..')
 const DEFAULT_PROFILES_DIR = path.join(REPO_ROOT, 'playwright-profiles')
 
@@ -88,9 +84,8 @@ function fail(msg: string, detail?: unknown): never {
 }
 
 /**
- * Resolve profile path — accepts slug (memes-yt), relative, or absolute path.
- * Relative paths are checked from repo root first (where playwright-profiles/ lives),
- * then from the current working directory.
+ * Slug like memes-yt, or a relative/absolute folder.
+ * Check repo playwright-profiles first, then cwd.
  */
 async function resolveProfilePath(profileArg: string): Promise<string> {
   if (path.isAbsolute(profileArg)) {
@@ -115,7 +110,7 @@ async function resolveProfilePath(profileArg: string): Promise<string> {
       await fs.access(candidate)
       return candidate
     } catch {
-      // try next candidate
+      // missing, try the next path
     }
   }
 
@@ -243,7 +238,7 @@ async function runChromeManualLogin(platform: 'youtube' | 'instagram', profile: 
 }
 
 async function runLoginSetup(platform: 'youtube' | 'instagram', profile: string): Promise<void> {
-  // Google always blocks Playwright Chromium sign-in — use real Chrome.
+  // Google blocks Playwright Chromium login. Open real Chrome instead.
   if (platform === 'youtube') {
     await runChromeManualLogin(platform, profile)
     return

@@ -50,6 +50,11 @@ vi.mock('@/app/actions/adminActions', () => ({
     accountId: 'acc-1',
     message: 'Account marked login recovered (active).',
   }),
+  markCollectorLoginRecovered: vi.fn().mockResolvedValue({
+    success: true,
+    accountId: 'collector-ig',
+    message: 'Collector login cleared.',
+  }),
   pausePlatformAccount: vi.fn().mockResolvedValue({
     success: true,
     accountId: 'acc-1',
@@ -322,5 +327,33 @@ describe('AccountsTable', () => {
     expect(screen.getByText('Pause')).toBeInTheDocument()
     expect(screen.getByText('Resume')).toBeInTheDocument()
     expect(screen.queryByText(/\(stub\)/i)).not.toBeInTheDocument()
+  })
+
+  it('shows collector IG login required without pause or resume', async () => {
+    const { AccountsTable } = await import('@/components/admin/AccountsTable')
+    render(
+      <AccountsTable
+        accounts={[
+          {
+            id: 'collector-ig',
+            niche_id: 'collector-ig',
+            niche_name: 'Collector',
+            platform: 'instagram',
+            account_label: 'Collector IG',
+            status: 'login_required',
+            login_required: true,
+            last_successful_upload_at: null,
+            last_successful_upload_label: null,
+            failure_count: 0,
+            browser_profile_path: 'ig-collector',
+          },
+        ]}
+      />,
+    )
+    expect(screen.getByText('Collector IG')).toBeInTheDocument()
+    expect(screen.getByText('One or more accounts require manual login.')).toBeInTheDocument()
+    expect(screen.getByText('Mark Login Recovered')).toBeInTheDocument()
+    expect(screen.queryByText('Pause')).not.toBeInTheDocument()
+    expect(screen.queryByText('Resume')).not.toBeInTheDocument()
   })
 })

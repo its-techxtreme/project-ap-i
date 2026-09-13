@@ -50,4 +50,25 @@ describe('SeaLanesGrid', () => {
     expect(screen.getAllByRole('link', { name: /open profile/i })).toHaveLength(2)
     expect(screen.getAllByText('active').length).toBeGreaterThanOrEqual(2)
   })
+
+  it('shows the collector IG profile and login required', () => {
+    render(
+      <SeaLanesGrid
+        niches={niches}
+        collector={{
+          account_label: 'Collector IG',
+          status: 'login_required',
+          handle: null,
+          profile_url: null,
+          display_name: 'Collector IG',
+          description: 'Login required on the ig-collector Playwright profile.',
+          avatar_url: null,
+          login_required: true,
+        }}
+      />,
+    )
+    expect(screen.getByText('Collector')).toBeTruthy()
+    expect(screen.getByText(/slug · collector/i)).toBeTruthy()
+    expect(screen.getAllByText(/login required/i).length).toBeGreaterThanOrEqual(1)
+  })
 })

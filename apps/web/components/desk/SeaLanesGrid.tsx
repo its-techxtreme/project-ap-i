@@ -53,6 +53,11 @@ function PlatformCard({
             {label}
           </p>
           {account.status ? <StatusBadge status={account.status} /> : null}
+          {account.login_required ? (
+            <span className="font-mono text-[10px] uppercase tracking-[0.08em] text-red-700 dark:text-red-400">
+              Login required
+            </span>
+          ) : null}
         </div>
 
         <div className="min-w-0">
@@ -83,7 +88,13 @@ function PlatformCard({
   )
 }
 
-export function SeaLanesGrid({ niches }: { niches: NicheMappingRow[] }) {
+export function SeaLanesGrid({
+  niches,
+  collector,
+}: {
+  niches: NicheMappingRow[]
+  collector?: PlatformAccountCard | null
+}) {
   return (
     <div className="grid gap-4 lg:grid-cols-1 xl:grid-cols-1">
       {niches.map((niche) => (
@@ -114,6 +125,28 @@ export function SeaLanesGrid({ niches }: { niches: NicheMappingRow[] }) {
           </div>
         </section>
       ))}
+      {collector ? (
+        <section className="desk-panel space-y-3 rounded-md border border-border/80 p-4">
+          <header className="flex flex-wrap items-end justify-between gap-2 border-b border-border/60 pb-3">
+            <div>
+              <p className="font-mono text-[10px] uppercase tracking-[0.14em] text-muted-foreground">
+                Sea lane
+              </p>
+              <h2 className="font-display text-2xl tracking-wide text-foreground">Collector</h2>
+              <p className="mt-0.5 font-mono text-xs text-muted-foreground">slug · collector</p>
+            </div>
+            <div className="flex items-center gap-2">
+              <span className="font-mono text-[10px] uppercase tracking-[0.1em] text-muted-foreground">
+                Inbox
+              </span>
+              <StatusBadge status={collector.login_required ? 'login_required' : 'active'} />
+            </div>
+          </header>
+          <div className="grid gap-3 md:grid-cols-2">
+            <PlatformCard platform="instagram" account={collector} />
+          </div>
+        </section>
+      ) : null}
     </div>
   )
 }

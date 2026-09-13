@@ -42,7 +42,7 @@ function readTargetRect(step: TutorialStep): SpotRect | null {
   for (const node of candidates) {
     if (!(node instanceof HTMLElement)) continue
     const rect = node.getBoundingClientRect()
-    // Prefer visible targets (desktop sidebar vs mobile nav).
+    // Sidebar and mobile nav share the selector. Use the node that is actually on screen.
     if (rect.width >= 2 && rect.height >= 2) {
       el = node
       break
@@ -161,7 +161,7 @@ export function DemoTutorialOverlay({ forceStart = false }: { forceStart?: boole
     setOpen(true)
   }, [forceStart])
 
-  // Steer to the preferred route when a step needs a control that lives there.
+  // This step's button lives on another page. Send them there first.
   useEffect(() => {
     if (!open || !step.preferPath) return
     if (pathname === step.preferPath || pathname.startsWith(`${step.preferPath}/`)) return
@@ -208,7 +208,7 @@ export function DemoTutorialOverlay({ forceStart = false }: { forceStart?: boole
     return subscribeTutorialAction(markAction)
   }, [open, step.requireAction, markAction])
 
-  // Auto-complete nav steps when the route already matches.
+  // Already on that route. Count the nav step as done.
   useEffect(() => {
     if (!open || !step.requireAction) return
     if (pathMatchesTutorialAction(step.requireAction, pathname)) {

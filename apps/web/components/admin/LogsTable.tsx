@@ -1,5 +1,7 @@
 'use client'
 
+// Chart room event/audit log. Filter, then page through it.
+
 import Link from 'next/link'
 import { usePathname, useRouter, useSearchParams } from 'next/navigation'
 

@@ -16,7 +16,7 @@ type RetryOutcome = 'ok' | 'retry' | 'manual'
 
 export { isRealPlatformMediaId }
 
-/** Treat failed + retry_scheduled as upload-not-ok (avoids forever-uncertain loops). */
+/** Failed + retry_scheduled still means this platform is not ok. */
 function platformNeedsAttention(status: string | null | undefined): boolean {
   return status === 'failed' || status === 'retry_scheduled'
 }
@@ -215,7 +215,7 @@ export async function verifyJob(jobId: string): Promise<void> {
   }
 
   if (anyFailed) {
-    // Heal drifted status when a successful attempt already exists.
+    // Job row drifted, but upload_attempts already has a success. Fix the row.
     const ytSuccess = await findSuccessfulUploadAttempt(jobId, 'youtube')
     const igSuccess = await findSuccessfulUploadAttempt(jobId, 'instagram')
     if (ytSuccess || igSuccess) {
@@ -245,7 +245,7 @@ export async function verifyJob(jobId: string): Promise<void> {
       const igOk =
         Boolean(igSuccess) || instagramStatus === 'uploaded' || instagramStatus === 'verified'
       if (ytOk && igOk) {
-        // Re-enter bothUploaded path next verify tick
+        // Next verify tick should take the both-uploaded path.
         await updateJobStatus(jobId, 'awaiting_verification', {
           youtube_upload_status: 'uploaded',
           instagram_upload_status: 'uploaded',
@@ -260,7 +260,7 @@ export async function verifyJob(jobId: string): Promise<void> {
     const youtubeFailed = platformNeedsAttention(youtubeStatus) && !ytSuccess
     const instagramFailed = platformNeedsAttention(instagramStatus) && !igSuccess
 
-    // Publish-clicked-without-URL must not auto re-upload (causes duplicate YT posts).
+    // Publish clicked with no URL. Do not auto re-upload or we double-post on YouTube.
     if (
       youtubeStatus === 'failed' &&
       !ytSuccess &&

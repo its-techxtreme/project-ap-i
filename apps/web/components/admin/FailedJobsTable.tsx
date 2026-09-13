@@ -1,5 +1,7 @@
 'use client'
 
+// Lost cargo. Retry, Drive delete, ignore. Checkboxes are the bulk path.
+
 import { useState, type ReactNode } from 'react'
 import { Ban, ExternalLink, RotateCcw, Trash2 } from 'lucide-react'
 import { useRouter } from 'next/navigation'
@@ -17,6 +19,7 @@ import { StatusBadge } from '@/components/app/StatusBadge'
 import { Button } from '@/components/ui/button'
 import { Checkbox } from '@/components/ui/checkbox'
 import type { FailedJobRow } from '@/lib/data/adminQueries'
+import { displayFailureReason } from '@/lib/jobs/dailyLimitDisplay'
 import { shortId, truncateText } from '@/lib/format/relativeTime'
 import { cn } from '@/lib/utils'
 
@@ -300,9 +303,9 @@ export function FailedJobsTable({ jobs }: { jobs: FailedJobRow[] }) {
                   </td>
                   <td
                     className="max-w-[12rem] truncate px-2.5 py-2 text-xs text-muted-foreground"
-                    title={job.failure_reason ?? undefined}
+                    title={displayFailureReason(job) ?? undefined}
                   >
-                    {job.failure_reason ? truncateText(job.failure_reason, 42) : '—'}
+                    {displayFailureReason(job) ? truncateText(displayFailureReason(job)!, 42) : '—'}
                   </td>
                   <td className="px-2.5 py-2">
                     {job.drive_view_url ? (

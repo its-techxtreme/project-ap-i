@@ -1,3 +1,10 @@
+import {
+  COLLECTOR_CREW_ACCOUNT_ID,
+  COLLECTOR_LOGIN_SETTING_KEY,
+  collectorLoginFromHeartbeat,
+  collectorProfileFromHeartbeat,
+  parseCollectorLoginFlag,
+} from '@/lib/admin/collectorCrew'
 import { endOfDayIso, sanitizePartialUuid } from '@/lib/format/dateFilters'
 import { formatRelativeTime } from '@/lib/format/relativeTime'
 import { pickLatestSuccessfulUpload, resolveUploadHref } from '@/lib/format/uploadRefs'
@@ -20,6 +27,21 @@ function startOfTodayIso(): string {
   const now = new Date()
   now.setHours(0, 0, 0, 0)
   return now.toISOString()
+}
+
+async function loadCollectorCrewState(): Promise<{ loginRequired: boolean; profilePath: string | null }> {
+  const { data, error } = await supabaseAdmin
+    .from('system_settings')
+    .select('key, value')
+    .in('key', [COLLECTOR_LOGIN_SETTING_KEY, 'worker_heartbeat'])
+  if (error || !data?.length) return { loginRequired: false, profilePath: null }
+  const map = new Map(data.map((row) => [row.key, row.value]))
+  const hb = map.get('worker_heartbeat')
+  return {
+    loginRequired:
+      parseCollectorLoginFlag(map.get(COLLECTOR_LOGIN_SETTING_KEY)) || collectorLoginFromHeartbeat(hb),
+    profilePath: collectorProfileFromHeartbeat(hb),
+  }
 }
 
 async function loadPlatformUrlsByJobId(
@@ -97,7 +119,8 @@ export type JobListRow = {
   failure_reason: string | null
   failure_code: string | null
   source_url: string
-  /** 1-based FIFO position among waiting jobs (queued / ready_to_upload), else null. */
+  updated_at?: string | null
+  /** Spot in the waiting line. Null if this job is not queued or ready_to_upload. */
   queue_position: number | null
 }
 
@@ -142,6 +165,7 @@ export type AuditLogRow = {
 
 export async function getJobSummary(): Promise<JobSummary> {
   const todayStart = startOfTodayIso()
+  const collectorCrew = await loadCollectorCrewState()
 
   const [
     queuedRes,
@@ -180,7 +204,7 @@ export async function getJobSummary(): Promise<JobSummary> {
       .select('id', { count: 'exact', head: true })
       .not('drive_file_id', 'is', null)
       .is('drive_deleted_at', null)
-      // Match Failed Review: actionable leftovers only (not cancelled archives).
+      // Same leftover filter as Failed Review. Skip cancelled archives.
       .in('status', ['failed', 'needs_manual_review'])
       .or('drive_folder_state.is.null,drive_folder_state.neq.deleted'),
   ])
@@ -191,7 +215,7 @@ export async function getJobSummary(): Promise<JobSummary> {
     completedToday: completedTodayRes.count ?? 0,
     failedToday: failedTodayRes.count ?? 0,
     needsManualReview: needsReviewRes.count ?? 0,
-    loginRequiredAccounts: loginRequiredRes.count ?? 0,
+    loginRequiredAccounts: (loginRequiredRes.count ?? 0) + (collectorCrew.loginRequired ? 1 : 0),
     driveWaitingCleanup: driveCleanupRes.count ?? 0,
   }
 }
@@ -218,7 +242,7 @@ export async function getJobs(
   let query = supabaseAdmin
     .from('jobs')
     .select(
-      'id, created_at, source_platform, niche_id, status, youtube_upload_status, instagram_upload_status, drive_view_url, retry_count, youtube_retry_count, instagram_retry_count, failure_reason, failure_code, source_url, niches(name)',
+      'id, created_at, updated_at, source_platform, niche_id, status, youtube_upload_status, instagram_upload_status, drive_view_url, retry_count, youtube_retry_count, instagram_retry_count, failure_reason, failure_code, source_url, niches(name)',
       { count: 'exact' },
     )
 
@@ -298,6 +322,7 @@ export async function getJobs(
       failure_reason: row.failure_reason,
       failure_code: row.failure_code ?? null,
       source_url: row.source_url,
+      updated_at: row.updated_at ?? null,
       queue_position: queuePositionById.get(row.id) ?? null,
     }
   })
@@ -368,7 +393,7 @@ export async function getFailedJobs(): Promise<FailedJobRow[]> {
   const { data, error } = await supabaseAdmin
     .from('jobs')
     .select(
-      'id, created_at, source_platform, niche_id, status, youtube_upload_status, instagram_upload_status, drive_view_url, retry_count, youtube_retry_count, instagram_retry_count, failure_reason, failure_code, source_url, niches(name)',
+      'id, created_at, updated_at, source_platform, niche_id, status, youtube_upload_status, instagram_upload_status, drive_view_url, retry_count, youtube_retry_count, instagram_retry_count, failure_reason, failure_code, source_url, niches(name)',
     )
     .in('status', ['failed', 'needs_manual_review'])
     .order('updated_at', { ascending: false })
@@ -404,6 +429,7 @@ export async function getFailedJobs(): Promise<FailedJobRow[]> {
       failure_reason: row.failure_reason,
       failure_code: row.failure_code,
       source_url: row.source_url,
+      updated_at: row.updated_at ?? null,
       queue_position: null,
     }
   })
@@ -420,7 +446,7 @@ export async function getPlatformAccounts(): Promise<PlatformAccountRow[]> {
 
   if (error) throw error
 
-  return (data ?? []).map((row) => {
+  const mapped = (data ?? []).map((row) => {
     const niche = row.niches as { name: string } | { name: string }[] | null
     const nicheName = Array.isArray(niche) ? niche[0]?.name : niche?.name
 
@@ -440,6 +466,22 @@ export async function getPlatformAccounts(): Promise<PlatformAccountRow[]> {
       browser_profile_path: row.browser_profile_path,
     }
   })
+
+  const collector = await loadCollectorCrewState()
+  mapped.push({
+    id: COLLECTOR_CREW_ACCOUNT_ID,
+    niche_id: COLLECTOR_CREW_ACCOUNT_ID,
+    niche_name: 'Collector',
+    platform: 'instagram',
+    account_label: 'Collector IG',
+    status: collector.loginRequired ? 'login_required' : 'active',
+    login_required: collector.loginRequired,
+    last_successful_upload_at: null,
+    last_successful_upload_label: null,
+    failure_count: 0,
+    browser_profile_path: collector.profilePath,
+  })
+  return mapped
 }
 
 export async function getAuditLogs(
@@ -608,6 +650,7 @@ export type PlatformAccountCard = {
   display_name: string | null
   description: string | null
   avatar_url: string | null
+  login_required?: boolean
 }
 
 export type NicheMappingRow = {
@@ -615,7 +658,7 @@ export type NicheMappingRow = {
   name: string
   slug: string
   is_active: boolean
-  /** @deprecated Prefer youtube / instagram cards */
+  /** Old single-label fields. Use the youtube / instagram cards. */
   youtube_label: string | null
   youtube_status: string | null
   instagram_label: string | null
@@ -634,7 +677,7 @@ export async function getNicheAccountMappings(): Promise<NicheMappingRow[]> {
 
   const { data: accounts, error: accountsError } = await supabaseAdmin
     .from('platform_accounts')
-    .select('niche_id, platform, account_label, username_hint, status')
+    .select('niche_id, platform, account_label, username_hint, status, login_required')
     .neq('status', 'disabled')
 
   if (accountsError) throw accountsError
@@ -661,6 +704,7 @@ export async function getNicheAccountMappings(): Promise<NicheMappingRow[]> {
               account_label: string
               username_hint: string | null
               status: string
+              login_required?: boolean
             }
           | undefined,
       ): Promise<PlatformAccountCard | null> {
@@ -675,6 +719,7 @@ export async function getNicheAccountMappings(): Promise<NicheMappingRow[]> {
           display_name: live?.displayName ?? row.account_label,
           description: live?.description ?? null,
           avatar_url: live?.avatarUrl ?? null,
+          login_required: row.login_required === true || row.status === 'login_required',
         }
       }
 
@@ -697,4 +742,20 @@ export async function getNicheAccountMappings(): Promise<NicheMappingRow[]> {
       }
     }),
   )
+}
+
+export async function getCollectorLaneCard(): Promise<PlatformAccountCard> {
+  const collector = await loadCollectorCrewState()
+  return {
+    account_label: 'Collector IG',
+    status: collector.loginRequired ? 'login_required' : 'active',
+    handle: null,
+    profile_url: null,
+    display_name: 'Collector IG',
+    description: collector.loginRequired
+      ? 'Login required on the ig-collector Playwright profile.'
+      : 'Dedicated Instagram collector profile. Never used for niche uploads.',
+    avatar_url: null,
+    login_required: collector.loginRequired,
+  }
 }

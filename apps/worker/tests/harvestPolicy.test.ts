@@ -23,6 +23,11 @@ describe('decideHarvestUrl', () => {
     ).toBe('skip')
   })
 
+  it('skips missing hrefs so a failed click does not invent a take', () => {
+    expect(decideHarvestUrl(undefined, new Set(), new Set())).toBe('skip')
+    expect(decideHarvestUrl('', new Set(), new Set())).toBe('skip')
+  })
+
   it('still takes an older reel when a newer one is already stored', () => {
     const known = new Set(['https://www.instagram.com/reel/NewAlreadyIn/'])
     expect(decideHarvestUrl('https://www.instagram.com/reel/NewAlreadyIn/', known, new Set())).toBe(
