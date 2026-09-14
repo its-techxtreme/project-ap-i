@@ -619,3 +619,14 @@ mask-image:radial-gradient(ellipse 100% 80% at 50% 100%, #000, transparent)
 }
 .ac:hover { border-color:hsl(var(--primary)/.35) }
 .av { width:54px; height:54px; flex-shrink:0; overflow:hidden; border-radius:50%; border:1px solid hsl(var(--border)/.6); background:hsl(var(--muted)/.4) }
+
+/* lag. panning cover png + blur over it melts the fan */
+.psk { contain:paint }
+.psk-im,.psk-wv { animation:none !important }
+.psk-n { visibility:hidden }
+.dark .psk-n { visibility:visible }
+.dark .psk-d { visibility:hidden }
+.tb,.ph { backdrop-filter:none; -webkit-backdrop-filter:none }
+.parchment-panel,.glass-panel {
+  backdrop-filter:none; -webkit-backdrop-filter:none
+}

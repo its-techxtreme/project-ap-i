@@ -6,10 +6,10 @@ import { cn } from '@/lib/utils'
 export function PirateSky({ className }: { className?: string }) {
   return (
     <div className={cn('psk', className)} aria-hidden>
-      <div className="psk-im psk-d sky-pan" />
-      <div className="psk-im psk-n sky-pan" />
+      <div className="psk-im psk-d" />
+      <div className="psk-im psk-n" />
       <div className="psk-sun" />
-      <div className="psk-wv wave-shimmer" />
+      <div className="psk-wv" />
       <div className="psk-wsh" />
       <div className="stars">
         <span className="st st1 sparkle" />
