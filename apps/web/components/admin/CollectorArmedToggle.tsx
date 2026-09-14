@@ -43,7 +43,7 @@ export function CollectorArmedToggle({
   }
 
   return (
-    <div className="desk-panel space-y-3 rounded-md border border-border/80 px-4 py-3">
+    <div className="pn space-y-3 px-4 py-3">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
           <p className="font-mono text-[10px] uppercase tracking-[0.12em] text-muted-foreground">Instagram scraper</p>

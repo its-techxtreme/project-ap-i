@@ -90,10 +90,7 @@ export async function adminLogin(
   redirect(dest)
 }
 
-/**
- * One-click demo boarding — creates a read-only demo session without exposing
- * credentials to the browser. Starts the crew voyage briefing via ?voyage=1.
- */
+/** One-click demo. Read-only cookie. Credentials stay on the server. ?voyage=1 starts the briefing. */
 export async function demoLogin(): Promise<AdminLoginResult> {
   const demo = getDemoCredentials()
   if (!demo) {

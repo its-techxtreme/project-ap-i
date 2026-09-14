@@ -28,7 +28,7 @@ export function AppShell({
           {themeInitScript('admin')}
         </Script>
         <AdminCapabilitiesProvider canWrite={canWrite} role={role}>
-          <div className="desk-shell relative flex min-h-screen flex-col overflow-x-hidden">
+          <div className="sh">
             <PirateSky className="opacity-40 dark:opacity-55" />
             <div className="relative z-10 flex min-h-screen flex-col">
               <div className="sticky top-0 z-40">
@@ -43,7 +43,7 @@ export function AppShell({
                   {!canWrite ? (
                     <p
                       data-tutorial="demo-banner"
-                      className="notice-warn mb-4 rounded-md border px-3 py-2 text-sm"
+                      className="notice-warn nw"
                     >
                       Demo watch — browse only. Write actions are locked ashore.
                     </p>

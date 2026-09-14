@@ -10,9 +10,7 @@ type ShipSuccessProps = {
   className?: string
 }
 
-/**
- * Post-submit celebration: parchment message + ship sailing across the dock.
- */
+/** After submit. Note on parchment plus the ship crossing the dock. */
 export function ShipSuccess({
   nicheLabel,
   platformLabel,
@@ -59,10 +57,10 @@ export function ShipSuccess({
         </div>
       </div>
 
-      <div className="relative mt-8 h-28 overflow-hidden rounded-lg border border-border/60 bg-gradient-to-b from-sky-200/40 to-teal-700/25 dark:from-slate-800/50 dark:to-teal-950/40">
-        <div className="absolute inset-x-0 bottom-0 h-8 bg-gradient-to-t from-teal-800/40 to-transparent wave-shimmer" />
-        <div className="absolute bottom-2 left-4 h-3 w-16 rounded-sm bg-amber-900/50 dark:bg-amber-950/60" />
-        <div className="absolute bottom-2 left-24 h-2 w-10 rounded-sm bg-amber-800/40" />
+      <div className="dk">
+        <div className="dk-wv wave-shimmer" />
+        <div className="dk-pl" />
+        <div className="dk-pl2" />
         <img
           src="/pirate/crew-bird.svg"
           alt=""

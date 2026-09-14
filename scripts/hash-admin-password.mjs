@@ -1,13 +1,4 @@
-/**
- * Hash a password for ADMIN_PASSWORD_HASH or DEMO_PASSWORD_HASH.
- *
- * Usage (from repo root):
- *   node --env-file=.env scripts/hash-admin-password.mjs
- *   node scripts/hash-admin-password.mjs "your-password"
- *
- * Reads ADMIN_PASSWORD or DEMO_PASSWORD from env if no argv.
- * Prints a scrypt hash. Never commit plaintext passwords.
- */
+/** Print a scrypt hash for ADMIN_PASSWORD_HASH or DEMO_PASSWORD_HASH. Dont commit plaintext. */
 import { randomBytes, scryptSync } from 'node:crypto'
 import { createInterface } from 'node:readline'
 

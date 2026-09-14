@@ -5,31 +5,18 @@ import { cn } from '@/lib/utils'
 /** Full-bleed day/night pirate sky for public, login, and admin shells. */
 export function PirateSky({ className }: { className?: string }) {
   return (
-    <div className={cn('pirate-sky', className)} aria-hidden>
-      <div className="pirate-sky__image pirate-sky__day sky-pan" />
-      <div className="pirate-sky__image pirate-sky__night sky-pan" />
-      <div className="pirate-sky__sun" />
-      <div className="pirate-sky__wave wave-shimmer" />
-      <div className="pirate-sky__wash" />
-      {/* Decorative stars for night — CSS dots */}
-      <div className="absolute inset-0 opacity-0 dark:opacity-100">
-        <span className="sparkle absolute left-[18%] top-[22%] size-1 rounded-full bg-white/80" />
-        <span
-          className="sparkle absolute left-[42%] top-[14%] size-1.5 rounded-full bg-white/70"
-          style={{ animationDelay: '0.6s' }}
-        />
-        <span
-          className="sparkle absolute left-[68%] top-[20%] size-1 rounded-full bg-white/75"
-          style={{ animationDelay: '1.1s' }}
-        />
-        <span
-          className="sparkle absolute left-[78%] top-[32%] size-1 rounded-full bg-white/60"
-          style={{ animationDelay: '1.7s' }}
-        />
-        <span
-          className="sparkle absolute left-[28%] top-[36%] size-1 rounded-full bg-white/70"
-          style={{ animationDelay: '0.3s' }}
-        />
+    <div className={cn('psk', className)} aria-hidden>
+      <div className="psk-im psk-d sky-pan" />
+      <div className="psk-im psk-n sky-pan" />
+      <div className="psk-sun" />
+      <div className="psk-wv wave-shimmer" />
+      <div className="psk-wsh" />
+      <div className="stars">
+        <span className="st st1 sparkle" />
+        <span className="st st2 sparkle" />
+        <span className="st st3 sparkle" />
+        <span className="st st4 sparkle" />
+        <span className="st st5 sparkle" />
       </div>
     </div>
   )

@@ -17,11 +17,7 @@ import {
 import { recoverStalePipelineJobs } from './recoverStalePipelineJobs'
 import { recoverStaleUploadingJobs } from './recoverStaleUploads'
 
-/**
- * Claim next queued job, with backpressure while a Playwright upload is active.
- * Prevents n8n from stacking overlapping uploads that collide on Chrome profiles.
- * Also skips niches whose YouTube/Instagram accounts already hit the daily upload cap.
- */
+/** Next queued job. Wait if Chrome is already uploading. Skip niches over the daily cap. */
 export async function claimJob(workerId: string): Promise<DbJobRow | null> {
   if (isCollectorHold()) {
     logger.info({ msg: 'Skipping job claim — collector hold is on', workerId })

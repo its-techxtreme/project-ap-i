@@ -1,10 +1,4 @@
-/**
- * Canonical unattended stack:
- *   Docker n8n → host.docker.internal:3001
- *   Native worker (built dist) on host with Chrome profiles
- *
- * Usage: node scripts/stack-up.mjs
- */
+/** Real stack. Docker n8n talks host.docker.internal:3001. Native worker on the host with Chrome. */
 import { spawn, execSync } from 'node:child_process'
 import fs from 'node:fs'
 import path from 'node:path'

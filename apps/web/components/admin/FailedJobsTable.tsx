@@ -199,7 +199,7 @@ export function FailedJobsTable({ jobs }: { jobs: FailedJobRow[] }) {
 
   if (jobs.length === 0) {
     return (
-      <div className="desk-panel rounded-md border border-dashed border-border/80 px-4 py-10 text-center text-sm text-muted-foreground">
+      <div className="pn border-dashed px-4 py-10 text-center text-sm text-muted-foreground">
         No failed jobs.
       </div>
     )
@@ -210,7 +210,7 @@ export function FailedJobsTable({ jobs }: { jobs: FailedJobRow[] }) {
       <AdminAutoRefresh paused={dialogOpen || busy} />
 
       {selected.size > 0 && canWrite ? (
-        <div className="desk-panel mb-3 flex flex-wrap items-center gap-2 rounded-md border border-border/80 px-3 py-2.5">
+        <div className="pn mb-3 flex flex-wrap items-center gap-2 px-3 py-2.5">
           <span className="text-xs font-medium text-foreground">{selected.size} selected</span>
           <Button
             size="sm"
@@ -250,7 +250,7 @@ export function FailedJobsTable({ jobs }: { jobs: FailedJobRow[] }) {
         <p className="notice-warn mb-3 rounded-md border px-3 py-2 text-sm">{actionMessage}</p>
       ) : null}
 
-      <div className="desk-panel overflow-hidden rounded-md border border-border/80">
+      <div className="pn">
         <div className="overflow-x-auto">
           <table className="w-full min-w-[880px] text-left text-sm">
             <thead className="border-b border-border bg-muted/40 text-[10px] uppercase tracking-[0.08em] text-muted-foreground">

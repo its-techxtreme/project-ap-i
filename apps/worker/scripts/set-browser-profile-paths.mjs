@@ -1,7 +1,4 @@
-/**
- * Upsert platform_accounts with browser_profile_path for all 6 niche/platform pairs.
- * Usage: node --env-file=.env apps/worker/scripts/set-browser-profile-paths.mjs
- */
+/** Write browser_profile_path on all 6 niche/platform account rows. */
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 

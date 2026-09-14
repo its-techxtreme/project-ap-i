@@ -1,7 +1,4 @@
-/**
- * Stop native worker + Docker n8n (and optional Docker worker).
- * Usage: node scripts/stack-down.mjs
- */
+/** Stop native worker plus Docker n8n (and optional Docker worker). */
 import { execSync } from 'node:child_process'
 import fs from 'node:fs'
 import path from 'node:path'

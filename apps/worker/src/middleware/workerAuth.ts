@@ -4,10 +4,7 @@ import { config } from '../config'
 import { logger } from '../logging/logger'
 import { validateWorkerToken } from '../security/validateWorkerToken'
 
-/**
- * Validates the X-Worker-Token header.
- * Returns 401 if missing, 403 if incorrect.
- */
+/** x-worker-token. 401 missing 403 wrong. */
 export async function workerAuthMiddleware(
   request: FastifyRequest,
   reply: FastifyReply,

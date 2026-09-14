@@ -1,22 +1,25 @@
 # Project AP-I
 
-**Short-form content intake → process → publish**
+**Short-form intake → process → publish**  :D
 
-Project AP-I turns a repetitive multi-account posting routine into a tracked queue. Instead of downloading a clip, applying an edit preset, writing captions, opening YouTube Studio, opening Instagram, and uploading twice for every niche, you paste an approved link once, pick a niche, confirm rights, and let the pipeline do the rest.
+Basciallyy this is the queue I wish I had before I spent every evening pasting the same reel into YouTube Studio and Instagram for three niches. You drop an approved link, pick Memes / Anime / Sports, tick rights, walk away. Worker on my laptop does download, 1.2x edit, Drive, captions, then both platforms. If the PC sleeps the queue sleeps. ugly but it ships. +_=
 
-It is built for three niches — **Memes**, **Anime**, and **Sports** — each mapped server-side to exactly one YouTube account and one Instagram account. Submitters never choose destination accounts manually.
+![Stretch](apps/web/public/pirate/crew-stretch.svg)![Navi](apps/web/public/pirate/crew-navigator.svg)![Cookie](apps/web/public/pirate/crew-cook.svg)![Blades](apps/web/public/pirate/crew-blades.svg)![Doc](apps/web/public/pirate/crew-bird.svg)
+
+![compass](apps/web/public/pirate/compass.svg)![anchor](apps/web/public/pirate/anchor.svg)![map scroll](apps/web/public/pirate/map-scroll.svg)
+
+Niches are locked: **memes / anime / sports**. Each one maps server-side to exactly one YT + one IG. Submitters never pick accounts. Collector IG (same worker, different Chrome, never uploads) searches 3 unique reels per niche then unread DMs, twice a local day max. Missing niche words go to Unsorted cargo. sooo much less paste-by-hand now. :)
 
 
-|                   |                                                                                                            |
-| ----------------- | ---------------------------------------------------------------------------------------------------------- |
-| **Live demo**     | [project-ap-i.vercel.app](https://project-ap-i.vercel.app)                                                 |
-| **Repository**    | [github.com/its-techxtreme/project-ap-i](https://github.com/its-techxtreme/project-ap-i)                   |
-| **Hack Club**     | [Stardance project page](https://stardance.hackclub.com/projects/33973)                                    |
+|               |                                                                                          |
+| ------------- | ---------------------------------------------------------------------------------------- |
+| **Live**      | [ap-i.techxtreme.me](https://ap-i.techxtreme.me)                                         |
+| **Also**      | [project-ap-i.vercel.app](https://project-ap-i.vercel.app)                               |
+| **Repo**      | [github.com/its-techxtreme/project-ap-i](https://github.com/its-techxtreme/project-ap-i) |
+| **Stardance** | [stardance.hackclub.com/projects/33973](https://stardance.hackclub.com/projects/33973)   |
 
 
 ---
-
-
 
 ## Why this exists
 
@@ -30,29 +33,34 @@ Manual short-form ops looks simple until you do it every day:
 6. Upload again to the niche’s Instagram account (shared edit export)
 7. Remember which jobs failed, which need retry, and which Drive files still need cleanup
 
-Miss a step and you lose an evening. Project AP-I replaces that loop with a job queue: **submit → download → FFmpeg edit → AI metadata → Google Drive staging → YouTube + Instagram upload → verification → Drive cleanup**. Status, retries, and audit logs live in Supabase so you can see what happened without digging through browser tabs.
+Miss a step and you lose an evening. Project AP-I replaces that loop with a job queue: **submit → download → FFmpeg edit → titles/captions → Google Drive staging → YouTube + Instagram upload → verification → Drive cleanup**. Status, retries, and audit logs live in Supabase so you can see what happened without digging through browser tabs.
 
-The public web app runs on Vercel. The heavy work (yt-dlp, FFmpeg, Playwright with real Chrome profiles) runs on a local laptop by design — a full always-on VPS with headed Chrome was not a realistic budget for this MVP.
+The public web app runs on Vercel. The heavy work (yt-dlp, FFmpeg, Playwright with real Chrome profiles) runs on a local laptop by design — a full always-on VPS with headed Chrome was not a realistic budget for this MVP. ywahh the factory is under the desk. :-}
 
 ---
 
+## What's on the desk rn
 
+Captain's Deck UI (Crow's nest, Ship's log, Lost cargo, Crew, Sea lanes, Unsorted cargo). Demo watch is read-only. Remote laptop light is a Supabase heartbeat because Vercel cannot ping the worker. Collector fail-closes if settings / known urls cannot load. Fake ig-job ids do not count as uploaded. Daily-limit parked jobs drop the stuck badge after the 24h window. YT overlay labels: ShonenSnaps / CrackleCrumb / ScoreMorsel. Anime handles are `theshonensnaps` on both platforms. nott gonna pretend it is bug-free. T_T
+
+---
 
 ## Try the demo (no local setup)
 
-You do not need to clone the repo to see how the product looks and behaves.
+You do not need to clone the repo to see how the product looks and behaves. tysmmmm if you actually click around. =_=
 
-1. Open **[https://project-ap-i.vercel.app](https://project-ap-i.vercel.app)** (or the production domain) and go to **Login**.
+1. Open **[https://ap-i.techxtreme.me](https://ap-i.techxtreme.me)** (or [vercel](https://project-ap-i.vercel.app)) and go to **Login**. ;)
 2. Click **Demo voyage — board & tour** — no typing needed. You land on a read-only Captain's Deck session and the crew runs an interactive briefing (spotlight + mascots).
 3. Optional manual login (same demo account):
+
 
 | Field    | Value            |
 | -------- | ---------------- |
 | Username | `ProjectAPIDemo` |
 | Password | `ProjectAPI@13`  |
 
-Use **Demo · replay tour** in the top bar anytime to restart the briefing.
 
+Use **Demo · replay tour** in the top bar anytime to restart the briefing.
 
 **What the demo user can do**
 
@@ -68,18 +76,16 @@ That keeps the hosted dashboard useful for reviewers while protecting the live q
 
 ---
 
-
-
 ## Architecture (at a glance)
 
 
-| Piece                      | Role                                                     | Typical URL                                    |
-| -------------------------- | -------------------------------------------------------- | ---------------------------------------------- |
-| **Web** (`apps/web`)       | Submit form + admin dashboard (Next.js)                  | [http://localhost:3000](http://localhost:3000) |
-| **Worker** (`apps/worker`) | Download, FFmpeg, Drive, AI captions, Playwright uploads | [http://localhost:3001](http://localhost:3001) |
-| **n8n** (Docker)           | Claims jobs on a schedule and calls the worker           | [http://localhost:5678](http://localhost:5678) |
-| **Supabase**               | Source of truth for jobs, niches, accounts, audit logs   | your cloud project                             |
-| **Google Drive**           | Staging for processed videos before / after upload       | OAuth in local `.env`                          |
+| Piece                      | Role                                                                         | Typical URL                                    |
+| -------------------------- | ---------------------------------------------------------------------------- | ---------------------------------------------- |
+| **Web** (`apps/web`)       | Submit form + admin dashboard (Next.js)                                      | [http://localhost:3000](http://localhost:3000) |
+| **Worker** (`apps/worker`) | Download, FFmpeg, Drive, captions, Playwright uploads + collector harvest | [http://localhost:3001](http://localhost:3001) |
+| **n8n** (Docker)           | Claims jobs on a schedule and calls the worker                               | [http://localhost:5678](http://localhost:5678) |
+| **Supabase**               | Source of truth for jobs, niches, accounts, audit logs                       | your cloud project                             |
+| **Google Drive**           | Staging for processed videos before / after upload                           | OAuth in local `.env`                          |
 
 
 **Recommended local run:** native worker on the host (needs Chrome) + n8n in Docker via `pnpm stack:up`.
@@ -90,7 +96,7 @@ Submitter  →  Vercel / local Next.js  →  Supabase (job queued)
                                     n8n poller (WF-01…)
                                               ↓
                                     Worker on your laptop
-                         download → edit (1.2x + filter + BGM) → Drive → AI → upload
+                         download → edit (1.2x + filter + BGM) → Drive → captions → upload
                          (YT: brand c-text if no hard captions; IG: shared export)
                                               ↓
                                     verify (~5 min) → cleanup
@@ -98,17 +104,13 @@ Submitter  →  Vercel / local Next.js  →  Supabase (job queued)
 
 ---
 
-
-
 ## Acknowledgments
 
-Parts of this codebase were written and iterated with **[Cursor](https://cursor.com)**, an AI-assisted editor. Cursor was used for scaffolding, debugging pipeline edge cases, writing tests, and tightening ops scripts. Product decisions, architecture tradeoffs, deployment choices, and final review remain mine.
+Parts of this codebase were written and iterated with **[Cursor](https://cursor.com)**, an AI-assisted editor. Cursor was used for debugging pipeline edge cases, writing tests, and tightening ops scripts. Product decisions, architecture tradeoffs, deployment choices, and final review remain mine in those cases too.
 
 The product also calls Google Gemini (with Groq fallback) to generate YouTube titles/descriptions and Instagram captions from source context, with a plain fallback when models are unavailable.
 
 ---
-
-
 
 ## Prerequisites
 
@@ -130,8 +132,6 @@ Optional for a full end-to-end pipeline:
 
 ---
 
-
-
 ## First-time setup on your laptop
 
 Follow these steps in order. Skipping ahead usually ends in “queue looks fine but nothing moves.”
@@ -143,8 +143,6 @@ git clone https://github.com/its-techxtreme/project-ap-i.git "Project AP-I"
 cd "Project AP-I"
 pnpm install
 ```
-
-
 
 ### 2. Create environment files
 
@@ -211,7 +209,7 @@ Leave Docker Desktop running. If the laptop sleeps, the queue sleeps — that is
 
 ### 5. Configure n8n and import workflows (first time only)
 
-n8n only orchestrates. It does not run FFmpeg, yt-dlp, or Playwright. Ready-to-import JSON exports live in [`infra/n8n/workflows/`](./infra/n8n/workflows/) — they reference credential **names** and env vars only, never your private tokens.
+n8n only orchestrates. It does not run FFmpeg, yt-dlp, or Playwright. Ready-to-import JSON exports live in `[infra/n8n/workflows/](./infra/n8n/workflows/)` — they reference credential **names** and env vars only, never your private tokens.
 
 #### 5a. Owner account + Header Auth credentials
 
@@ -219,12 +217,14 @@ n8n only orchestrates. It does not run FFmpeg, yt-dlp, or Playwright. Ready-to-i
 2. Confirm `N8N_ENCRYPTION_KEY` was set in `.env` **before** you save credentials (otherwise later restarts cannot decrypt them).
 3. Create these Header Auth credentials under **Settings → Credentials** (names must match exactly):
 
-| Credential name | Header | Value |
-|-----------------|--------|--------|
-| `WorkerToken` | `X-Worker-Token` | same as `WORKER_INTERNAL_TOKEN` in `.env` |
-| `WebhookInternalToken` | `X-Webhook-Token` | same as `N8N_WEBHOOK_TOKEN` in `.env` |
 
-More detail: [`infra/n8n/credentials_setup.md`](./infra/n8n/credentials_setup.md).
+| Credential name        | Header            | Value                                     |
+| ---------------------- | ----------------- | ----------------------------------------- |
+| `WorkerToken`          | `X-Worker-Token`  | same as `WORKER_INTERNAL_TOKEN` in `.env` |
+| `WebhookInternalToken` | `X-Webhook-Token` | same as `N8N_WEBHOOK_TOKEN` in `.env`     |
+
+
+More detail: `[infra/n8n/credentials_setup.md](./infra/n8n/credentials_setup.md)`.
 
 #### 5b. Import the workflow JSON files
 
@@ -233,22 +233,24 @@ More detail: [`infra/n8n/credentials_setup.md`](./infra/n8n/credentials_setup.md
 1. In n8n: **Workflows → Import from File**
 2. Import each file from `infra/n8n/workflows/`:
 
-| File | What it does |
-|------|----------------|
-| `WF-01_new_job_poller.json` | Every ~2 min: claim one queued job → run WF-02 |
-| `WF-02_process_job.json` | Process → upload → wait → run WF-03 |
-| `WF-03_upload_verification.json` | Verify uploads; retry or flag manual review |
-| `WF-04_manual_retry_webhook.json` | Optional local manual-retry webhook |
-| `WF-05_drive_cleanup_webhook.json` | Optional local Drive cleanup webhook |
-| `WF-06_account_health_check.json` | Optional account health checks |
-| `WF-07_admin_command_poller.json` | Drain hosted admin retry/delete commands |
-| `WF-08_verification_cron.json` | Verify due jobs if the WF-02 wait was interrupted |
 
-3. Open an imported HTTP Request node and confirm it still points at `WorkerToken` / `WebhookInternalToken` by name. If n8n shows a missing credential warning, pick the credential you created in 5a.
-4. Wire sub-workflows (or let the CLI do it in Option B):
-   - In **WF-01** → node **Run WF-02 Process Job** → select workflow **WF-02 Process Job**
-   - In **WF-02** → node **Run WF-03 Verify** → select workflow **WF-03 Upload Verification**
-5. Activate at least **WF-01**, **WF-07**, and **WF-08**. Activating WF-02 / WF-03 as well is recommended so nested calls stay published.
+| File                               | What it does                                      |
+| ---------------------------------- | ------------------------------------------------- |
+| `WF-01_new_job_poller.json`        | Every ~2 min: claim one queued job → run WF-02    |
+| `WF-02_process_job.json`           | Process → upload → wait → run WF-03               |
+| `WF-03_upload_verification.json`   | Verify uploads; retry or flag manual review       |
+| `WF-04_manual_retry_webhook.json`  | Optional local manual-retry webhook               |
+| `WF-05_drive_cleanup_webhook.json` | Optional local Drive cleanup webhook              |
+| `WF-06_account_health_check.json`  | Optional account health checks                    |
+| `WF-07_admin_command_poller.json`  | Drain hosted admin retry/delete commands          |
+| `WF-08_verification_cron.json`     | Verify due jobs if the WF-02 wait was interrupted |
+
+
+1. Open an imported HTTP Request node and confirm it still points at `WorkerToken` / `WebhookInternalToken` by name. If n8n shows a missing credential warning, pick the credential you created in 5a.
+2. Wire sub-workflows (or let the CLI do it in Option B):
+  - In **WF-01** → node **Run WF-02 Process Job** → select workflow **WF-02 Process Job**
+  - In **WF-02** → node **Run WF-03 Verify** → select workflow **WF-03 Upload Verification**
+3. Activate at least **WF-01**, **WF-07**, and **WF-08**. Activating WF-02 / WF-03 as well is recommended so nested calls stay published.
 
 **Option B — CLI (after you create an n8n API key)**
 
@@ -260,7 +262,7 @@ pnpm n8n:import   # upserts all JSON files from infra/n8n/workflows/
 pnpm n8n:setup    # attaches credentials, links WF-01→02→03, activates pollers
 ```
 
-Folder notes and a security checklist for the exports: [`infra/n8n/workflows/README.md`](./infra/n8n/workflows/README.md). Full workflow map: [`infra/n8n/README.md`](./infra/n8n/README.md).
+Folder notes and a security checklist for the exports: `[infra/n8n/workflows/README.md](./infra/n8n/workflows/README.md)`. Full workflow map: `[infra/n8n/README.md](./infra/n8n/README.md)`.
 
 n8n inside Docker must call the host worker at:
 
@@ -289,14 +291,10 @@ pnpm --filter @project-api/web dev
 | [http://localhost:3000/login](http://localhost:3000/login)   | Admin / demo login            |
 
 
+### 7. Google Drive + titles/captions (full pipeline)
 
-
-### 7. Google Drive + AI captions (full pipeline)
-
-- **Drive:** follow `[infra/google-drive/SETUP.md](./infra/google-drive/SETUP.md)`, then put client id, secret, refresh token, and folder IDs in `.env`. Helper scripts include `scripts/google-drive-ensure-folders.mjs` and `apps/worker/scripts/drive-oauth-via-profile.mjs`.  
-- **AI captions:** set `GEMINI_API_KEY` (primary) and `GROQ_API_KEY` (fallback) in `.env`. Without AI keys, the worker falls back to cleaned source caption text plus niche tags.
-
-
+- **Drive:** follow [infra/google-drive/SETUP.md](./infra/google-drive/SETUP.md), then put client id, secret, refresh token, and folder IDs in `.env`. Helper scripts include `scripts/google-drive-ensure-folders.mjs` and `apps/worker/scripts/drive-oauth-via-profile.mjs`.
+- **Titles / captions:** set `GEMINI_API_KEY` (primary) and `GROQ_API_KEY` (fallback) in `.env`. Without those keys, the worker falls back to cleaned source caption text plus niche tags. More in [docs/captions.md](./docs/captions.md).
 
 ### 8. Playwright profiles (only when enabling real uploads)
 
@@ -311,8 +309,6 @@ Repeat for each profile you use (`memes-ig`, `anime-yt`, …). Complete any 2FA 
 Watermarking is intentionally disabled. Background music for the edit preset lives under `apps/worker/assets/bgm/` (override with `BACKGROUND_MUSIC_PATH`).
 
 ---
-
-
 
 ## Daily use
 
@@ -331,11 +327,9 @@ Optional Windows logon autostart (current user only, no admin elevation):
 pnpm stack:autostart:install
 ```
 
-After login, once Docker is ready, n8n + worker come up on their own. Details: `[docs/LOCAL_DEVELOPMENT.md](./docs/LOCAL_DEVELOPMENT.md)`.
+After login, once Docker is ready, n8n + worker come up on their own. Extra notes: [docs/setup.md](./docs/setup.md).
 
 ---
-
-
 
 ## Real uploads (opt-in, local only)
 
@@ -363,8 +357,6 @@ Concurrency on a typical laptop should stay conservative (`MAX_FFMPEG_CONCURRENC
 
 ---
 
-
-
 ## Niches and accounts
 
 
@@ -378,8 +370,6 @@ Concurrency on a typical laptop should stay conservative (`MAX_FFMPEG_CONCURRENC
 If mapping is wrong or incomplete, jobs move to `needs_manual_review` instead of guessing an account.
 
 ---
-
-
 
 ## Troubleshooting
 
@@ -396,8 +386,6 @@ Things that commonly go wrong when setting this up on a laptop, and how to recov
 | n8n UI blank / restart loop     | Encryption key changed after credentials were saved | Restore the original `N8N_ENCRYPTION_KEY`, or wipe the n8n volume and recreate credentials (last resort) |
 
 
-
-
 ### Queue looks alive but nothing processes
 
 
@@ -408,8 +396,6 @@ Things that commonly go wrong when setting this up on a laptop, and how to recov
 | Claim never picks healthy jobs        | Stale SQL / null `failure_code` edge cases on older DBs | Apply migrations through `0018_fix_claim_null_failure_code.sql`                                                                                     |
 | Entire pipeline frozen                | Crash left a job stuck in `uploading`                   | Newer worker recovers stale uploads on the next claim; check admin Failed / Needs review; use admin retry after the outbox poller (WF-07) is active |
 | Dashboard says Processing, logs quiet | Pollers inactive or worker asleep                       | `pnpm stack:status`; reopen n8n and confirm Active workflows; wake the laptop                                                                       |
-
-
 
 
 ### Uploads and sessions
@@ -424,19 +410,15 @@ Things that commonly go wrong when setting this up on a laptop, and how to recov
 | Daily limit messages / jobs stay `ready_to_upload`    | Hit `DAILY_UPLOAD_LIMIT_PER_ACCOUNT`                                | Expected; wait for the rolling 24h window or raise the limit carefully                                                                                                                             |
 
 
-
-
 ### Downloads, Drive, and metadata
 
 
-| Symptom                        | Likely cause                                              | What to do                                                                                         |
-| ------------------------------ | --------------------------------------------------------- | -------------------------------------------------------------------------------------------------- |
-| yt-dlp: no video formats found | Source URL restricted, region, or Instagram layout change | Confirm the URL opens in a normal browser; update yt-dlp; try another approved link                |
-| FFmpeg / binary not found      | Not on PATH for the detached worker                       | Install FFmpeg/yt-dlp system-wide, or set `FFMPEG_PATH` / `YT_DLP_PATH` / `FFPROBE_PATH` in `.env` |
+| Symptom                        | Likely cause                                                | What to do                                                                                                                                                                                                                                                             |
+| ------------------------------ | ----------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| yt-dlp: no video formats found | Source URL restricted, region, or Instagram layout change   | Confirm the URL opens in a normal browser; update yt-dlp; try another approved link                                                                                                                                                                                    |
+| FFmpeg / binary not found      | Not on PATH for the detached worker                         | Install FFmpeg/yt-dlp system-wide, or set `FFMPEG_PATH` / `YT_DLP_PATH` / `FFPROBE_PATH` in `.env`                                                                                                                                                                     |
 | Drive upload fails             | Expired refresh token (`invalid_grant`) or wrong folder IDs | Prefer service account (`GOOGLE_DRIVE_SERVICE_ACCOUNT_FILE`); if using OAuth, **publish** the consent screen to Production (Testing tokens die ~7 days). Re-run `scripts/google-drive-auth.mjs` / `scripts/google-drive-test.mjs`; check `pnpm stack:status` → `drive` |
-| AI captions empty / junk       | Rate limit or bad JSON from the model                     | Check API key and model id; worker should fall back to cleaned source text                         |
-
-
+| Titles/captions empty or junk | Rate limit or bad JSON from Gemini/Groq | Check the key and model id; worker should fall back to cleaned source text |
 
 
 ### Web / auth
@@ -450,8 +432,6 @@ Things that commonly go wrong when setting this up on a laptop, and how to recov
 | Submit rejected                                | Unsupported URL or rate limit                  | Only youtube.com / youtu.be / instagram.com (and approved variants); wait and retry         |
 
 
-
-
 ### Verification and cleanup
 
 
@@ -463,11 +443,9 @@ Things that commonly go wrong when setting this up on a laptop, and how to recov
 
 When in doubt: **silence for 30+ minutes usually means a stuck lock or inactive poller, not “everything is fine.”** Check `pnpm stack:status`, n8n Active workflows, and the newest job’s status/events in Supabase.
 
-More detail lives in `[docs/LOCAL_DEVELOPMENT.md](./docs/LOCAL_DEVELOPMENT.md)` and `[docs/09_Deployment_Operations_Runbook_Project_AP-I.md](./docs/09_Deployment_Operations_Runbook_Project_AP-I.md)`.
+More detail: [docs/setup.md](./docs/setup.md).
 
 ---
-
-
 
 ## Repo layout
 
@@ -480,12 +458,10 @@ infra/n8n/           Workflow JSON exports (credential-free) + n8n docs
 infra/n8n/workflows/ Ready-to-import WF-01…WF-08 JSON + import notes
 infra/google-drive/  Drive OAuth setup
 scripts/             stack:up, env helpers, n8n import/export
-docs/                Specs and runbooks
+docs/                setup extras + titles/captions
 ```
 
 ---
-
-
 
 ## Checks
 
@@ -505,24 +481,15 @@ pnpm test:e2e
 
 ---
 
+## More notes
 
-
-## Documentation
-
-
-| Doc                                                                    | Use it for                              |
-| ---------------------------------------------------------------------- | --------------------------------------- |
-| [Local Development](./docs/LOCAL_DEVELOPMENT.md)                       | Full local runbook                      |
-| [n8n workflow exports](./infra/n8n/workflows/README.md)                | Importable JSON list + what is sanitized |
-| [n8n README](./infra/n8n/README.md)                                    | Credentials, workflow map, CLI import   |
-| [Drive SETUP](./infra/google-drive/SETUP.md)                           | OAuth and folders                       |
-| [Ops runbook](./docs/09_Deployment_Operations_Runbook_Project_AP-I.md) | Deployment and operations               |
-| [Docs index](./docs/00_Project_AP-I_Documentation_Index.md)            | PRD, architecture, security             |
+- [docs/setup.md](./docs/setup.md) — laptop extras I keep forgetting
+- [docs/captions.md](./docs/captions.md) — Gemini / Groq keys
+- [Drive SETUP](./infra/google-drive/SETUP.md)
+- [n8n](./infra/n8n/README.md) and [workflow JSON](./infra/n8n/workflows/README.md)
 
 
 ---
-
-
 
 ## Security reminders
 
@@ -533,8 +500,6 @@ pnpm test:e2e
 - CAPTCHA and 2FA are never automated — mark `login_required` and recover the session by hand.
 
 ---
-
-
 
 ## Author
 

@@ -1,7 +1,4 @@
-/**
- * Detect transient Playwright upload failures that should be retried in-process
- * before burning a job-level retry / needs_manual_review.
- */
+/** Flaky Playwright fail. Retry in-process before burning the job retry. */
 export function isTransientUploadFailure(result: {
   success: boolean
   loginRequired?: boolean

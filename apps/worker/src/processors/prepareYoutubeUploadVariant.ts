@@ -73,15 +73,12 @@ export function buildYoutubeBrandOverlayArgs(opts: {
 export interface YoutubeUploadVariantResult {
   /** File the YouTube uploader should send (shared edit or branded overlay). */
   localFilePath: string
-  /** True if we burned niche brand text onto this copy. */
+  /** Niche brand text got burned onto this copy. */
   brandOverlayApplied: boolean
   detectionReason: string
 }
 
-/**
- * File for YouTube only. If the reel already has burned-in captions, keep the shared edit.
- * Otherwise burn niche brand text on the graphical area. Instagram still gets the plain export.
- */
+/** YT file. Keep shared edit if c-text is already on the reel. Else burn niche brand. IG stays the plain export. */
 export async function prepareYoutubeUploadVariant(opts: {
   jobId: string
   nicheSlug: string

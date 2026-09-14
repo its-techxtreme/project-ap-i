@@ -1,7 +1,4 @@
-/**
- * One-shot collector scrape + persist (does not restart the worker).
- * Usage: pnpm --filter @project-api/worker exec tsx --env-file=../../.env scripts/collector-backfill.ts
- */
+/** One collector scrape + persist. Does not restart the worker. */
 import { scrapeUnreadCollectorInbox } from '../src/collector/instagramDmCollector'
 import { persistCollectedReels } from '../src/collector/persistCollectedReels'
 import { logger } from '../src/logging/logger'

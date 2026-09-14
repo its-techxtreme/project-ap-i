@@ -1,8 +1,4 @@
-/**
- * In-memory submission rate limiter (MVP).
- * Keyed by client IP for anonymous public submit.
- * Replace with Redis-backed limiter in Phase 16 for multi-instance deployments.
- */
+// ip keyed. in process only. one vercel instance is fine
 const ONE_MINUTE_MS = 60_000
 const ONE_DAY_MS = 24 * 60 * 60 * 1000
 const MAX_PER_MINUTE = 5

@@ -1,9 +1,4 @@
-/**
- * Ensure AP-I Drive staging folders exist for the authorized account.
- * Updates .env folder IDs when creating/reusing folders.
- *
- * Usage: node --env-file=.env scripts/google-drive-ensure-folders.mjs
- */
+/** Make AP-I Drive staging folders. Writes folder ids back into .env. */
 import fs from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'

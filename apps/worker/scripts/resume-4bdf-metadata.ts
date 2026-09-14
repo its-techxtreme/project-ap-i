@@ -1,7 +1,4 @@
-/**
- * One-shot: regenerate metadata for interrupted anime job and requeue upload.
- * Usage: pnpm --filter @project-api/worker exec tsx --env-file=../../.env scripts/resume-4bdf-metadata.ts
- */
+/** One-shot: rewrite metadata for that interrupted anime job and requeue upload. */
 import { createClient } from '@supabase/supabase-js'
 
 import { AiMetadataProvider } from '../src/metadata/AiMetadataProvider'

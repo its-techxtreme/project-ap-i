@@ -8,11 +8,7 @@ export type SuccessfulUploadRef = {
   attemptId: string
 }
 
-/**
- * Returns the latest successful upload_attempts row with a real navigable URL.
- * Used as an idempotency gate so Playwright never re-publishes content that already
- * landed on the platform when the DB status drifted to failed/pending.
- */
+/** Latest good upload_attempts row with a real URL. Skip Playwright if we already posted and the job status just drifted. */
 export async function findSuccessfulUploadAttempt(
   jobId: string,
   platform: 'youtube' | 'instagram',

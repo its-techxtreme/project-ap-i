@@ -136,10 +136,7 @@ async function openOwnProfile(page: import('playwright').Page): Promise<void> {
   await humanReadingPause()
 }
 
-/**
- * Newest reel/post URL on the logged-in profile grid.
- * Synthetic ig-<jobId>-<timestamp> IDs are NOT allowed — they caused false "uploaded" status.
- */
+/** Newest reel on our grid. Fake ig-<jobId> ids used to mark random posts as uploaded. */
 async function captureLatestReelUrl(
   page: import('playwright').Page,
   jobId: string,
@@ -224,10 +221,7 @@ async function dismissBlockingDialogs(
   ).catch(() => false)
 }
 
-/**
- * Only accept media links from a post-share success dialog.
- * Never scrape feed /p/ links — that caused false "uploaded" to random accounts.
- */
+/** Link from the share success dialog only. Feed /p/ links used to mark the wrong account. */
 async function captureShareSuccessMediaUrl(
   page: import('playwright').Page,
   jobId: string,

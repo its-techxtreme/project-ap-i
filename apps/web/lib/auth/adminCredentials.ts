@@ -76,10 +76,7 @@ export async function isLoginLocked(opts: {
   return { locked: false }
 }
 
-/**
- * Caps successful one-click demo sessions per IP so anonymous callers cannot
- * flood admin_login_attempts / audit_logs by hammering demoLogin().
- */
+/** Cap demo one-click logins per IP so people dont flood audit_logs. */
 export async function isDemoLoginRateLimited(ipHash: string): Promise<boolean> {
   const demo = getDemoCredentials()
   if (!demo) return true
@@ -112,10 +109,7 @@ export async function recordLoginAttempt(opts: {
 type VerifyOk = { ok: true; username: string; role: DashboardRole }
 type VerifyFail = { ok: false }
 
-/**
- * Verifies username/password against admin or demo env credentials.
- * Always runs password verification work when a hash is configured (timing hardening).
- */
+/** Check admin or demo env creds. Always hash-work if a hash exists so timing stays even. */
 export function verifyDashboardCredentials(username: string, password: string): VerifyOk | VerifyFail {
   const admin = getAdminCredentials()
   const demo = getDemoCredentials()

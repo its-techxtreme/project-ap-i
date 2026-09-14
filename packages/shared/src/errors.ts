@@ -1,7 +1,3 @@
-/**
- * Typed error codes used across the pipeline.
- * Both worker and frontend reference these for structured error handling.
- */
 export const ERROR_CODES = {
   // URL validation
   INVALID_URL: 'INVALID_URL',

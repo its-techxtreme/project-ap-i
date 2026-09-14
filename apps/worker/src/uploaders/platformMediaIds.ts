@@ -1,16 +1,9 @@
-/**
- * Real platform media identifiers must be navigable URLs.
- * Legacy Playwright uploaders invented `ig-<uuid>-<ts>` / `yt-<jobId>-<ts>`
- * placeholders after clicking Share/Publish — those must never count as success.
- */
+/** Real media id means a clickable URL. Fake ig-<uuid>-<ts> / yt-<jobId>-<ts> after Share must not count as uploaded. */
 
 /** YouTube video ids are 11 chars from [A-Za-z0-9_-]. */
 const YT_VIDEO_ID = /([A-Za-z0-9_-]{11})/
 
-/**
- * Pull a YouTube video id from watch/shorts/youtu.be/Studio URLs or raw text.
- * Studio often exposes `/video/<id>/edit` after Publish even when the share dialog is slow.
- */
+/** Video id from watch/shorts/youtu.be/Studio. Studio often has /video/<id>/edit before share. */
 export function extractYoutubeVideoId(text: string | null | undefined): string | undefined {
   if (!text) return undefined
   const patterns = [

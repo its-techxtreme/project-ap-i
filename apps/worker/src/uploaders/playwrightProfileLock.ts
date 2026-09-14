@@ -10,11 +10,7 @@ function normalizeProfileKey(profilePath: string): string {
   return path.resolve(profilePath).toLowerCase()
 }
 
-/**
- * Serialize Playwright launches per browser profile directory.
- * Chrome persistent contexts cannot share a user-data-dir — overlapping
- * launches cause "Opening in existing browser session" and broken uploads.
- */
+/** One Chrome at a time per profile folder. Two launches share the dir and you get Opening in existing session. */
 export async function withPlaywrightProfileLock<T>(
   profilePath: string,
   fn: () => Promise<T>,

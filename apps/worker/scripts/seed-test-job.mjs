@@ -1,7 +1,4 @@
-/**
- * Insert one queued test job for worker integration testing.
- * Usage: node --env-file=.env apps/worker/scripts/seed-test-job.mjs
- */
+/** Insert one queued job for worker integration tests. */
 import { createClient } from '@supabase/supabase-js'
 
 const url = process.env.SUPABASE_URL

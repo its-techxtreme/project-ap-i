@@ -1,10 +1,4 @@
-/**
- * Complete Google Drive OAuth using an existing Playwright Chrome profile
- * (YouTube profiles already have a Google session).
- *
- * Usage (from repo root, with google-drive-auth.mjs already waiting):
- *   node --env-file=.env apps/worker/scripts/drive-oauth-via-profile.mjs --profile anime-yt --url "<authUrl>"
- */
+/** Finish Drive OAuth in an existing YT Playwright profile (already a Google session). */
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { chromium } from 'playwright'

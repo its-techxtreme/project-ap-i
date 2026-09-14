@@ -1,7 +1,3 @@
-/**
- * Main job lifecycle statuses.
- * These map directly to the jobs.status column in Supabase.
- */
 export const JOB_STATUSES = [
   'queued',
   'locked',
@@ -24,16 +20,9 @@ export const JOB_STATUSES = [
 
 export type JobStatus = (typeof JOB_STATUSES)[number]
 
-/**
- * Sub-statuses for individual pipeline stages.
- */
 export const STAGE_STATUSES = ['pending', 'running', 'succeeded', 'failed'] as const
 export type StageStatus = (typeof STAGE_STATUSES)[number]
 
-/**
- * Per-platform upload statuses.
- * These map to jobs.youtube_upload_status and jobs.instagram_upload_status.
- */
 export const UPLOAD_STATUSES = [
   'pending',
   'uploading',
@@ -48,9 +37,6 @@ export const UPLOAD_STATUSES = [
 
 export type UploadStatus = (typeof UPLOAD_STATUSES)[number]
 
-/**
- * Upload attempt record statuses.
- */
 export const ATTEMPT_STATUSES = [
   'started',
   'uploaded',
@@ -62,9 +48,6 @@ export const ATTEMPT_STATUSES = [
 
 export type AttemptStatus = (typeof ATTEMPT_STATUSES)[number]
 
-/**
- * Platform account health statuses.
- */
 export const ACCOUNT_STATUSES = [
   'active',
   'paused',
@@ -75,9 +58,6 @@ export const ACCOUNT_STATUSES = [
 
 export type AccountStatus = (typeof ACCOUNT_STATUSES)[number]
 
-/**
- * Google Drive file states tracked in jobs table.
- */
 export const DRIVE_FOLDER_STATES = [
   'processed_ready',
   'failed_manual_review',

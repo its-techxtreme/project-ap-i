@@ -1,9 +1,4 @@
-/**
- * Headed Chrome smoke. Does not upload unless REAL_UPLOADS_ENABLED is on.
- *
- *   pnpm --filter @project-api/worker smoke:playwright -- --check-install
- *   pnpm --filter @project-api/worker smoke:playwright -- --login --profile memes-yt
- */
+/** Headed Chrome smoke. No upload unless REAL_UPLOADS_ENABLED. pnpm --filter @project-api/worker smoke:playwright -- --check-install */
 
 import fs from 'node:fs/promises'
 import os from 'node:os'
@@ -83,10 +78,7 @@ function fail(msg: string, detail?: unknown): never {
   process.exit(1)
 }
 
-/**
- * Slug like memes-yt, or a relative/absolute folder.
- * Check repo playwright-profiles first, then cwd.
- */
+/** memes-yt slug or a folder. Repo playwright-profiles first then cwd. */
 async function resolveProfilePath(profileArg: string): Promise<string> {
   if (path.isAbsolute(profileArg)) {
     return profileArg

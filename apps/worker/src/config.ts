@@ -77,10 +77,7 @@ const configSchema = z.object({
   GOOGLE_DRIVE_CLIENT_ID: z.string().optional(),
   GOOGLE_DRIVE_CLIENT_SECRET: z.string().optional(),
   GOOGLE_DRIVE_REFRESH_TOKEN: z.string().optional(),
-  /**
-   * Preferred permanent auth: path to a Google Cloud service-account JSON key.
-   * When set, OAuth refresh token is ignored. Share Drive folders with the SA email.
-   */
+  /** Service-account json path. If set we ignore the OAuth refresh token. Share Drive folders with the SA email. */
   GOOGLE_DRIVE_SERVICE_ACCOUNT_FILE: z.string().optional(),
   GOOGLE_DRIVE_ROOT_FOLDER_ID: z.string().optional(),
   GOOGLE_DRIVE_PROCESSED_FOLDER_ID: z.string().optional(),

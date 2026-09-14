@@ -1,7 +1,4 @@
-/**
- * Report worker health, upload flags, n8n reachability.
- * Usage: node scripts/stack-status.mjs
- */
+/** Worker health, upload flags, n8n reachability. */
 import { loadEnvFile } from './lib/env.mjs'
 
 const env = loadEnvFile()

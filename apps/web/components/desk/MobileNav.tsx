@@ -9,10 +9,7 @@ import { ADMIN_NAV_ITEMS, isAdminNavActive } from '@/lib/admin/navItems'
 import { emitTutorialAction } from '@/lib/demo/tutorial-bus'
 import { cn } from '@/lib/utils'
 
-/**
- * Narrow-viewport admin navigation.
- * Fixed full-width sheet lists every destination — never clipped horizontal scroll.
- */
+/** Phone admin nav. Full sheet of links, not a clipped row. */
 export function MobileNav() {
   const pathname = usePathname()
   const [open, setOpen] = useState(false)
@@ -43,16 +40,11 @@ export function MobileNav() {
   }, [open])
 
   return (
-    <div className="desk-chrome border-b border-border/70 md:hidden">
+    <div className="mn">
       <div className="flex items-center gap-2 px-2 py-1.5">
         <button
           type="button"
-          className={cn(
-            'inline-flex h-9 shrink-0 items-center gap-1.5 rounded-md border px-2.5 font-mono text-[10px] uppercase tracking-[0.08em] transition-colors',
-            open
-              ? 'border-primary/40 bg-primary/15 text-primary'
-              : 'border-border/70 bg-background/50 text-foreground hover:border-primary/35 hover:bg-primary/10',
-          )}
+          className={cn('mn-b', open && 'on')}
           aria-expanded={open}
           aria-controls={panelId}
           onClick={() => setOpen((value) => !value)}
@@ -73,10 +65,10 @@ export function MobileNav() {
       </div>
 
       {open ? (
-        <div className="fixed inset-0 z-[60] md:hidden" role="presentation">
+        <div className="sheet" role="presentation">
           <button
             type="button"
-            className="absolute inset-0 bg-foreground/35 backdrop-blur-[1px]"
+            className="dim"
             aria-label="Close deck menu"
             onClick={() => setOpen(false)}
           />
@@ -85,7 +77,7 @@ export function MobileNav() {
             role="dialog"
             aria-modal="true"
             aria-label="Captain's Deck navigation"
-            className="absolute inset-x-0 top-0 flex max-h-[min(100dvh,100%)] flex-col border-b border-border/70 bg-card shadow-xl"
+            className="sheet-p"
           >
             <div className="flex items-center justify-between gap-2 border-b border-border/60 px-3 py-2.5">
               <div className="min-w-0">
@@ -97,7 +89,7 @@ export function MobileNav() {
               <button
                 ref={closeRef}
                 type="button"
-                className="inline-flex h-9 shrink-0 items-center gap-1.5 rounded-md border border-border/70 px-2.5 font-mono text-[10px] uppercase tracking-[0.08em] text-foreground hover:bg-muted/50"
+                className="mn-b"
                 onClick={() => setOpen(false)}
               >
                 <X className="size-3.5" aria-hidden />
@@ -121,12 +113,7 @@ export function MobileNav() {
                       if (item.action) emitTutorialAction(item.action)
                       setOpen(false)
                     }}
-                    className={cn(
-                      'flex min-h-11 w-full items-center gap-3 rounded-md border px-3 py-2.5 text-sm font-medium transition-colors',
-                      active
-                        ? 'border-primary/45 bg-primary/12 text-primary'
-                        : 'border-border/60 bg-background/55 text-foreground hover:border-primary/30 hover:bg-primary/8',
-                    )}
+                    className={cn('mnv', active && 'mnv-on')}
                   >
                     <Icon className="size-4 shrink-0" aria-hidden />
                     <span className="min-w-0 flex-1">

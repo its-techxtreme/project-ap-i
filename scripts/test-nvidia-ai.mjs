@@ -1,7 +1,4 @@
-/**
- * Smoke-test NVIDIA NIM (OpenAI-compatible) metadata endpoint.
- * Usage: node --env-file=.env scripts/test-nvidia-ai.mjs
- */
+/** Smoke NVIDIA NIM metadata endpoint (OpenAI-compatible). */
 const baseUrl = (process.env.AI_PROVIDER_BASE_URL ?? 'https://integrate.api.nvidia.com/v1').replace(/\/$/, '')
 const apiKey = process.env.AI_PROVIDER_API_KEY
 const model = process.env.AI_MODEL ?? 'meta/llama-3.1-8b-instruct'

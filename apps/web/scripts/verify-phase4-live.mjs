@@ -1,7 +1,4 @@
-/**
- * Phase 4 live verification against remote Supabase (development only).
- * Run: node --env-file=.env.local scripts/verify-phase4-live.mjs
- */
+/** Phase 4 live check against remote Supabase. Dev only. */
 import { createClient } from '@supabase/supabase-js'
 
 const url = process.env.NEXT_PUBLIC_SUPABASE_URL

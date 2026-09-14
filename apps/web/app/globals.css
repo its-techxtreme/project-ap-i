@@ -177,15 +177,11 @@
   }
 
   .parchment-panel {
-    background:
-      linear-gradient(165deg, hsl(var(--lantern) / 0.1), transparent 40%),
-      hsl(var(--card) / 0.96);
-    border: 1px solid hsl(var(--border));
-    box-shadow:
-      inset 0 1px 0 0 hsl(var(--glass-highlight)),
-      0 24px 50px -28px hsl(210 50% 10% / 0.55);
-    -webkit-backdrop-filter: blur(12px) saturate(1.2);
-    backdrop-filter: blur(12px) saturate(1.2);
+    background: linear-gradient(165deg, hsl(var(--lantern)/.1), transparent 40%), hsl(var(--card)/.96);
+    border:1px solid hsl(var(--border));
+    box-shadow: inset 0 1px 0 hsl(var(--glass-highlight)), 0 22px 46px -26px #1a2838aa;
+    -webkit-backdrop-filter: blur(11px) saturate(1.2);
+    backdrop-filter: blur(11px) saturate(1.2)
   }
 
   .lantern-border {
@@ -222,30 +218,18 @@
   }
 }
 
-/* Glass / pirate stage — outside @layer so filters are not stripped */
+/* login glass. blur lives outside @layer or tw eats it */
 .glass-panel {
-  background:
-    linear-gradient(
-      160deg,
-      hsl(var(--glass-highlight)) 0%,
-      transparent 45%,
-      hsl(var(--sea) / 0.05) 100%
-    ),
-    hsl(var(--glass-fill));
-  border: 1px solid hsl(var(--glass-border));
-  box-shadow:
-    inset 0 1px 0 0 hsl(var(--glass-highlight)),
-    0 24px 48px -28px hsl(0 0% 0% / 0.22);
-  -webkit-backdrop-filter: blur(28px) saturate(1.35);
-  backdrop-filter: blur(28px) saturate(1.35);
+background:
+  linear-gradient(160deg, hsl(var(--glass-highlight)) 0%, transparent 45%, hsl(var(--sea)/.05)),
+  hsl(var(--glass-fill));
+border:1px solid hsl(var(--glass-border));
+box-shadow: inset 0 1px 0 hsl(var(--glass-highlight)), 0 22px 46px -26px #0003;
+-webkit-backdrop-filter: blur(28px) saturate(1.35);
+backdrop-filter: blur(28px) saturate(1.35)
 }
-
 .dark .glass-panel {
-  box-shadow:
-    inset 0 1px 0 0 hsl(var(--glass-highlight)),
-    inset 0 -1px 0 0 hsl(0 0% 0% / 0.28),
-    0 0 0 1px hsl(0 0% 0% / 0.4),
-    0 28px 64px -24px hsl(0 0% 0% / 0.8);
+box-shadow: inset 0 1px 0 hsl(var(--glass-highlight)), inset 0 -1px 0 #0005, 0 0 0 1px #0006, 0 28px 64px -24px #000c
 }
 
 .login-grid {
@@ -260,102 +244,59 @@
   background-color: hsl(var(--login-stage-base));
 }
 
-.pirate-sky {
-  position: absolute;
-  inset: 0;
-  overflow: hidden;
-  pointer-events: none;
-  background-color: #7eb6d9;
+/* sky photo sits under the form. wash is so type stays readable */
+.psk {
+position:absolute; inset:0; overflow:hidden; pointer-events:none;
+background:#7eb6d9
+}
+.dark .psk { background:#0a1628 }
+
+.psk-im {
+  position:absolute; inset:0;
+  background-size:cover;
+  background-repeat:no-repeat;
+  transition: opacity .48s ease
+}
+.psk-d {
+background-image:url('/pirate/sky-day.png');
+background-position: 40% bottom;
+opacity:1
+}
+.dark .psk-d { opacity:0 }
+.psk-n {
+background-image:url('/pirate/sky-night.png');
+  background-position:50% bottom;
+opacity:0
+}
+.dark .psk-n { opacity:1 }
+
+.psk-wsh {
+position:absolute; inset:0;
+background:
+  linear-gradient(180deg, hsl(var(--background)/.55) 0%, hsl(var(--background)/.72) 42%, hsl(var(--background)/.94) 100%),
+  radial-gradient(ellipse 50% 40% at 85% 12%, hsl(var(--lantern)/.2), transparent 55%)
+}
+.dark .psk-wsh {
+background:linear-gradient(180deg, hsl(var(--background)/.62), hsl(var(--background)/.82) 48%, hsl(var(--background)/.96))
 }
 
-.dark .pirate-sky {
-  background-color: #0a1628;
-}
+/* moon is in the png already */
+.psk-moon { display:none }
 
-.pirate-sky__image {
-  position: absolute;
-  inset: 0;
-  background-size: cover;
-  background-position: center bottom;
-  background-repeat: no-repeat;
-  transition: opacity 500ms ease;
+.psk-sun {
+position:absolute; top:5%; right:8%;
+width:36px; height:36px;
+border-radius:50%;
+background:radial-gradient(circle at 40% 40%, #fff4c2, hsl(var(--lantern)) 70%);
+box-shadow:0 0 36px 10px hsl(var(--lantern)/.35);
+opacity:.85; z-index:1
 }
+.dark .psk-sun { opacity:0 }
 
-.pirate-sky__day {
-  background-image: url('/pirate/sky-day.png');
-  background-size: cover;
-  background-position: 40% bottom;
-  opacity: 1;
-}
-
-.dark .pirate-sky__day {
-  opacity: 0;
-}
-
-.pirate-sky__night {
-  background-image: url('/pirate/sky-night.png');
-  background-size: cover;
-  background-position: 50% bottom;
-  opacity: 0;
-}
-
-.dark .pirate-sky__night {
-  opacity: 1;
-}
-
-.pirate-sky__wash {
-  position: absolute;
-  inset: 0;
-  background:
-    linear-gradient(
-      180deg,
-      hsl(var(--background) / 0.55) 0%,
-      hsl(var(--background) / 0.72) 42%,
-      hsl(var(--background) / 0.94) 100%
-    ),
-    radial-gradient(ellipse 50% 40% at 85% 12%, hsl(var(--lantern) / 0.2), transparent 55%);
-}
-
-.dark .pirate-sky__wash {
-  background: linear-gradient(
-    180deg,
-    hsl(var(--background) / 0.62) 0%,
-    hsl(var(--background) / 0.82) 48%,
-    hsl(var(--background) / 0.96) 100%
-  );
-}
-
-/* Night moon comes from sky-night art only — no CSS second moon. */
-.pirate-sky__moon {
-  display: none;
-}
-
-.pirate-sky__sun {
-  position: absolute;
-  top: 5%;
-  right: 8%;
-  width: 2.25rem;
-  height: 2.25rem;
-  border-radius: 9999px;
-  background: radial-gradient(circle at 40% 40%, hsl(48 100% 85%), hsl(var(--lantern)) 70%);
-  box-shadow: 0 0 36px 10px hsl(var(--lantern) / 0.35);
-  opacity: 0.85;
-  /* Keep clear of title-flanking doodles */
-  z-index: 1;
-}
-
-.dark .pirate-sky__sun {
-  opacity: 0;
-}
-
-.pirate-sky__wave {
-  position: absolute;
-  left: -5%;
-  right: -5%;
-  bottom: 0;
-  height: 18%;
-  background: linear-gradient(180deg, transparent, hsl(var(--sea) / 0.18));
-  mask-image: radial-gradient(ellipse 100% 80% at 50% 100%, black, transparent);
+.psk-wv {
+position:absolute; left:-5%; right:-5%; bottom:0; height:18%;
+background:linear-gradient(180deg, transparent, hsl(var(--sea)/.18));
+mask-image:radial-gradient(ellipse 100% 80% at 50% 100%, #000, transparent)
 }
 
 @keyframes enter {
@@ -550,32 +491,131 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .animate-enter,
-  .animate-success,
-  .status-live,
-  .wave-shimmer,
-  .ship-sail,
-  .flag-flutter,
-  .sparkle,
-  .sky-pan,
-  .crew-doodle,
-  .moon-glow,
-  .dark .pirate-sky__moon,
-  .tutorial-pulse-ring,
-  .tutorial-pointer-y,
-  .tutorial-pointer-x,
-  .tutorial-mascot-bob,
-  .tutorial-checkpoint-flash {
+  .animate-enter,.animate-success,.status-live,.wave-shimmer,.ship-sail,.flag-flutter,.sparkle,.sky-pan,.crew-doodle,.moon-glow,
+  .tutorial-pulse-ring,.tutorial-pointer-y,.tutorial-pointer-x,.tutorial-mascot-bob,.tutorial-checkpoint-flash {
     animation: none !important;
   }
-
-  .dark .pirate-sky__moon {
-    opacity: 1;
-    transform: none;
-  }
-
-  .ship-sail {
-    opacity: 1;
-    transform: translateX(10%);
-  }
+  .ship-sail { opacity:1; transform:translateX(10%) }
 }
+
+/* night specks. sizes off-grid on purpose */
+.st { position:absolute; border-radius:50%; background:#fff }
+.st1 { left:18%; top:22%; width:3px; height:3px; opacity:.8 }
+.st2 { left:42%; top:14%; width:5px; height:5px; opacity:.7; animation-delay:.6s }
+.st3 { left:68%; top:20%; width:3px; height:3px; opacity:.75; animation-delay:1.1s }
+.st4 { left:78%; top:32%; width:4px; height:4px; opacity:.6; animation-delay:1.7s }
+.st5 { left:28%; top:36%; width:3px; height:3px; opacity:.7; animation-delay:.3s }
+.stars { position:absolute; inset:0; opacity:0 }
+.dark .stars { opacity:1 }
+
+/* success dock strip */
+.dk {
+  position:relative; margin-top:22px; height:112px; overflow:hidden;
+  border:1px solid hsl(var(--border)/.6);
+  border-radius:11px;
+  background: linear-gradient(#bae6fd66, #0f766e40)
+}
+.dark .dk { background: linear-gradient(#1e293b80, #042f2e99) }
+.dk-wv { position:absolute; left:0; right:0; bottom:0; height:32px; background:linear-gradient(transparent, #115e5988) }
+.dk-pl { position:absolute; bottom:8px; left:15px; width:64px; height:13px; background:#78350f80 }
+.dk-pl2 { position:absolute; bottom:8px; left:96px; width:40px; height:8px; background:#92400e66 }
+
+/* desk leftover. tw still owns the color tokens */
+.sh { position:relative; min-height:100vh; display:flex; flex-direction:column; overflow-x:hidden }
+.sh main {
+  background-image: radial-gradient(ellipse 48% 28% at 96% 0%, hsl(var(--lantern)/.07), transparent 62%)
+}
+.rail {
+  display:none; width:248px; flex-shrink:0;
+  border-right:1px solid hsl(var(--border)/.7);
+  background: linear-gradient(180deg, hsl(var(--chrome)/.98), hsl(var(--panel)/.92)), hsl(var(--chrome))
+}
+@media (min-width:768px) {
+  .rail { display:flex; flex-direction:column }
+}
+.rail-hd { display:flex; align-items:center; gap:11px; padding:15px 16px; border-bottom:1px solid hsl(var(--border)/.6) }
+.mark {
+  width:28px; height:28px; display:flex; align-items:center; justify-content:center;
+  border:1px solid hsl(var(--primary)/.3); border-radius:6px;
+  background:hsl(var(--primary)/.1); color:hsl(var(--primary))
+}
+.rail-nav { flex:1; display:flex; flex-direction:column; gap:2px; padding:11px }
+.nv {
+  position:relative; display:flex; align-items:center; gap:11px;
+  padding:8px 13px; border-radius:6px; font-size:14px; font-weight:500;
+  color:hsl(var(--muted-foreground)); text-decoration:none
+}
+.nv:hover { background:hsl(var(--muted)/.45); color:hsl(var(--foreground)) }
+.nv-on, .nv-on:hover { background:hsl(var(--primary)/.12); color:hsl(var(--primary)) }
+.pip { position:absolute; left:0; top:50%; width:3px; height:18px; margin-top:-9px; border-radius:99px; background:hsl(var(--primary)) }
+
+.tb {
+  background:hsl(var(--chrome)/.94);
+  border-bottom:1px solid hsl(var(--border)/.7);
+  backdrop-filter: blur(11px)
+}
+.tb-r { display:flex; height:46px; align-items:center; gap:8px; padding:0 13px }
+@media (min-width:640px) { .tb-r { height:54px; gap:13px; padding:0 16px } }
+@media (min-width:768px) { .tb-r { padding:0 22px } }
+.tb-lo { display:flex; align-items:center; gap:8px; padding:6px 13px; border-top:1px solid hsl(var(--border)/.5) }
+@media (min-width:1024px) { .tb-lo { display:none } }
+
+.pn {
+  overflow:hidden; border-radius:7px; border:1px solid hsl(var(--border)/.8);
+  background: linear-gradient(180deg, hsl(var(--lantern)/.04), transparent 38%), hsl(var(--panel)/.92)
+}
+.pn-hd { display:flex; align-items:center; justify-content:space-between; gap:8px; padding:11px 15px; border-bottom:1px solid hsl(var(--border)/.6) }
+.hd { display:flex; flex-wrap:wrap; align-items:flex-end; justify-content:space-between; gap:8px 13px; padding-bottom:17px; border-bottom:1px solid hsl(var(--border)/.5) }
+
+.tl {
+  overflow:hidden; border-radius:7px; border:1px solid hsl(var(--border)/.8); padding:13px 15px;
+  background: linear-gradient(135deg, hsl(var(--sea)/.06), transparent 42%), hsl(var(--card)/.94)
+}
+.tl:hover { border-color:hsl(var(--primary)/.4) }
+.tl-hot { border-color:hsl(var(--destructive)/.35); background:hsl(var(--destructive)/.04) }
+.bar { margin-top:13px; height:5px; overflow:hidden; border-radius:99px; background:hsl(var(--muted)/.7) }
+.bar i { display:block; height:100%; border-radius:99px; background:hsl(var(--primary)) }
+
+.mn { display:block; background:hsl(var(--chrome)/.94); border-bottom:1px solid hsl(var(--border)/.7) }
+@media (min-width:768px) { .mn { display:none } }
+.mn-b { display:inline-flex; height:36px; align-items:center; gap:6px; padding:0 11px; border:1px solid hsl(var(--border)/.7); border-radius:6px; background:hsl(var(--background)/.5); font-family:ui-monospace,monospace; font-size:10px; text-transform:uppercase; letter-spacing:.08em }
+.mn-b.on { border-color:hsl(var(--primary)/.4); background:hsl(var(--primary)/.15); color:hsl(var(--primary)) }
+.sheet { position:fixed; inset:0; z-index:60 }
+.dim { position:absolute; inset:0; background:#0006 }
+.sheet-p { position:absolute; left:0; right:0; top:0; display:flex; flex-direction:column; max-height:100dvh; border-bottom:1px solid hsl(var(--border)/.7); background:hsl(var(--card)); box-shadow: 0 18px 40px #0005 }
+.mnv {
+  display:flex; min-height:46px; align-items:center; gap:13px; padding:11px 13px; margin-bottom:4px;
+  border:1px solid hsl(var(--border)/.6); border-radius:6px; background:hsl(var(--background)/.55); text-decoration:none; color:inherit
+}
+.mnv-on { border-color:hsl(var(--primary)/.45); background:hsl(var(--primary)/.12); color:hsl(var(--primary)) }
+
+.ph {
+  position:relative; z-index:10; display:flex; height:64px; align-items:center; justify-content:space-between;
+  padding:0 15px; border-bottom:1px solid hsl(var(--border)/.4); backdrop-filter:blur(11px)
+}
+@media (min-width:768px) { .ph { padding:0 32px } }
+.ph-go {
+  border:1px solid hsl(var(--border)/.7); border-radius:6px; padding:6px 13px;
+  background:hsl(var(--card)/.55); font-family:ui-monospace,monospace; font-size:11px; text-transform:uppercase; letter-spacing:.1em; color:hsl(var(--muted-foreground)); text-decoration:none
+}
+.ph-go:hover { border-color:hsl(var(--primary)/.4); color:hsl(var(--primary)) }
+
+.lg { pointer-events:none; position:absolute; inset:0; z-index:1; opacity:.25 }
+.gate { border-radius:13px; padding:22px }
+@media (min-width:640px) { .gate { padding:28px } }
+.anc {
+  width:46px; height:46px; margin:0 auto 15px; display:flex; align-items:center; justify-content:center;
+  border:1px solid hsl(var(--primary)/.3); border-radius:15px;
+  background:hsl(var(--primary)/.1); color:hsl(var(--primary));
+  box-shadow: 0 0 40px -12px hsl(var(--lantern)/.7)
+}
+
+.calm { display:flex; align-items:center; gap:8px; padding:8px 13px; border-radius:6px; border:1px solid hsl(var(--primary)/.25); background:hsl(var(--primary)/.05); font-family:ui-monospace,monospace; font-size:11px; color:hsl(var(--primary)) }
+.al { display:flex; flex-wrap:wrap; align-items:center; gap:8px 18px; padding:8px 13px; border-radius:6px; border:1px solid; font-size:14px }
+.nw { margin-bottom:15px; padding:8px 13px; border-radius:6px; border:1px solid; font-size:14px }
+
+.ac {
+  display:flex; gap:13px; padding:13px; border-radius:7px; border:1px solid hsl(var(--border)/.7); background:hsl(var(--card)/.55)
+}
+.ac:hover { border-color:hsl(var(--primary)/.35) }
+.av { width:54px; height:54px; flex-shrink:0; overflow:hidden; border-radius:50%; border:1px solid hsl(var(--border)/.6); background:hsl(var(--muted)/.4) }

@@ -23,10 +23,7 @@ export const CHART_SETTING_KEYS = [
 
 export type ChartSettingKey = (typeof CHART_SETTING_KEYS)[number]
 
-/**
- * Effective worker ops values for Chart room.
- * Sourced from env/config + edit preset — never includes secrets or filesystem paths.
- */
+/** Chart room knobs from env + edit preset. No secrets or paths. */
 export function buildChartSettingsSnapshot(): Record<ChartSettingKey, number | boolean> {
   return {
     max_ffmpeg_concurrency: config.MAX_FFMPEG_CONCURRENCY,

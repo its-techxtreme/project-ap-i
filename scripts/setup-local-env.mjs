@@ -1,9 +1,4 @@
-/**
- * Fill local-dev placeholders in .env (idempotent).
- * Does NOT overwrite real secrets — only REPLACE_ME or empty values.
- *
- * Usage: node scripts/setup-local-env.mjs
- */
+/** Fill REPLACE_ME / empty .env slots. Does not overwrite real secrets. */
 import crypto from 'node:crypto'
 import fs from 'node:fs'
 import path from 'node:path'

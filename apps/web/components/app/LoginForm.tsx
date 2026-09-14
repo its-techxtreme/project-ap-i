@@ -75,7 +75,7 @@ export function LoginForm() {
       </Script>
       <div className="relative flex min-h-screen items-center justify-center overflow-hidden p-4">
         <PirateSky />
-        <div className="login-grid pointer-events-none absolute inset-0 z-[1] opacity-[0.25]" aria-hidden />
+        <div className="lg login-grid" aria-hidden />
 
         <div className="absolute right-4 top-4 z-20">
           <ThemeToggle />
@@ -85,7 +85,7 @@ export function LoginForm() {
           className="z-10 max-w-md"
           hero={
             <div className="mb-6 space-y-2 px-14 text-center sm:px-16">
-              <div className="mx-auto mb-4 flex size-12 items-center justify-center rounded-2xl border border-primary/30 bg-primary/10 text-primary shadow-[0_0_40px_-12px_hsl(var(--lantern)/0.7)]">
+              <div className="mx-auto mb-4 anc">
                 <Anchor className="size-6" aria-hidden />
               </div>
               <p className="font-display text-4xl tracking-wide text-foreground md:text-5xl">
@@ -98,7 +98,7 @@ export function LoginForm() {
           }
           form={
             <>
-              <div className="glass-panel rounded-xl p-6 sm:p-7">
+              <div className="glass-panel gate">
                 <div className="mb-5 flex items-center gap-2 text-muted-foreground">
                   <KeyRound className="size-4 text-primary" aria-hidden />
                   <h1 className="font-display text-xl tracking-wide text-foreground">

@@ -28,7 +28,7 @@ export function AlertStrip({ summary }: { summary: JobSummary }) {
 
   if (items.length === 0) {
     return (
-      <div className="flex items-center gap-2 rounded-md border border-primary/25 bg-primary/5 px-3 py-2 font-mono text-[11px] text-primary">
+      <div className="calm">
         <span className="size-1.5 rounded-full bg-primary status-live" aria-hidden />
         Seas calm — no open alerts
       </div>
@@ -36,7 +36,7 @@ export function AlertStrip({ summary }: { summary: JobSummary }) {
   }
 
   return (
-    <div className="notice-warn flex flex-wrap items-center gap-x-4 gap-y-2 rounded-md border px-3 py-2 text-sm">
+    <div className="notice-warn al">
       <span className="inline-flex items-center gap-1.5 font-mono text-[11px] uppercase tracking-[0.12em]">
         <AlertTriangle className="size-3.5" aria-hidden />
         Alerts

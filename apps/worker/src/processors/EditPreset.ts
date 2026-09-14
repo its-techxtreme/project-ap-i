@@ -3,10 +3,7 @@ import { config } from '../config'
 /** Playback speed multiplier (video setpts + audio atempo). */
 export const EDIT_SPEED = 1.2
 
-/**
- * Visual eq strength vs the old mild preset (saturation=1.1, contrast=1.05).
- * Deltas are ~7.5×: sat +0.65, contrast +0.35.
- */
+/** Stronger eq than the old mild preset. sat +0.65 contrast +0.35. */
 export const EDIT_VISUAL_FILTER = 'eq=saturation=1.75:contrast=1.4'
 
 /** Background guitar bed under the original (sped) audio — 30% of source BGM level. */
@@ -16,10 +13,7 @@ export const BACKGROUND_MUSIC_VOLUME = 0.3
 export const OUTPUT_WIDTH = 1080
 export const OUTPUT_HEIGHT = 1920
 
-/**
- * Cover-fit to 9:16 then center-crop. Landscape sources lose side margins;
- * already-vertical reels stay full-bleed. setsar=1 keeps square pixels for Studio.
- */
+/** Cover-fit 9:16 then crop center. Landscape loses sides. setsar=1 for Studio. */
 export const EDIT_VERTICAL_GEOMETRY = `scale=${OUTPUT_WIDTH}:${OUTPUT_HEIGHT}:force_original_aspect_ratio=increase,crop=${OUTPUT_WIDTH}:${OUTPUT_HEIGHT},setsar=1`
 
 export interface FfmpegPresetOptions {
@@ -30,17 +24,7 @@ export interface FfmpegPresetOptions {
   hasAudio?: boolean
 }
 
-/**
- * Builds the FFmpeg argument array for the current processing preset:
- * - 1.2x video + audio speed
- * - stronger visual eq (no Instagram watermark / brand overlay)
- * - force 1080x1920 vertical (YouTube Shorts / Instagram Reels)
- * - original audio kept + background music mixed at 30% volume
- * - Output: MP4/H.264/AAC
- *
- * YouTube-only niche brand c-text (when source has no hard captions) is applied
- * later in the upload path — not here — so Instagram keeps the clean export.
- */
+/** Shared ffmpeg args. 1.2x, stronger filter, 1080x1920, orig audio + BGM 30%. Brand overlay is YT-only later so IG stays clean. */
 export function buildFfmpegArgs(opts: FfmpegPresetOptions): string[] {
   const bgmPath = opts.backgroundMusicPath ?? config.BACKGROUND_MUSIC_PATH
   const hasAudio = opts.hasAudio ?? true

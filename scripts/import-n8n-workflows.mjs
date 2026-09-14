@@ -1,8 +1,4 @@
-/**
- * Import or update n8n workflow JSON exports via the n8n REST API.
- *
- * Usage: node scripts/import-n8n-workflows.mjs
- */
+/** Push n8n workflow JSON via REST. Import or update. */
 import fs from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'

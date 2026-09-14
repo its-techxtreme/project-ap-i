@@ -1,7 +1,4 @@
-/**
- * Mock/dry-run stack: Docker worker + n8n (WORKER_BASE_URL=http://worker:3001).
- * Real Playwright uploads are forced off in compose for the Docker worker.
- */
+/** Mock stack. Docker worker + n8n. Playwright uploads forced off in compose. */
 import { execSync } from 'node:child_process'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'

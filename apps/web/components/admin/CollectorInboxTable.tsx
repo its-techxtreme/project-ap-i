@@ -63,7 +63,7 @@ export function CollectorInboxTable({
     return (
       <div className="space-y-3">
         <AdminAutoRefresh />
-        <div className="desk-panel rounded-md border border-border/80 px-4 py-8 text-sm text-muted-foreground">
+        <div className="pn px-4 py-8 text-sm text-muted-foreground">
           No unsorted reels. Collector DMs with a niche word queue on their own.
         </div>
       </div>
@@ -82,7 +82,7 @@ export function CollectorInboxTable({
         {items.map((item) => (
           <article
             key={item.id}
-            className="desk-panel flex flex-col gap-3 rounded-md border border-border/80 p-4 sm:flex-row sm:items-center sm:justify-between"
+            className="pn flex flex-col gap-3 p-4 sm:flex-row sm:items-center sm:justify-between"
           >
             <div className="min-w-0 flex-1 space-y-3">
               <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">

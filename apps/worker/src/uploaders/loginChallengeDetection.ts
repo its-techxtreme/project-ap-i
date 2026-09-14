@@ -33,10 +33,7 @@ const SOFT_SECURITY_PROMO_PATTERNS = [
   /turn it on now for extra security/i,
 ]
 
-/**
- * Phrases that indicate a real blocking interstitial (must continue / enter a code).
- * Avoid bare "2-step verification" — that appears in notifications while logged in.
- */
+/** Real blocking interstitial. Skip bare 2-step verification — that shows in logged-in nags. */
 const HARD_CHALLENGE_TEXT_PATTERNS: Array<{ pattern: RegExp; challengeType: ChallengeType }> = [
   {
     pattern: /our systems have detected unusual traffic/i,
@@ -101,13 +98,7 @@ function looksLikeSoftSecurityPromo(bodyText: string): boolean {
   return SOFT_SECURITY_PROMO_PATTERNS.some((p) => p.test(bodyText))
 }
 
-/**
- * Detect login pages, CAPTCHA, or blocking identity challenges.
- * Never attempts to bypass — caller must mark login_required and stop.
- *
- * Intentionally ignores YouTube/Google "turn on 2FA" notifications and account
- * security upsells that appear while the session is still valid.
- */
+/** Login page, captcha, or identity wall. We stop and mark login_required. Ignore 2FA upsell while still signed in. */
 export async function detectLoginOrChallenge(page: Page): Promise<ChallengeDetectionResult> {
   const url = typeof page.url === 'function' ? page.url() : ''
 

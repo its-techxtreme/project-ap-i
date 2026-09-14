@@ -33,10 +33,7 @@ export function isJunkSourceText(text: string | undefined | null): boolean {
   return false
 }
 
-/**
- * Pull a short, searchable hook from a longer IG/YT caption.
- * Prefers the first substantial sentence / line over "Video by …".
- */
+/** Short searchable hook. First real sentence, not Video by. */
 export function extractContentHook(
   title?: string,
   description?: string,
@@ -96,11 +93,7 @@ export function extractContentHook(
   return (at >= Math.floor(maxLen * 0.45) ? sliced.slice(0, at) : sliced).trim()
 }
 
-/**
- * Keep source text that is plausible for this niche.
- * Long non-junk captions are kept — dropping them caused "Video by …" titles
- * while the real subject lived in the IG description.
- */
+/** Keep niche-plausible source text. Dropping long captions made titles Video by while the subject lived in the IG desc. */
 export function filterSourceForNiche(
   niche: MetadataNicheSlug | string,
   source?: { title?: string; description?: string },

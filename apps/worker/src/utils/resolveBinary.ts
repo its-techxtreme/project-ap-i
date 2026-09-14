@@ -85,12 +85,7 @@ function envOverride(binary: string): string | undefined {
   return value || undefined
 }
 
-/**
- * Resolve CLI binaries to absolute paths.
- * On Windows, WinGet shims named `yt-dlp` can spawn with exit 0 and empty I/O;
- * the real `.exe` must be used. Also searches WinGet Packages when PATH is incomplete
- * (common for detached worker processes).
- */
+/** Absolute path for CLIs. WinGet yt-dlp shim exits 0 with empty I/O so we want the real .exe. Also search Packages when PATH is thin (detached worker). */
 export async function resolveBinary(binary: string): Promise<string> {
   const cached = binaryCache.get(binary)
   if (cached) return cached

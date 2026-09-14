@@ -1,7 +1,3 @@
-/**
- * Canonical niche definitions for Project AP-I.
- * Keep in sync with the niches table check.
- */
 export const NICHES = [
   { slug: 'memes', label: 'Memes' },
   { slug: 'anime', label: 'Anime' },
@@ -13,15 +9,9 @@ export type NicheLabel = (typeof NICHES)[number]['label']
 
 export const NICHE_SLUGS = NICHES.map((n) => n.slug) as [NicheSlug, ...NicheSlug[]]
 
-/**
- * Canonical platform definitions.
- */
 export const PLATFORMS = ['youtube', 'instagram'] as const
 export type Platform = (typeof PLATFORMS)[number]
 
-/**
- * Allowed source URL hostnames. Used by both frontend and worker validation.
- */
 export const ALLOWED_HOSTNAMES = [
   'youtube.com',
   'www.youtube.com',
@@ -33,9 +23,6 @@ export const ALLOWED_HOSTNAMES = [
 
 export type AllowedHostname = (typeof ALLOWED_HOSTNAMES)[number]
 
-/**
- * Concurrency and timing defaults (can be overridden by env/settings).
- */
 export const DEFAULTS = {
   MAX_FFMPEG_CONCURRENCY: 1,
   MAX_DOWNLOAD_CONCURRENCY: 2,

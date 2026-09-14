@@ -1,8 +1,4 @@
-/**
- * SECURITY: This client uses the service role key which bypasses RLS.
- * NEVER import this from client components or expose to the browser.
- * Only use in Server Actions or API Route Handlers.
- */
+// service role. server only. the throw below is the tripwire
 import { createClient as createSupabaseClient } from '@supabase/supabase-js'
 
 if (typeof window !== 'undefined') {

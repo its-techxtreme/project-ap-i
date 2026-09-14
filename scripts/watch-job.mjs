@@ -1,16 +1,4 @@
-/**
- * Web-app submit harness for approved Reel/Short links.
- * Uses the public production intake form (not manual DB inserts).
- *
- * Usage examples (when links arrive):
- *   node --env-file=.env scripts/watch-job.mjs <job-id>
- *
- * Browser automation will be driven by the agent against:
- *   https://project-ap-i.vercel.app/
- *   https://ap-i.techxtreme.me/
- *
- * This helper only polls Supabase for pipeline progress after a web submit.
- */
+/** Poll Supabase after a web submit. Not a DB insert helper. */
 import process from 'node:process'
 
 const jobId = process.argv[2]

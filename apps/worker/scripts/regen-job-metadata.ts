@@ -1,10 +1,4 @@
-/**
- * Regenerate clip-focused metadata for a job that still has Drive media,
- * then park it at ready_to_upload.
- *
- * Usage:
- *   pnpm --filter @project-api/worker exec tsx --env-file=../../.env scripts/regen-job-metadata.ts <jobId>
- */
+/** Rewrite clip metadata for a job that still has Drive media then park ready_to_upload. */
 import { spawnSync } from 'node:child_process'
 
 import { createClient } from '@supabase/supabase-js'

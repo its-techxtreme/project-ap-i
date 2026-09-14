@@ -119,11 +119,7 @@ async function launchPersistentContextRaw(
   }
 }
 
-/**
- * Run work inside a locked persistent Chrome profile.
- * The profile lock is held for the entire session (launch → work → close)
- * so concurrent jobs cannot collide on the same user-data-dir.
- */
+/** Locked Chrome profile for the whole launch → work → close so two jobs dont share a user-data-dir. */
 export async function withAuthenticatedContext<T>(
   profilePath: string,
   fn: (context: BrowserContext) => Promise<T>,
@@ -139,10 +135,7 @@ export async function withAuthenticatedContext<T>(
   })
 }
 
-/**
- * @deprecated Prefer withAuthenticatedContext so the profile lock covers the full session.
- * Kept for callers that manage close themselves — still serializes launch only.
- */
+/** Old helper. Prefer withAuthenticatedContext so the lock lasts the whole session. This one only serializes launch. */
 export async function launchAuthenticatedContext(
   profilePath: string,
   overrides?: { headless?: boolean },

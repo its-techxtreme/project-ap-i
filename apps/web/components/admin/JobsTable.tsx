@@ -187,7 +187,7 @@ export function JobsTable({ jobs }: { jobs: JobListRow[] }) {
     return (
       <>
         <AdminAutoRefresh paused={dialogOpen || busy} />
-        <div className="desk-panel rounded-md border border-dashed border-border/80 px-4 py-10 text-center text-sm text-muted-foreground">
+        <div className="pn rounded-md border border-dashed border-border/80 px-4 py-10 text-center text-sm text-muted-foreground">
           No jobs yet.
         </div>
       </>
@@ -201,7 +201,7 @@ export function JobsTable({ jobs }: { jobs: JobListRow[] }) {
         <p className="notice-warn mb-3 rounded-md border px-3 py-2 text-sm">{actionMessage}</p>
       ) : null}
 
-      <div className="desk-panel overflow-hidden rounded-md border border-border/80">
+      <div className="pn">
         <div className="overflow-x-auto">
           <table className="w-full min-w-[920px] text-left text-sm">
             <thead className="border-b border-border/70 bg-muted/35 font-mono text-[10px] uppercase tracking-[0.1em] text-muted-foreground">

@@ -1,11 +1,4 @@
-/**
- * One-off ops: delete Drive staging files for terminal/archive jobs that still
- * have drive_file_id and are not marked deleted. Skips active pipeline statuses.
- *
- * Usage (from apps/worker):
- *   node --env-file=../../.env --import tsx scripts/cleanup-leftover-drive.ts
- *   node --env-file=../../.env --import tsx scripts/cleanup-leftover-drive.ts --dry-run
- */
+/** Delete leftover Drive staging on terminal jobs. Skip anything still in the pipeline. --dry-run from apps/worker. */
 import { createClient } from '@supabase/supabase-js'
 
 import { deleteJobDriveFile } from '../src/jobs/driveDelete'

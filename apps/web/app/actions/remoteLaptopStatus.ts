@@ -6,10 +6,7 @@ import { supabaseAdmin } from '@/lib/supabase/admin'
 
 const HEARTBEAT_KEY = 'worker_heartbeat'
 
-/**
- * Read-only laptop presence for the admin topbar.
- * Uses Supabase heartbeat written by the local worker (never exposes worker URLs).
- */
+/** Topbar laptop light. Reads worker heartbeat in Supabase. Never a worker URL. */
 export async function getRemoteLaptopStatus(): Promise<RemoteLaptopStatus> {
   const role = await getUserRole()
   if (role !== 'admin' && role !== 'demo') {

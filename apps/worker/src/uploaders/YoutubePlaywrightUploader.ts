@@ -65,12 +65,7 @@ function toPublicYoutubeUrl(candidate: string | null | undefined): string | unde
   return normalizeYoutubeMediaUrl(candidate) ?? undefined
 }
 
-/**
- * Studio's upload flow is a modal dialog. Escape closes the *entire* upload
- * dialog (not just hashtag/suggestion popovers) — that was aborting metadata
- * mid-title. Click a dead corner of the scroll area — never #audience (Learn more
- * / help links live there and steal the navigation to the kids policy page).
- */
+/** Dont Escape — it kills the whole Studio dialog. Click a dead corner of the scroll area. Never #audience, Learn more lives there. */
 async function dismissYoutubeStudioOverlays(
   page: import('playwright').Page,
 ): Promise<void> {
@@ -161,10 +156,7 @@ async function waitForYoutubeDetailsSaved(page: import('playwright').Page): Prom
   await humanPause(300, 700)
 }
 
-/**
- * Click the NOT_MFK radio with a fixed point — humanClick's random coords can land on
- * "What is Made for Kids content?" and open help / collapse the dialog check.
- */
+/** Click the radio at a fixed pixel. Random clicks used to hit Learn more and nuke the dialog. */
 async function clickNotMadeForKidsRadio(page: import('playwright').Page): Promise<boolean> {
   for (const sel of KIDS_NOT_MADE_FOR_KIDS_SELECTORS) {
     const loc = page.locator(sel).first()
@@ -215,10 +207,7 @@ async function recoverFromKidsHelpPage(page: import('playwright').Page): Promise
   await humanPause(800, 1600)
 }
 
-/**
- * Select "No, it's not made for kids" via radio name only.
- * Never use text= selectors — they match help copy / Learn more and leave Studio.
- */
+/** Pick not-made-for-kids by radio name. text= matches the help copy and leaves Studio. */
 async function selectNotMadeForKids(
   page: import('playwright').Page,
   jobId: string,
@@ -276,11 +265,7 @@ async function selectNotMadeForKids(
   }
 }
 
-/**
- * Extract published video URL after Publish.
- * Studio often delays the share dialog; the video id usually appears first in the
- * Studio URL (`/video/<id>/…`), then in share anchors/inputs, then in page HTML.
- */
+/** After Publish grab the video URL. Studio URL usually has the id before the share dialog does. */
 async function captureYoutubeShareUrl(page: import('playwright').Page): Promise<string | undefined> {
   const fromPageUrl = toPublicYoutubeUrl(page.url())
   if (fromPageUrl) return fromPageUrl
@@ -386,10 +371,7 @@ function normalizeTitleForMatch(value: string): string {
     .trim()
 }
 
-/**
- * After Publish, Studio content list often has the new Short before the share dialog.
- * Match by youtube title and return a public youtu.be URL.
- */
+/** Content list often has the Short before share. Match title then youtu.be. */
 async function recoverYoutubeUrlFromStudioContent(
   page: import('playwright').Page,
   expectedTitle: string | undefined,

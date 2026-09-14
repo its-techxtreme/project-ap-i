@@ -1,8 +1,4 @@
-/**
- * Capture newest reel/post URL from an Instagram Playwright profile.
- * Usage (from apps/worker):
- *   pnpm exec tsx --env-file=../../.env scripts/capture-latest-ig-reel.ts <profilePath> [username]
- */
+/** Newest reel/post URL from an IG Playwright profile. */
 import { chromium } from 'playwright'
 
 import { normalizeInstagramMediaUrl } from '../src/uploaders/platformMediaIds'

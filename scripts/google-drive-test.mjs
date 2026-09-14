@@ -1,8 +1,4 @@
-/**
- * Verify Google Drive credentials (service account preferred, else OAuth refresh).
- *
- * Usage: node --env-file=.env scripts/google-drive-test.mjs
- */
+/** Check Drive creds. Service account first, else OAuth refresh. */
 import fs from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'

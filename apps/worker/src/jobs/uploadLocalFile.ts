@@ -12,10 +12,7 @@ export function needsLocalUploadFile(): boolean {
   )
 }
 
-/**
- * Downloads the staged Drive file for Playwright uploaders when real uploads are enabled.
- * Returns the local path and a cleanup callback.
- */
+/** Pull staged Drive file to disk for Playwright. Cleanup callback after. */
 export async function prepareLocalUploadFile(
   jobId: string,
   driveFileId: string,

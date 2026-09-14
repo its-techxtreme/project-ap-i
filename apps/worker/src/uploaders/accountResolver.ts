@@ -13,11 +13,7 @@ interface PlatformAccountRow {
   status: string
 }
 
-/**
- * Resolves the YouTube and Instagram accounts for a given niche.
- * Requires exactly one active account per platform.
- * Throws NICHE_ACCOUNT_MAPPING_INVALID if the mapping is missing or duplicated.
- */
+/** Exactly one active YT and one active IG for the niche. Else NICHE_ACCOUNT_MAPPING_INVALID. */
 export async function resolveNicheAccounts(nicheId: string): Promise<ResolvedAccounts> {
   const { data: accounts, error } = await supabaseAdmin
     .from('platform_accounts')

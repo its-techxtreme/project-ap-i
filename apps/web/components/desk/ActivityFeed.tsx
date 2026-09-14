@@ -15,7 +15,7 @@ export function ActivityFeed({
       <div
         className={cn(
           'px-4 py-8 text-center text-sm text-muted-foreground',
-          !embedded && 'desk-panel rounded-md border border-dashed border-border/70',
+          !embedded && 'pn border-dashed',
         )}
       >
         No recent pipeline events.
@@ -27,7 +27,7 @@ export function ActivityFeed({
     <ol
       className={cn(
         'divide-y divide-border/60 overflow-hidden',
-        !embedded && 'desk-panel rounded-md border border-border/80',
+        !embedded && 'pn',
       )}
     >
       {events.map((event, index) => {

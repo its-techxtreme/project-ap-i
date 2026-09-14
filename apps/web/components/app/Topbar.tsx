@@ -42,9 +42,8 @@ export function Topbar({
   }
 
   return (
-    <header className="desk-chrome border-b border-border/70 backdrop-blur-md">
-      {/* Primary row — never overlap brand / actions with the laptop signal */}
-      <div className="flex h-12 items-center gap-2 px-3 sm:h-14 sm:gap-3 sm:px-4 md:px-6">
+    <header className="tb">
+      <div className="tb-r">
         <div className="flex min-w-0 flex-1 items-center gap-2 sm:gap-3">
           <Link
             href="/admin"
@@ -106,8 +105,7 @@ export function Topbar({
         </div>
       </div>
 
-      {/* Narrow screens: laptop status (+ compact demo tour) on its own row */}
-      <div className="flex items-center gap-2 border-t border-border/50 px-3 py-1.5 lg:hidden sm:px-4">
+      <div className="tb-lo">
         <div className="min-w-0 flex-1">
           <RemoteLaptopSignal compact />
         </div>

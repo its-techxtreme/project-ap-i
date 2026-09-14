@@ -1,9 +1,6 @@
 import type { NicheSlug } from '@project-api/shared'
 
-/**
- * Niche brand hard-caption (c-text) burned onto YouTube uploads only when the
- * source reel has no existing burned-in captions.
- */
+/** Brand words burned on YT only when the reel has no c-text already. */
 export const YOUTUBE_BRAND_CTEXT: Record<NicheSlug, string> = {
   anime: 'ShonenSnaps',
   memes: 'CrackleCrumb',
@@ -17,10 +14,7 @@ export const YT_CTEXT_OPACITY_LOW = 0.2
 /** Full pulse cycle: 5s near high → smooth to low → 5s near low → smooth to high. */
 export const YT_CTEXT_PULSE_PERIOD_SECONDS = 10
 
-/**
- * Cosine alpha expression: 0.4 + 0.2*cos(2πt/10)
- * → t=0: 0.6, t=5: 0.2, t=10: 0.6 with uniform smooth transitions.
- */
+/** Cosine pulse 0.6 at t=0 then 0.2 at t=5 then back. */
 export function youtubeBrandAlphaExpression(): string {
   return `0.4+0.2*cos(2*PI*t/${YT_CTEXT_PULSE_PERIOD_SECONDS})`
 }
@@ -48,10 +42,7 @@ export interface ContentCrop {
   y: number
 }
 
-/**
- * Builds a drawtext filter that places niche brand c-text on the graphical
- * content area (using cropdetect bounds when available) with pulsing opacity.
- */
+/** drawtext on the graphical crop with pulsing opacity. */
 export function buildYoutubeBrandDrawtextFilter(opts: {
   label: string
   fontFile?: string

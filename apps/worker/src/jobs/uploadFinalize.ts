@@ -35,13 +35,7 @@ function resolveUploadFailureCode(
   return ERROR_CODES.YOUTUBE_UPLOAD_FAILED
 }
 
-/**
- * Applies the correct job status after an upload or retry-upload attempt.
- * Both platforms uploaded → awaiting_verification (full verify delay).
- * Partial success → awaiting_verification (short due — auto-retry failed side).
- * Login required → needs_manual_review.
- * Total failure → awaiting_verification (short due) so verify→retry can recover.
- */
+/** After upload/retry. Both ok → verify delay. Partial → short due for the failed side. Login → review. Total fail → short due so verify can retry. */
 export async function finalizeUploadStatus(
   jobId: string,
   youtubeStatus: UploadStatus,

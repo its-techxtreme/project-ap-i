@@ -1,7 +1,4 @@
-/**
- * Live smoke test against a running worker + Supabase.
- * Usage (from repo root): node --env-file=.env apps/worker/scripts/smoke-test.mjs [baseUrl]
- */
+/** Live smoke against a running worker + Supabase. */
 
 const baseUrl = process.argv[2] ?? process.env.WORKER_BASE_URL ?? 'http://localhost:3001'
 const token = process.env.WORKER_INTERNAL_TOKEN

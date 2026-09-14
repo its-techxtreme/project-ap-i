@@ -14,13 +14,7 @@ const MID_PIPELINE_STATUSES = [
   'ready_to_upload',
 ] as const
 
-/**
- * Recover jobs stuck mid-pipeline after worker crash/hang (not uploading —
- * that path is recoverStaleUploadingJobs).
- *
- * Clears locks and requeues so claim_next_job can pick them up again.
- * Jobs that thrash (failure_code already PIPELINE_STALE) escalate to failed.
- */
+/** Mid-pipeline stuck after crash (not uploading). Drop locks and requeue. If it already has PIPELINE_STALE, fail it. */
 export async function recoverStalePipelineJobs(workerId: string): Promise<number> {
   const staleMs = config.PIPELINE_STALE_THRESHOLD_MS
   const cutoff = new Date(Date.now() - staleMs).toISOString()

@@ -1,6 +1,4 @@
-/**
- * Admin session tokens — Edge-safe (Web Crypto), used by middleware + server actions.
- */
+/** Admin cookie. Web Crypto so Edge middleware can read it. */
 
 export const ADMIN_SESSION_COOKIE = 'api_admin_session'
 export const SESSION_TTL_SECONDS = 60 * 60 * 12 // 12 hours

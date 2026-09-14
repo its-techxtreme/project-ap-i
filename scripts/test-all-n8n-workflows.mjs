@@ -1,8 +1,4 @@
-/**
- * Import/setup/publish/test all Phase 12 n8n workflows.
- *
- * Usage: node scripts/test-all-n8n-workflows.mjs
- */
+/** Import setup publish and test the Phase 12 n8n workflows. */
 import { spawnSync } from 'node:child_process'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'

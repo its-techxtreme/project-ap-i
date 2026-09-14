@@ -15,11 +15,7 @@ function isInflightStatus(status: string | null | undefined): boolean {
   return status === 'uploading' || status === 'started'
 }
 
-/**
- * Recover jobs left in `uploading` after a worker crash/hang.
- * Fails stale in-flight platform attempts, clears locks, and finalizes so
- * verify/retry can resume (especially YT-done / IG-stuck cases).
- */
+/** Jobs left in uploading after a crash. Fail stale attempts, drop locks, let verify/retry pick up (YT done IG stuck especially). */
 export async function recoverStaleUploadingJobs(workerId: string): Promise<number> {
   const staleMs = config.UPLOAD_STALE_THRESHOLD_MS
   const cutoff = new Date(Date.now() - staleMs).toISOString()

@@ -165,22 +165,7 @@ describe('db schema — migration files (static)', () => {
 })
 
 
-/**
- * Integration tests require a live Supabase/Postgres database.
- * Run manually after `supabase db reset` or apply migrations via Supabase MCP:
- *
- * 1. Fresh migration on empty DB completes without error
- * 2. seed.sql inserts exactly 3 niches (memes, anime, sports)
- * 3. INSERT niche slug 'gaming' fails CHECK constraint
- * 4. INSERT job with rights_confirmed = false fails CHECK constraint
- * 5. Valid job insert succeeds
- * 6. Two active platform_accounts for same niche/platform rejected by unique index
- * 7. claim_next_job returns one job with status = 'locked'
- * 8. Concurrent claim_next_job returns different jobs
- * 9. Submitter auth context cannot read platform_accounts
- * 10. Admin auth context can read all jobs
- * 11. Submitter can insert job with target_youtube_account_id in schema but server must strip it
- */
+/** Skipped live-db checklist. Run after supabase db reset. Niches, rights check, claim, rls. */
 describe.skip('db schema — integration (requires Supabase)', () => {
   it('fresh migration and seed complete without error', () => {
     expect(true).toBe(true)

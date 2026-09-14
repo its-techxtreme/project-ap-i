@@ -48,10 +48,7 @@ export async function readYtDlpSourceInfo(tempDir: string): Promise<{
   }
 }
 
-/**
- * Best text to rephrase for social metadata:
- * prefer description/caption, else title.
- */
+/** Caption for the rewriter. Description first, else title. */
 export function pickSourceCaptionText(info: {
   title?: string
   description?: string

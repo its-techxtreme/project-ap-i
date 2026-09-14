@@ -1,8 +1,4 @@
-/**
- * Seed one real queued job for unattended smoke (agency-owned short URL).
- * Usage:
- *   node --env-file=.env scripts/seed-smoke-job.mjs --url "https://www.instagram.com/reel/..." --niche anime
- */
+/** One real queued job for unattended smoke. Agency-owned short URL. */
 import { loadEnvFile, requireEnv } from './lib/env.mjs'
 
 const env = loadEnvFile()

@@ -2,11 +2,6 @@ import { z } from 'zod'
 import { NICHE_SLUGS, PLATFORMS } from './constants'
 import { validateSourceUrl } from './urls'
 
-/**
- * Zod schema for the job submission form.
- * Used by both frontend (client-side) and Vercel server action (server-side).
- * The server MUST re-validate with this schema even if frontend already validated.
- */
 export const SubmitJobSchema = z
   .object({
     sourceUrl: z
@@ -31,9 +26,6 @@ export const SubmitJobSchema = z
 
 export type SubmitJobInput = z.infer<typeof SubmitJobSchema>
 
-/**
- * Schema for the worker job claim response.
- */
 export const WorkerClaimedJobSchema = z.object({
   id: z.string().uuid(),
   sourceUrl: z.string().url(),
@@ -48,8 +40,4 @@ export const WorkerClaimedJobSchema = z.object({
 
 export type WorkerClaimedJob = z.infer<typeof WorkerClaimedJobSchema>
 
-/**
- * Schema for niche slug validation.
- * Use this when validating niche slugs from the database or config.
- */
 export const NicheSlugSchema = z.enum(NICHE_SLUGS)

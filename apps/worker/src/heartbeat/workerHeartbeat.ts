@@ -95,14 +95,7 @@ async function writeHeartbeat(ok: boolean, driveOk: boolean): Promise<void> {
   }
 }
 
-/**
- * Periodically upserts laptop presence into system_settings so the hosted
- * admin dashboard can show Remote Laptop online/offline without reaching
- * the private worker URL from the browser.
- *
- * Also syncs Chart room ops keys from the live worker config so the dashboard
- * reflects VERIFY_DELAY_MINUTES / BGM volume / upload flags actually in use.
- */
+/** Ping system_settings so hosted admin can show laptop online without hitting the private worker URL. Also copies chart ops keys from live config. */
 export function startWorkerHeartbeat(): () => void {
   if (config.NODE_ENV === 'test') {
     return () => undefined

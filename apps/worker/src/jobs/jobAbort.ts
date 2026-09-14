@@ -47,11 +47,7 @@ export async function assertJobNotAborted(jobId: string): Promise<void> {
   }
 }
 
-/**
- * Worker-side abort for admin cancel/pause mid-flight.
- * Clears locks, fails in-flight upload attempts, leaves terminal status as-is
- * when admin already set cancelled/paused.
- */
+/** Admin cancel/pause while Chrome is mid-flight. Drop locks. If they already set cancelled/paused leave that. */
 export async function abortJobLocally(jobId: string, workerId: string): Promise<void> {
   const job = await getJobById(jobId)
   if (!job) {

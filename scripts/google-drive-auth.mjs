@@ -1,16 +1,4 @@
-/**
- * One-time OAuth helper to obtain GOOGLE_DRIVE_REFRESH_TOKEN.
- * Requires GOOGLE_DRIVE_CLIENT_ID and GOOGLE_DRIVE_CLIENT_SECRET in .env.
- *
- * Usage:
- *   node --env-file=.env scripts/google-drive-auth.mjs
- *   node --env-file=.env scripts/google-drive-auth.mjs --code=PASTE_CODE
- *   node --env-file=.env scripts/google-drive-auth.mjs --url="http://127.0.0.1:53682/oauth2callback?code=...&state=..."
- *
- * Port 53682 is often blocked on Windows (Hyper-V excluded range). When the
- * callback listener cannot bind, open the auth URL, approve access, then paste
- * the full redirect URL (or just the code= value) from the browser address bar.
- */
+/** One-time Drive refresh token. If 53682 wont bind on Windows Hyper-V, open the url then paste the redirect or code=. */
 import crypto from 'node:crypto'
 import fs from 'node:fs'
 import http from 'node:http'

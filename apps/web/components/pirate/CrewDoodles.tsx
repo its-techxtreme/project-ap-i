@@ -41,12 +41,7 @@ type CrewDoodlesProps = {
   className?: string
 }
 
-/**
- * Anchored crew frame:
- * - stretch + blades flank the title row
- * - doctor sits on the form’s top-right corner
- * - navigator + cook guard the form’s lower sides
- */
+/** Title flanked by stretch+blades. Doctor on the form corner. Navigator and cook on the lower sides. */
 export function CrewDoodles({ hero, form, className }: CrewDoodlesProps) {
   return (
     <div className={cn('relative mx-auto w-full max-w-xl', className)}>

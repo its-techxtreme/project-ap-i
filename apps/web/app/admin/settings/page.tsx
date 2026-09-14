@@ -47,7 +47,7 @@ export default async function AdminSettingsPage() {
         }
       />
 
-      <div className="desk-panel overflow-hidden rounded-md border border-border/80">
+      <div className="pn">
         <table className="w-full text-left text-sm">
           <thead className="border-b border-border/70 bg-muted/35 font-mono text-[10px] uppercase tracking-[0.1em] text-muted-foreground">
             <tr>

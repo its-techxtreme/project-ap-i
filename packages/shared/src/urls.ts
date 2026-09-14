@@ -12,9 +12,7 @@ export type UrlErrorCode =
   | 'PRIVATE_IP'
   | 'LOCALHOST'
 
-/**
- * Private IP ranges to reject (SSRF protection).
- */
+// loopback / rfc1918 / link-local — do not fetch these
 const PRIVATE_IP_PATTERNS = [
   /^127\./,
   /^10\./,
@@ -27,9 +25,6 @@ const PRIVATE_IP_PATTERNS = [
   /^fe[89ab][0-9a-f]:/i,
 ]
 
-/**
- * Reject hostnames that resolve to local/internal addresses.
- */
 function isPrivateOrLocalhost(hostname: string): boolean {
   const lower = hostname.toLowerCase()
   if (lower === 'localhost') return true
@@ -37,11 +32,6 @@ function isPrivateOrLocalhost(hostname: string): boolean {
   return false
 }
 
-/**
- * Normalizes and validates a submitted source URL.
- * Rejects: empty, malformed, non-HTTPS, private IPs, localhost, unsupported domains.
- * Returns the normalized URL on success.
- */
 export function validateSourceUrl(raw: string): UrlValidationResult {
   if (!raw || raw.trim() === '') {
     return { valid: false, error: 'URL is required.', code: 'EMPTY_URL' }
@@ -88,10 +78,6 @@ export function validateSourceUrl(raw: string): UrlValidationResult {
   }
 }
 
-/**
- * Auto-detects the source platform from a validated URL hostname.
- * Returns null if detection is not possible (caller should reject or ask user).
- */
 export function detectPlatform(rawUrl: string): Platform | null {
   let url: URL
   try {

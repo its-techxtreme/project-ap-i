@@ -51,10 +51,7 @@ export async function humanClick(page: Page, locator: Locator): Promise<void> {
   await humanPause(500, 1400)
 }
 
-/**
- * Type into a textarea, input, or contenteditable (Studio / IG caption).
- * One pass only. An old fallback typed the whole string again and doubled captions.
- */
+/** Type caption once. Old fallback typed the whole string again and doubled it. */
 export async function humanType(
   locator: Locator,
   text: string,

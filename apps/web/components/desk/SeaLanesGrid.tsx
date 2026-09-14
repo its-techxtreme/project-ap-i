@@ -1,6 +1,5 @@
 import { StatusBadge } from '@/components/app/StatusBadge'
 import type { NicheMappingRow, PlatformAccountCard } from '@/lib/data/adminQueries'
-import { cn } from '@/lib/utils'
 
 function PlatformCard({
   platform,
@@ -26,13 +25,8 @@ function PlatformCard({
   const initial = (name || handle || label).slice(0, 1).toUpperCase()
 
   return (
-    <article
-      className={cn(
-        'flex gap-3 rounded-md border border-border/70 bg-card/55 p-3',
-        'transition-colors hover:border-primary/35',
-      )}
-    >
-      <div className="relative size-14 shrink-0 overflow-hidden rounded-full border border-border/60 bg-muted/40">
+    <article className="ac">
+      <div className="av">
         {account.avatar_url ? (
           <img
             src={account.avatar_url}
@@ -100,7 +94,7 @@ export function SeaLanesGrid({
       {niches.map((niche) => (
         <section
           key={niche.id}
-          className="desk-panel space-y-3 rounded-md border border-border/80 p-4"
+        className="pn space-y-3 p-4"
           data-tutorial="sea-lane"
         >
           <header className="flex flex-wrap items-end justify-between gap-2 border-b border-border/60 pb-3">
@@ -126,7 +120,7 @@ export function SeaLanesGrid({
         </section>
       ))}
       {collector ? (
-        <section className="desk-panel space-y-3 rounded-md border border-border/80 p-4">
+        <section className="pn space-y-3 p-4">
           <header className="flex flex-wrap items-end justify-between gap-2 border-b border-border/60 pb-3">
             <div>
               <p className="font-mono text-[10px] uppercase tracking-[0.14em] text-muted-foreground">

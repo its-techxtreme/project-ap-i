@@ -1,7 +1,4 @@
-/**
- * Timing-safe token comparison to prevent timing attacks.
- * Length is checked before byte comparison (see auth tests).
- */
+/** same length first so we dont leak token size in time */
 export function timingSafeEqual(a: Buffer, b: Buffer): boolean {
   if (a.length !== b.length) return false
   let diff = 0

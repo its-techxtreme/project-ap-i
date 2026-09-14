@@ -1,13 +1,4 @@
-/**
- * Export live n8n workflows into portable, credential-free JSON files.
- *
- * Writes to infra/n8n/workflows/. Strips credential IDs, instance workflow IDs,
- * pinData, and other host-specific fields. Keeps credential *names* and
- * cachedResultName so `pnpm n8n:setup` can re-wire a fresh instance.
- *
- * Usage: node --env-file=.env scripts/export-n8n-workflows.mjs
- *    or: pnpm n8n:export
- */
+/** Dump live n8n workflows to infra/n8n/workflows without credential ids. Keep names so n8n:setup can rewire. */
 import fs from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'

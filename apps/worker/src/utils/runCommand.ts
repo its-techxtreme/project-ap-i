@@ -8,10 +8,7 @@ export interface RunCommandResult {
   exitCode: number | null
 }
 
-/**
- * Spawn a CLI tool without execa.
- * Avoids tsx + unicorn-magic "exports" resolution failures on Node 22/24.
- */
+/** Spawn a CLI without execa. tsx + unicorn-magic blows up on Node 22/24 exports. */
 export async function runCommand(
   file: string,
   args: string[],

@@ -17,13 +17,10 @@ export function DeskPanel({
 }) {
   return (
     <section
-      className={cn(
-        'desk-panel overflow-hidden rounded-md border border-border/80',
-        className,
-      )}
+      className={cn('pn', className)}
     >
       {title || eyebrow || action ? (
-        <header className="flex items-center justify-between gap-2 border-b border-border/60 px-3.5 py-2.5">
+        <header className="pn-hd">
           <div>
             {eyebrow ? (
               <p className="font-mono text-[10px] uppercase tracking-[0.14em] text-muted-foreground">

@@ -98,7 +98,7 @@ export function MetricTileGrid({ summary }: { summary: JobSummary }) {
             >
               {value}
             </p>
-            <div className="mt-3 h-1 overflow-hidden rounded-full bg-muted/70" aria-hidden>
+            <div className="bar" aria-hidden>
               <div
                 className={cn('h-full rounded-full bg-gradient-to-r to-transparent', tile.accent)}
                 style={{ width: `${fill}%`, opacity: value === 0 ? 0.25 : 0.9 }}
@@ -107,11 +107,7 @@ export function MetricTileGrid({ summary }: { summary: JobSummary }) {
           </>
         )
 
-        const className = cn(
-          'desk-tile relative overflow-hidden rounded-md border border-border/80 px-3.5 py-3 transition-colors',
-          'hover:border-primary/40',
-          hot && 'border-destructive/35 bg-destructive/[0.04]',
-        )
+        const className = cn('tl', hot && 'tl-hot')
 
         if (tile.href) {
           return (

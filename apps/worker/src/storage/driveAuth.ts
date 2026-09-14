@@ -142,10 +142,7 @@ export function createDriveApiClient(): drive_v3.Drive {
   return google.drive({ version: 'v3', auth })
 }
 
-/**
- * Cheap Drive check (token refresh / about.get).
- * Cached so a dead token does not hammer Google or stall the queue.
- */
+/** Cheap Drive ping. Cached so a dead token does not hammer Google or stall the queue. */
 export async function probeDriveAuth(force = false): Promise<DriveAuthProbe> {
   if (!force && cachedProbe && cacheStillValid(cachedProbe)) {
     return cachedProbe

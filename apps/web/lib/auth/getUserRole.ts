@@ -3,10 +3,7 @@ import { createClient } from '@/lib/supabase/server'
 
 export type AppRole = 'submitter' | 'admin' | 'demo'
 
-/**
- * Returns the effective role for the current request.
- * Env-based dashboard sessions are the admin/demo path.
- */
+/** Username cookie first. Supabase profile is leftover submitter path. */
 export async function getUserRole(): Promise<AppRole | null> {
   const session = await getAdminSession()
   if (session?.role === 'admin') return 'admin'

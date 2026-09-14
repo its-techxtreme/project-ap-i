@@ -1,17 +1,4 @@
-/**
- * Safe logon autostart for Project AP-I local stack.
- *
- * - Runs as the logged-in user only (never SYSTEM / never elevated by this script)
- * - Waits for Docker Engine (does not force-kill unrelated apps)
- * - Starts Docker Desktop if needed (user-level launch only)
- * - Calls existing stack-up (n8n + native worker) once Docker is ready
- * - Skips if worker health is already OK (no duplicate workers)
- * - Logs to .stack-autostart.log without printing secrets
- *
- * Usage:
- *   node scripts/stack-autostart.mjs
- *   pnpm stack:autostart
- */
+/** Logon autostart for this user only. Wait for Docker, then stack-up. Skip if worker health is already ok. Log to .stack-autostart.log no secrets. */
 import { spawn, execSync } from 'node:child_process'
 import fs from 'node:fs'
 import path from 'node:path'

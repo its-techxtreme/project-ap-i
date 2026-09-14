@@ -9,9 +9,7 @@ export const METADATA_JSON_SCHEMA_HINT = `{
   "youtubeHashtags": ["#tag"]
 }`
 
-/**
- * Shared system instruction for Gemini / Groq / OpenRouter metadata writers.
- */
+/** System text for Gemini/Groq/OpenRouter metadata writers. */
 export const METADATA_SYSTEM_PROMPT = `You write YouTube Shorts / Instagram Reels titles, descriptions, and captions for real creator accounts.
 
 Your only job is metadata about THIS video clip — what appears on screen, what the caption says, and the niche tone. You are not documenting software, pipelines, or publishing ops.
@@ -112,10 +110,7 @@ function fieldOrNotProvided(value: string | undefined, max = 4000): string {
   return `<<<UNTRUSTED_SOURCE_TEXT>>>\n${cleaned}\n<<<END_UNTRUSTED_SOURCE_TEXT>>>`
 }
 
-/**
- * Builds the per-request user prompt. Untrusted source text is delimited so it
- * cannot override the system instruction.
- */
+/** Per-job user prompt. Source text is fenced so it cannot override system rules. */
 export function buildMetadataUserPrompt(input: MetadataInput): string {
   const hasRichContext = Boolean(
     input.sourceTitle?.trim() || input.sourceDescription?.trim() || input.transcript?.trim(),
