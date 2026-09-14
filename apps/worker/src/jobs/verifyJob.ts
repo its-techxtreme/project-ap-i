@@ -10,7 +10,7 @@ import {
   hasPublishWithoutUrlFailure,
 } from './uploadIdempotency'
 
-const MAX_RETRY_COUNT = 2
+const MAX_RETRY_COUNT = 1
 
 type RetryOutcome = 'ok' | 'retry' | 'manual'
 

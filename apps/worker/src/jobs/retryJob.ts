@@ -234,6 +234,9 @@ async function retryJobInner(jobId: string, platform?: 'youtube' | 'instagram'):
               : latest?.instagram_upload_status,
         failure_code: ERROR_CODES.DAILY_UPLOAD_LIMIT_REACHED,
         failure_reason: err.message,
+        locked_by: null,
+        locked_at: null,
+        lock_expires_at: null,
       })
       await writeJobEvent(jobId, 'retry', 'daily_upload_limit_deferred', err.message, 'warning')
       return

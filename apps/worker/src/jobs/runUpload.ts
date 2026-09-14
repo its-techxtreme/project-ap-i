@@ -266,6 +266,9 @@ async function parkForDailyLimit(
         : job.instagram_upload_status,
     failure_code: ERROR_CODES.DAILY_UPLOAD_LIMIT_REACHED,
     failure_reason: message,
+    locked_by: null,
+    locked_at: null,
+    lock_expires_at: null,
   })
   await writeJobEvent(jobId, 'upload', 'daily_upload_limit_deferred', message, 'warning')
 }

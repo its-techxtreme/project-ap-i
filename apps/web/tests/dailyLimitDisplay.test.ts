@@ -28,4 +28,16 @@ describe('daily limit display', () => {
     expect(isActiveDailyUploadLimit(job, now)).toBe(true)
     expect(displayFailureReason(job, now)).toBe('Daily upload limit reached')
   })
+
+  it('hides Force after the job is paused', () => {
+    const now = Date.parse('2026-09-12T16:00:00.000Z')
+    const job = {
+      status: 'paused',
+      failure_code: 'DAILY_UPLOAD_LIMIT_REACHED',
+      failure_reason: 'Paused by admin (was ready_to_upload)',
+      updated_at: new Date(now - 3_600_000).toISOString(),
+    }
+    expect(isActiveDailyUploadLimit(job, now)).toBe(false)
+    expect(displayFailureReason(job, now)).toBe('Paused by admin (was ready_to_upload)')
+  })
 })

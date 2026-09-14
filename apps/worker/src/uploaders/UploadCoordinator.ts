@@ -6,6 +6,7 @@ import { supabaseAdmin } from '../db/supabaseAdmin'
 import { logger } from '../logging/logger'
 
 import { prepareYoutubeUploadVariant } from '../processors/prepareYoutubeUploadVariant'
+import { withFfmpegConcurrency } from '../jobs/ConcurrencyGuard'
 import { resolveNicheAccounts } from './accountResolver'
 import { isDailyUploadLimitError } from '../jobs/dailyUploadLimit'
 import { findSuccessfulUploadAttempt } from '../jobs/uploadIdempotency'
@@ -180,11 +181,14 @@ export class UploadCoordinator {
     // IG keeps the shared edit. YT can get niche brand text if the reel has no burned-in captions.
     let localFilePath = job.localFilePath
     if (platform === 'youtube' && job.localFilePath) {
-      const ytVariant = await prepareYoutubeUploadVariant({
-        jobId: job.id,
-        nicheSlug: job.nicheSlug,
-        sourcePath: job.localFilePath,
-      })
+      const sourcePath = job.localFilePath
+      const ytVariant = await withFfmpegConcurrency(() =>
+        prepareYoutubeUploadVariant({
+          jobId: job.id,
+          nicheSlug: job.nicheSlug,
+          sourcePath,
+        }),
+      )
       localFilePath = ytVariant.localFilePath
       logger.info({
         msg: 'YouTube upload file resolved',

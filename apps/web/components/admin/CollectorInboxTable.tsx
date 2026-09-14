@@ -61,8 +61,11 @@ export function CollectorInboxTable({
 
   if (items.length === 0) {
     return (
-      <div className="desk-panel rounded-md border border-border/80 px-4 py-8 text-sm text-muted-foreground">
-        No unsorted reels. Collector DMs with a niche word queue on their own.
+      <div className="space-y-3">
+        <AdminAutoRefresh />
+        <div className="desk-panel rounded-md border border-border/80 px-4 py-8 text-sm text-muted-foreground">
+          No unsorted reels. Collector DMs with a niche word queue on their own.
+        </div>
       </div>
     )
   }

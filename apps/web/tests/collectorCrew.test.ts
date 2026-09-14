@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 
 import {
+  collectorLoginRequired,
   collectorLoginFromHeartbeat,
   collectorProfileFromHeartbeat,
   parseCollectorLoginFlag,
@@ -21,5 +22,11 @@ describe('collector crew helpers', () => {
     expect(parseCollectorLoginFlag('true')).toBe(true)
     expect(parseCollectorLoginFlag(false)).toBe(false)
     expect(parseCollectorLoginFlag(null)).toBe(false)
+  })
+
+  it('ignores a stale heartbeat once the setting is false', () => {
+    const hb = { collector: { loginRequired: true, profile: 'ig-collector' } }
+    expect(collectorLoginRequired(false, hb, true)).toBe(false)
+    expect(collectorLoginRequired(undefined, hb, false)).toBe(true)
   })
 })

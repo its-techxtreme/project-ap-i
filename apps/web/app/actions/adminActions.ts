@@ -418,6 +418,7 @@ export async function pauseJob(jobId: string) {
     .update({
       status: 'paused',
       failure_reason: `Paused by admin (was ${job.status})`,
+      failure_code: null,
       locked_by: null,
       locked_at: null,
       lock_expires_at: null,
@@ -748,7 +749,7 @@ type AccountActionResult =
 
 async function updatePlatformAccountStatus(
   accountId: string,
-  next: { status: string; login_required: boolean },
+  next: { status: string; login_required?: boolean },
   auditAction: string,
   message: string,
 ): Promise<AccountActionResult> {
@@ -769,7 +770,9 @@ async function updatePlatformAccountStatus(
     .from('platform_accounts')
     .update({
       status: next.status,
-      login_required: next.login_required,
+      login_required:
+        next.login_required ??
+        (account.login_required === true || account.status === 'login_required'),
       updated_at: new Date().toISOString(),
     })
     .eq('id', accountId)
@@ -810,7 +813,7 @@ export async function markAccountLoginRecovered(accountId: string): Promise<Acco
 export async function pausePlatformAccount(accountId: string): Promise<AccountActionResult> {
   return updatePlatformAccountStatus(
     accountId,
-    { status: 'paused', login_required: false },
+    { status: 'paused' },
     'account_paused',
     'Account paused.',
   )

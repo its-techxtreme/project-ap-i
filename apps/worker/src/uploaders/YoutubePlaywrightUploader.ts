@@ -6,6 +6,7 @@ import { config } from '../config'
 
 import { detectLoginOrChallenge } from './loginChallengeDetection'
 import { withAuthenticatedContext } from './playwrightContext'
+import { isCollectorBrowserProfile } from './collectorProfileGuard'
 import { isPlaywrightProfileBusyError } from './playwrightProfileLock'
 import {
   clickFirstVisible,
@@ -462,6 +463,13 @@ export class YoutubePlaywrightUploader implements PlatformUploader {
       return loginRequiredResult(
         'YOUTUBE_LOGIN_REQUIRED',
         'No browser profile configured for this YouTube account.',
+      )
+    }
+
+    if (isCollectorBrowserProfile(profilePath)) {
+      return loginRequiredResult(
+        'YOUTUBE_LOGIN_REQUIRED',
+        'Refusing to upload from the collector Playwright profile.',
       )
     }
 

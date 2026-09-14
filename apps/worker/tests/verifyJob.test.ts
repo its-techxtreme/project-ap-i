@@ -263,7 +263,7 @@ describe('verifyJob', () => {
     const job = mockJob({
       youtube_upload_status: 'retry_scheduled',
       instagram_upload_status: 'uploaded',
-      youtube_retry_count: 1,
+      youtube_retry_count: 0,
     })
     vi.mocked(getJobById).mockResolvedValue(job)
 
@@ -273,7 +273,7 @@ describe('verifyJob', () => {
       'job-test-1',
       'ready_to_upload',
       expect.objectContaining({
-        youtube_retry_count: 2,
+        youtube_retry_count: 1,
         youtube_upload_status: 'retry_scheduled',
       }),
     )

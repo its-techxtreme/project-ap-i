@@ -78,6 +78,7 @@ export async function persistCollectorLoginRequired(loginRequired: boolean): Pro
 
 export function collectorMayRun(control: CollectorControl): { ok: true } | { ok: false; reason: string } {
   if (control.unavailable) return { ok: false, reason: 'Collector settings could not be read' }
+  if (control.loginRequired) return { ok: false, reason: 'Collector login required' }
   if (!control.armed) return { ok: false, reason: 'Collector switch is off' }
   if (collectorRunsRemaining(control.daily) <= 0) {
     return {

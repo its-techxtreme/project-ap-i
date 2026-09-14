@@ -16,9 +16,11 @@ export function isActiveDailyUploadLimit(
     failure_code?: string | null
     failure_reason?: string | null
     updated_at?: string | null
+    status?: string | null
   },
   nowMs = Date.now(),
 ): boolean {
+  if (job.status === 'paused') return false
   if (!looksLikeDailyUploadLimit(job)) return false
   const stamp = job.updated_at ? Date.parse(job.updated_at) : Number.NaN
   if (!Number.isFinite(stamp)) return true
@@ -30,10 +32,12 @@ export function displayFailureReason(
     failure_code?: string | null
     failure_reason?: string | null
     updated_at?: string | null
+    status?: string | null
   },
   nowMs = Date.now(),
 ): string | null {
   if (!job.failure_reason) return null
+  if (job.status === 'paused') return job.failure_reason
   if (looksLikeDailyUploadLimit(job) && !isActiveDailyUploadLimit(job, nowMs)) return null
   return job.failure_reason
 }

@@ -7,6 +7,7 @@ import { logger } from '../logging/logger'
 import { detectLoginOrChallenge } from './loginChallengeDetection'
 import { isRealPlatformMediaId, normalizeInstagramMediaUrl } from './platformMediaIds'
 import { withAuthenticatedContext } from './playwrightContext'
+import { isCollectorBrowserProfile } from './collectorProfileGuard'
 import { isPlaywrightProfileBusyError } from './playwrightProfileLock'
 import {
   clickFirstVisible,
@@ -293,6 +294,13 @@ export class InstagramPlaywrightUploader implements PlatformUploader {
       return loginRequiredResult(
         'INSTAGRAM_LOGIN_REQUIRED',
         'No browser profile configured for this Instagram account.',
+      )
+    }
+
+    if (isCollectorBrowserProfile(profilePath)) {
+      return loginRequiredResult(
+        'INSTAGRAM_LOGIN_REQUIRED',
+        'Refusing to upload from the collector Playwright profile.',
       )
     }
 

@@ -1,9 +1,8 @@
 import {
   COLLECTOR_CREW_ACCOUNT_ID,
   COLLECTOR_LOGIN_SETTING_KEY,
-  collectorLoginFromHeartbeat,
+  collectorLoginRequired,
   collectorProfileFromHeartbeat,
-  parseCollectorLoginFlag,
 } from '@/lib/admin/collectorCrew'
 import { endOfDayIso, sanitizePartialUuid } from '@/lib/format/dateFilters'
 import { formatRelativeTime } from '@/lib/format/relativeTime'
@@ -38,8 +37,11 @@ async function loadCollectorCrewState(): Promise<{ loginRequired: boolean; profi
   const map = new Map(data.map((row) => [row.key, row.value]))
   const hb = map.get('worker_heartbeat')
   return {
-    loginRequired:
-      parseCollectorLoginFlag(map.get(COLLECTOR_LOGIN_SETTING_KEY)) || collectorLoginFromHeartbeat(hb),
+    loginRequired: collectorLoginRequired(
+      map.get(COLLECTOR_LOGIN_SETTING_KEY),
+      hb,
+      map.has(COLLECTOR_LOGIN_SETTING_KEY),
+    ),
     profilePath: collectorProfileFromHeartbeat(hb),
   }
 }
@@ -457,7 +459,7 @@ export async function getPlatformAccounts(): Promise<PlatformAccountRow[]> {
       platform: row.platform,
       account_label: row.account_label,
       status: row.status,
-      login_required: row.login_required,
+      login_required: row.login_required === true || row.status === 'login_required',
       last_successful_upload_at: row.last_successful_upload_at,
       last_successful_upload_label: row.last_successful_upload_at
         ? formatRelativeTime(row.last_successful_upload_at)

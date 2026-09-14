@@ -1,5 +1,6 @@
 import type { DbJobRow } from '../db/jobsRepo'
 import { claimNextJob, updateJobStatus, writeJobEvent } from '../db/jobsRepo'
+import { ERROR_CODES, ProjectApiError } from '@project-api/shared'
 import { supabaseAdmin } from '../db/supabaseAdmin'
 import { config } from '../config'
 import { logger } from '../logging/logger'
@@ -140,7 +141,25 @@ export async function claimJob(workerId: string): Promise<DbJobRow | null> {
         }
       }
     } catch (err) {
-      // Account mapping errors should not leave the job locked forever.
+      if (
+        err instanceof ProjectApiError &&
+        (err.code === ERROR_CODES.NICHE_ACCOUNT_MAPPING_INVALID ||
+          err.code === ERROR_CODES.NICHE_ACCOUNT_NOT_FOUND)
+      ) {
+        logger.warn({
+          msg: 'Claim parked for manual review — niche account mapping invalid',
+          jobId: job.id,
+          err: err.message,
+        })
+        await updateJobStatus(job.id, 'needs_manual_review', {
+          locked_by: null,
+          locked_at: null,
+          lock_expires_at: null,
+          failure_code: err.code,
+          failure_reason: err.message,
+        })
+        continue
+      }
       logger.warn({
         msg: 'Daily limit check failed during claim — releasing to queued',
         jobId: job.id,

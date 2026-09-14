@@ -185,9 +185,12 @@ export function JobsTable({ jobs }: { jobs: JobListRow[] }) {
 
   if (jobs.length === 0) {
     return (
-      <div className="desk-panel rounded-md border border-dashed border-border/80 px-4 py-10 text-center text-sm text-muted-foreground">
-        No jobs yet.
-      </div>
+      <>
+        <AdminAutoRefresh paused={dialogOpen || busy} />
+        <div className="desk-panel rounded-md border border-dashed border-border/80 px-4 py-10 text-center text-sm text-muted-foreground">
+          No jobs yet.
+        </div>
+      </>
     )
   }
 

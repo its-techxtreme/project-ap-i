@@ -25,3 +25,13 @@ export function collectorLoginFromHeartbeat(value: unknown): boolean {
   if (!collector || typeof collector !== 'object') return false
   return (collector as { loginRequired?: unknown }).loginRequired === true
 }
+
+/** Setting wins after Mark Login Recovered so a stale heartbeat cannot keep the row red. */
+export function collectorLoginRequired(
+  setting: unknown,
+  heartbeat: unknown,
+  settingPresent: boolean,
+): boolean {
+  if (settingPresent) return parseCollectorLoginFlag(setting)
+  return collectorLoginFromHeartbeat(heartbeat)
+}

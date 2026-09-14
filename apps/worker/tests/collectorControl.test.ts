@@ -21,4 +21,14 @@ describe('collectorMayRun', () => {
       }),
     ).toEqual({ ok: false, reason: 'Collector switch is off' })
   })
+
+  it('skips when collector login is required', () => {
+    expect(
+      collectorMayRun({
+        armed: true,
+        daily: { day: '2026-09-12', runs: [] },
+        loginRequired: true,
+      }),
+    ).toEqual({ ok: false, reason: 'Collector login required' })
+  })
 })

@@ -1,6 +1,8 @@
 import fs from 'node:fs/promises'
 import path from 'node:path'
 
+import { ERROR_CODES, ProjectApiError } from '@project-api/shared'
+
 import { logger } from '../logging/logger'
 import { runCommand } from '../utils/runCommand'
 import { writeJobEvent } from '../db/jobsRepo'
@@ -149,7 +151,7 @@ export async function prepareYoutubeUploadVariant(opts: {
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err)
     logger.error({
-      msg: 'YouTube brand c-text overlay failed — falling back to shared edit export',
+      msg: 'YouTube brand c-text overlay failed',
       jobId,
       error: message,
     })
@@ -157,16 +159,14 @@ export async function prepareYoutubeUploadVariant(opts: {
       jobId,
       'upload',
       'youtube_brand_ctext_failed',
-      `Brand c-text overlay failed; uploading shared export to YouTube. ${message.slice(0, 240)}`,
-      'warning',
+      `Brand c-text overlay failed. ${message.slice(0, 240)}`,
+      'error',
       { label, error: message.slice(0, 500) },
     )
-    // Brand overlay failed. Still upload the shared file so YT/IG are not blocked.
-    return {
-      localFilePath: sourcePath,
-      brandOverlayApplied: false,
-      detectionReason: `Overlay failed, using shared export: ${message.slice(0, 200)}`,
-    }
+    throw new ProjectApiError(
+      ERROR_CODES.FFMPEG_FAILED,
+      `YouTube brand overlay failed: ${message.slice(0, 240)}`,
+    )
   }
 
   await writeJobEvent(
